@@ -1,0 +1,22 @@
+framework:
+    messenger:
+        failure_transport: failed
+
+        transports:
+            # https://symfony.com/doc/current/messenger.html#transport-configuration
+            async: '%env(MESSENGER_TRANSPORT_DSN)%'
+            failed: 'doctrine://default?queue_name=failed'
+
+        routing:
+            App\Message\ProcessImportBatchMessage: async
+            App\Message\EnrichMovieMessage: async
+            # SyncLetterboxdRssMessage is dispatched by a Symfony Scheduler #[AsSchedule]
+            # provider once RSS sync ships (iteration 5) — not wired to a transport yet.
+
+# when@test:
+#    framework:
+#        messenger:
+#            transports:
+#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
+#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
+#                async: 'in-memory://'
