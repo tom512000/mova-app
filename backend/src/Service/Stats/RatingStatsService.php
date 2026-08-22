@@ -23,18 +23,22 @@ final class RatingStatsService
                 ->fetchAllAssociative()
         );
 
+        // PHP silently casts float array keys to int (0.5 => 0, 3.5 => 3, ...), which
+        // collapsed every half-star bucket into the whole-star one below it. Using a
+        // fixed-precision string key keeps all 10 buckets (0.5 to 5.0) distinct.
         $counts = [];
         for ($step = 1; $step <= 10; ++$step) {
-            $counts[$step / 2] = 0;
+            $counts[number_format($step / 2, 1)] = 0;
         }
         foreach ($ratings as $rating) {
-            $counts[$rating] = ($counts[$rating] ?? 0) + 1;
+            $key = number_format($rating, 1);
+            $counts[$key] = ($counts[$key] ?? 0) + 1;
         }
-        ksort($counts);
+        ksort($counts, SORT_NUMERIC);
 
         $distribution = [];
         foreach ($counts as $rating => $count) {
-            $distribution[] = ['rating' => $rating, 'count' => $count];
+            $distribution[] = ['rating' => (float) $rating, 'count' => $count];
         }
 
         return new RatingStatsDto(
