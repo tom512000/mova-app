@@ -6,6 +6,8 @@ import { MovieCard } from '@/components/MovieCard'
 import { SkeletonGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
+import { Button, buttonVariants } from '@/components/ui/Button'
+import { cn } from '@/utils/cn'
 
 export function WatchlistPage() {
   const [search, setSearch] = useState('')
@@ -19,11 +21,11 @@ export function WatchlistPage() {
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-center justify-between gap-4">
+    <div className="flex flex-col gap-8">
+      <div className="flex flex-col gap-4 border-b-4 border-ink pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Watchlist</h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">
+          <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">Watchlist</h1>
+          <p className="mt-2 font-mono text-xs uppercase tracking-widest text-subtle">
             {data ? `${data.total} film${data.total > 1 ? 's' : ''} à voir` : ''}
           </p>
         </div>
@@ -34,7 +36,7 @@ export function WatchlistPage() {
             setPage(1)
           }}
           placeholder="Rechercher un titre..."
-          className="w-64 rounded-lg border border-neutral-300 bg-white px-3 py-2 text-sm focus:border-neutral-500 focus:outline-none dark:border-neutral-700 dark:bg-neutral-900"
+          className="w-full border-b-2 border-ink bg-transparent px-1 py-2 font-mono text-sm focus-visible:bg-surface focus-visible:outline-none sm:w-72"
         />
       </div>
 
@@ -46,7 +48,7 @@ export function WatchlistPage() {
           title="Watchlist vide"
           description="Aucun film ne correspond, ou ta watchlist Letterboxd n'a pas encore été importée."
           action={
-            <Link to="/import" className="mt-2 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900">
+            <Link to="/import" className={cn(buttonVariants({ variant: 'primary' }), 'mt-2')}>
               Importer mes données
             </Link>
           }
@@ -60,24 +62,16 @@ export function WatchlistPage() {
               <MovieCard key={movie.id} movie={movie} />
             ))}
           </div>
-          <div className="flex items-center justify-center gap-3 text-sm">
-            <button
-              disabled={page <= 1}
-              onClick={() => setPage((p) => p - 1)}
-              className="rounded-lg border border-neutral-300 px-3 py-1.5 disabled:opacity-40 dark:border-neutral-700"
-            >
+          <div className="flex items-center justify-center gap-4">
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
               Précédent
-            </button>
-            <span className="text-neutral-500 dark:text-neutral-400">
+            </Button>
+            <span className="font-mono text-xs uppercase tracking-widest text-subtle">
               Page {page} / {totalPages}
             </span>
-            <button
-              disabled={page >= totalPages}
-              onClick={() => setPage((p) => p + 1)}
-              className="rounded-lg border border-neutral-300 px-3 py-1.5 disabled:opacity-40 dark:border-neutral-700"
-            >
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
               Suivant
-            </button>
+            </Button>
           </div>
         </>
       )}

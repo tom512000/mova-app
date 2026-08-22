@@ -1,9 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
+import { UploadCloud } from 'lucide-react'
 import { fetchImportBatches, uploadLetterboxdExport } from '@/services/importService'
 import { ImportBatchRow } from '@/components/ImportBatchRow'
 import { ErrorState } from '@/components/ErrorState'
 import type { ImportBatch } from '@/types/api'
+import { cn } from '@/utils/cn'
 
 export function ImportPage() {
   const [dragOver, setDragOver] = useState(false)
@@ -29,11 +31,11 @@ export function ImportPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Import Letterboxd</h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">
-          Dépose l'export .zip de ton compte Letterboxd (Réglages → Importer &amp; exporter), ou un fichier .csv individuel.
+    <div className="flex flex-col gap-8">
+      <div className="border-b-4 border-ink pb-6">
+        <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">Import</h1>
+        <p className="mt-2 max-w-xl font-body text-sm text-subtle">
+          Dépose l'export .zip de ton compte Letterboxd (Réglages &rarr; Importer &amp; exporter), ou un fichier .csv individuel.
         </p>
       </div>
 
@@ -49,33 +51,29 @@ export function ImportPage() {
           handleFile(e.dataTransfer.files[0])
         }}
         onClick={() => fileInputRef.current?.click()}
-        className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed p-12 text-center transition-colors ${
-          dragOver ? 'border-neutral-500 bg-neutral-100 dark:bg-neutral-800' : 'border-neutral-300 dark:border-neutral-700'
-        }`}
+        className={cn(
+          'flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed p-16 text-center transition-colors duration-200',
+          dragOver ? 'border-accent bg-accent/5' : 'border-ink/40 hover:border-ink'
+        )}
       >
-        <p className="font-medium">Glisse ton fichier ici, ou clique pour parcourir</p>
-        <p className="text-xs text-neutral-500 dark:text-neutral-400">Formats acceptés : .zip, .csv (max 100 Mo)</p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept=".zip,.csv"
-          className="hidden"
-          onChange={(e) => handleFile(e.target.files?.[0])}
-        />
+        <UploadCloud className="h-8 w-8 text-subtle" strokeWidth={1.5} />
+        <p className="font-serif text-lg font-bold">Glisse ton fichier ici, ou clique pour parcourir</p>
+        <p className="font-mono text-[11px] uppercase tracking-widest text-subtle">Formats acceptés : .zip, .csv (max 100 Mo)</p>
+        <input ref={fileInputRef} type="file" accept=".zip,.csv" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
       </div>
 
-      {upload.isPending && <p className="text-sm text-neutral-500">Envoi en cours...</p>}
+      {upload.isPending && <p className="font-mono text-xs uppercase tracking-widest text-subtle">Envoi en cours&hellip;</p>}
       {upload.isError && <ErrorState message={(upload.error as Error).message} />}
 
       {unsupported.length > 0 && (
-        <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-400">
+        <div className="border border-accent bg-accent/5 p-3 font-mono text-xs text-accent">
           Fichiers ignorés (pas encore pris en charge) : {unsupported.join(', ')}
         </div>
       )}
 
       {sessionBatches.length > 0 && (
         <section className="flex flex-col gap-3">
-          <h2 className="text-lg font-medium">Import en cours</h2>
+          <h2 className="font-serif text-2xl font-bold">Import en cours</h2>
           {sessionBatches.map((batch) => (
             <ImportBatchRow key={batch.id} initial={batch} />
           ))}
@@ -83,10 +81,8 @@ export function ImportPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="text-lg font-medium">Historique des imports</h2>
-        {history.data && history.data.length === 0 && (
-          <p className="text-sm text-neutral-500 dark:text-neutral-400">Aucun import pour l'instant.</p>
-        )}
+        <h2 className="font-serif text-2xl font-bold">Historique des imports</h2>
+        {history.data && history.data.length === 0 && <p className="text-sm text-subtle">Aucun import pour l'instant.</p>}
         {history.data?.map((batch) => <ImportBatchRow key={batch.id} initial={batch} />)}
       </section>
     </div>

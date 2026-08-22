@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { RatingDistributionPoint } from '@/types/api'
-import { CHART_COLORS, useIsDarkMode } from '@/charts/palette'
+import { CHART_COLORS, CHART_FONT_MONO, useIsDarkMode } from '@/charts/palette'
 
 export function RatingDistributionChart({ data }: { data: RatingDistributionPoint[] }) {
   const isDark = useIsDarkMode()
@@ -16,19 +16,19 @@ export function RatingDistributionChart({ data }: { data: RatingDistributionPoin
         <CartesianGrid vertical={false} stroke={gridColor} />
         <XAxis
           dataKey="rating"
-          tick={{ fill: axisColor, fontSize: 12 }}
+          tick={{ fill: axisColor, fontSize: 11, fontFamily: CHART_FONT_MONO }}
           axisLine={{ stroke: gridColor }}
           tickLine={false}
           tickFormatter={(v: number) => v.toString()}
         />
-        <YAxis tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <YAxis tick={{ fill: axisColor, fontSize: 11, fontFamily: CHART_FONT_MONO }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip
-          cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
-          contentStyle={{ background: surface, border: `1px solid ${gridColor}`, borderRadius: 8, color: textColor }}
+          cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
+          contentStyle={{ background: surface, border: `1px solid ${textColor}`, color: textColor, fontFamily: CHART_FONT_MONO, fontSize: 12 }}
           labelFormatter={(v) => `${v} ★`}
           formatter={(value) => [`${value} film${Number(value) > 1 ? 's' : ''}`, 'Note']}
         />
-        <Bar dataKey="count" fill={barColor} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="count" fill={barColor} maxBarSize={36} />
       </BarChart>
     </ResponsiveContainer>
   )

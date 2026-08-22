@@ -7,7 +7,9 @@ const STORAGE_KEY = 'letterboxd-app:theme'
 function getInitialTheme(): Theme {
   const stored = localStorage.getItem(STORAGE_KEY)
   if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  // Dark ("Midnight Edition") is the default look — no system-preference check,
+  // the user picks light explicitly via the toggle if they want the paper edition.
+  return 'dark'
 }
 
 export function useTheme() {

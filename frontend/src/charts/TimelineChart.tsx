@@ -1,6 +1,6 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { TimelineBucket } from '@/types/api'
-import { CHART_COLORS, useIsDarkMode } from '@/charts/palette'
+import { CHART_COLORS, CHART_FONT_MONO, useIsDarkMode } from '@/charts/palette'
 import { formatMinutesAsDuration } from '@/utils/format'
 
 export function TimelineChart({ data }: { data: TimelineBucket[] }) {
@@ -15,11 +15,16 @@ export function TimelineChart({ data }: { data: TimelineBucket[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
         <CartesianGrid vertical={false} stroke={gridColor} strokeDasharray="0" />
-        <XAxis dataKey="period" tick={{ fill: axisColor, fontSize: 12 }} axisLine={{ stroke: gridColor }} tickLine={false} />
-        <YAxis tick={{ fill: axisColor, fontSize: 12 }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <XAxis
+          dataKey="period"
+          tick={{ fill: axisColor, fontSize: 11, fontFamily: CHART_FONT_MONO }}
+          axisLine={{ stroke: gridColor }}
+          tickLine={false}
+        />
+        <YAxis tick={{ fill: axisColor, fontSize: 11, fontFamily: CHART_FONT_MONO }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip
-          cursor={{ fill: isDark ? 'rgba(255,255,255,0.04)' : 'rgba(0,0,0,0.03)' }}
-          contentStyle={{ background: surface, border: `1px solid ${gridColor}`, borderRadius: 8, color: textColor }}
+          cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
+          contentStyle={{ background: surface, border: `1px solid ${textColor}`, color: textColor, fontFamily: CHART_FONT_MONO, fontSize: 12 }}
           labelStyle={{ color: textColor, fontWeight: 600 }}
           formatter={(value, name, props) => {
             if (name === 'watchCount') {
@@ -34,7 +39,7 @@ export function TimelineChart({ data }: { data: TimelineBucket[] }) {
             return [String(value), String(name)]
           }}
         />
-        <Bar dataKey="watchCount" fill={barColor} radius={[4, 4, 0, 0]} maxBarSize={36} />
+        <Bar dataKey="watchCount" fill={barColor} maxBarSize={36} />
       </BarChart>
     </ResponsiveContainer>
   )

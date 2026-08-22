@@ -9,7 +9,9 @@ import { EmptyState } from '@/components/EmptyState'
 import { TimelineChart } from '@/charts/TimelineChart'
 import { RatingDistributionChart } from '@/charts/RatingDistributionChart'
 import { GenreBarChart } from '@/charts/GenreBarChart'
+import { buttonVariants } from '@/components/ui/Button'
 import { formatMinutesAsDays, formatMinutesAsDuration, formatRating } from '@/utils/format'
+import { cn } from '@/utils/cn'
 
 export function DashboardPage() {
   const [granularity, setGranularity] = useState<'month' | 'year'>('year')
@@ -31,7 +33,7 @@ export function DashboardPage() {
         title="Aucune donnée pour l'instant"
         description="Importe ton export Letterboxd pour voir apparaître ton dashboard."
         action={
-          <Link to="/import" className="mt-2 rounded-lg bg-neutral-900 px-4 py-2 text-sm font-medium text-white dark:bg-neutral-100 dark:text-neutral-900">
+          <Link to="/import" className={cn(buttonVariants({ variant: 'primary' }), 'mt-2')}>
             Importer mes données
           </Link>
         }
@@ -40,10 +42,10 @@ export function DashboardPage() {
   }
 
   return (
-    <div className="flex flex-col gap-8">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
-        <p className="text-sm text-neutral-500 dark:text-neutral-400">Vue d'ensemble de ton activité cinéphile.</p>
+    <div className="flex flex-col gap-10">
+      <div className="border-b-4 border-ink pb-6">
+        <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Dashboard</h1>
+        <p className="mt-2 font-body text-sm italic text-subtle">Vue d'ensemble de ton activité cinéphile.</p>
       </div>
 
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -52,7 +54,7 @@ export function DashboardPage() {
           value={stats.totalMovies}
           hint={stats.totalRewatches > 0 ? `${stats.totalWatches} visionnages · ${stats.totalRewatches} rewatch${stats.totalRewatches > 1 ? 'es' : ''}` : undefined}
         />
-        <Link to="/watchlist" className="transition-opacity hover:opacity-80">
+        <Link to="/watchlist" className="block">
           <StatCard label="Watchlist" value={stats.totalWatchlist} />
         </Link>
         <StatCard label="Note moyenne" value={formatRating(stats.averageRating)} />
@@ -78,24 +80,25 @@ export function DashboardPage() {
         />
       </section>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-        <div className="mb-1 flex items-center justify-between">
-          <h2 className="text-lg font-medium">Films vus au fil du temps</h2>
-          <div className="flex gap-1 rounded-lg bg-neutral-100 p-1 dark:bg-neutral-800">
+      <section className="newsprint-texture border border-ink p-5 sm:p-6">
+        <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="font-serif text-2xl font-bold">Films vus au fil du temps</h2>
+          <div className="flex border border-ink">
             {(['year', 'month'] as const).map((g) => (
               <button
                 key={g}
                 onClick={() => setGranularity(g)}
-                className={`rounded-md px-3 py-1 text-xs font-medium ${
-                  granularity === g ? 'bg-white shadow-sm dark:bg-neutral-700' : 'text-neutral-500 dark:text-neutral-400'
-                }`}
+                className={cn(
+                  'px-4 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors duration-200',
+                  granularity === g ? 'bg-ink text-paper' : 'text-ink hover:bg-surface'
+                )}
               >
                 {g === 'year' ? 'Par année' : 'Par mois'}
               </button>
             ))}
           </div>
         </div>
-        <p className="mb-3 text-xs text-neutral-400 dark:text-neutral-500">
+        <p className="mb-4 text-xs text-subtle">
           Basé sur la date de journal quand elle existe, sinon la date d'ajout de la note/du visionnage sur Letterboxd.
         </p>
         {timeline.isLoading && <SkeletonGrid count={1} />}
@@ -103,11 +106,11 @@ export function DashboardPage() {
       </section>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="mb-1 text-lg font-medium">Distribution des notes</h2>
+        <section className="newsprint-texture border border-ink p-5 sm:p-6">
+          <h2 className="mb-1 font-serif text-2xl font-bold">Distribution des notes</h2>
           {ratings.data && (
-            <p className="mb-3 text-xs text-neutral-500 dark:text-neutral-400">
-              Moyenne {formatRating(ratings.data.average)} · Médiane {formatRating(ratings.data.median)} · Écart-type{' '}
+            <p className="mb-4 font-mono text-xs text-subtle">
+              Moyenne {formatRating(ratings.data.average)} &middot; Médiane {formatRating(ratings.data.median)} &middot; Écart-type{' '}
               {ratings.data.standardDeviation?.toFixed(2) ?? '—'}
             </p>
           )}
@@ -115,33 +118,33 @@ export function DashboardPage() {
           {ratings.data && <RatingDistributionChart data={ratings.data.distribution} />}
         </section>
 
-        <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-          <h2 className="mb-3 text-lg font-medium">Genres les plus regardés</h2>
+        <section className="newsprint-texture border border-ink p-5 sm:p-6">
+          <h2 className="mb-4 font-serif text-2xl font-bold">Genres les plus regardés</h2>
           {genres.isLoading && <SkeletonGrid count={1} />}
           {genres.data && genres.data.length > 0 ? (
             <GenreBarChart data={genres.data} />
           ) : (
-            genres.data && <p className="text-sm text-neutral-500">Pas encore de genres enrichis via TMDB.</p>
+            genres.data && <p className="text-sm text-subtle">Pas encore de genres enrichis via TMDB.</p>
           )}
         </section>
       </div>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-        <h2 className="mb-3 text-lg font-medium">Réalisateurs les plus vus</h2>
+      <section className="border border-ink p-5 sm:p-6">
+        <h2 className="mb-4 font-serif text-2xl font-bold">Réalisateurs les plus vus</h2>
         {directors.isLoading && <SkeletonGrid count={3} />}
         {directors.data && directors.data.length > 0 ? (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {directors.data.map((d) => (
-              <div key={d.personId} className="rounded-lg border border-neutral-200 p-3 dark:border-neutral-800">
-                <p className="font-medium">{d.name}</p>
-                <p className="text-sm text-neutral-500 dark:text-neutral-400">
-                  {d.movieCount} film{d.movieCount > 1 ? 's' : ''} · {formatRating(d.averageRating)} moyenne
+              <div key={d.personId} className="hard-shadow-hover border border-ink/30 p-4">
+                <p className="font-serif text-lg font-bold">{d.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-subtle">
+                  {d.movieCount} film{d.movieCount > 1 ? 's' : ''} &middot; {formatRating(d.averageRating)} moyenne
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          directors.data && <p className="text-sm text-neutral-500">Pas encore de réalisateurs enrichis via TMDB.</p>
+          directors.data && <p className="text-sm text-subtle">Pas encore de réalisateurs enrichis via TMDB.</p>
         )}
       </section>
     </div>

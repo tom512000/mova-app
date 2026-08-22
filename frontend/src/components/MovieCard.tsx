@@ -1,33 +1,44 @@
 import { Link } from 'react-router-dom'
 import type { MovieSummary } from '@/types/api'
 import { formatRating } from '@/utils/format'
+import { Badge } from '@/components/ui/Badge'
+
+const STATUS_LABEL: Partial<Record<MovieSummary['enrichmentStatus'], string>> = {
+  pending: 'En cours',
+  ambiguous: 'À vérifier',
+  failed: 'Échec TMDB',
+}
 
 export function MovieCard({ movie }: { movie: MovieSummary }) {
+  const statusLabel = STATUS_LABEL[movie.enrichmentStatus]
+
   return (
-    <Link
-      to={`/movies/${movie.id}`}
-      className="group overflow-hidden rounded-xl border border-neutral-200 bg-white transition-shadow hover:shadow-lg dark:border-neutral-800 dark:bg-neutral-900"
-    >
-      <div className="aspect-[2/3] w-full bg-neutral-200 dark:bg-neutral-800">
+    <Link to={`/movies/${movie.id}`} className="hard-shadow-hover group block border border-ink bg-paper">
+      <div className="relative aspect-2/3 w-full overflow-hidden bg-surface-2">
         {movie.posterUrl ? (
-          <img src={movie.posterUrl} alt={movie.title} className="h-full w-full object-cover" loading="lazy" />
+          <img
+            src={movie.posterUrl}
+            alt={movie.title}
+            loading="lazy"
+            className="h-full w-full object-cover grayscale transition-all duration-300 group-hover:grayscale-0 group-hover:sepia-[.5]"
+          />
         ) : (
-          <div className="flex h-full w-full items-center justify-center text-xs text-neutral-400">Pas d'affiche</div>
+          <div className="flex h-full w-full items-center justify-center bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-size-[16px_16px] text-ink/10">
+            <span className="bg-paper px-2 font-mono text-[10px] uppercase tracking-widest text-subtle">Pas d'affiche</span>
+          </div>
+        )}
+        {statusLabel && (
+          <Badge variant="solid" className="absolute left-2 top-2">
+            {statusLabel}
+          </Badge>
         )}
       </div>
-      <div className="p-3">
-        <p className="truncate text-sm font-medium group-hover:underline">{movie.title}</p>
-        <div className="mt-1 flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400">
+      <div className="border-t border-ink p-3">
+        <p className="truncate font-serif text-sm font-bold leading-tight group-hover:text-accent">{movie.title}</p>
+        <div className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-subtle">
           <span>{movie.releaseYear ?? '—'}</span>
           <span>★ {formatRating(movie.myAverageRating)}</span>
         </div>
-        {movie.enrichmentStatus !== 'enriched' && (
-          <span className="mt-1 inline-block rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-            {movie.enrichmentStatus === 'pending' && 'En cours d’enrichissement'}
-            {movie.enrichmentStatus === 'ambiguous' && 'À vérifier'}
-            {movie.enrichmentStatus === 'failed' && 'Échec TMDB'}
-          </span>
-        )}
       </div>
     </Link>
   )

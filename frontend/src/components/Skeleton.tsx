@@ -1,13 +1,13 @@
-import clsx from 'clsx'
+import { cn } from '@/utils/cn'
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={clsx('animate-pulse rounded-md bg-neutral-200 dark:bg-neutral-800', className)} />
+  return <div className={cn('animate-pulse bg-surface', className)} />
 }
 
 export function SkeletonCard() {
   return (
-    <div className="rounded-xl border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-900">
-      <Skeleton className="mb-3 h-4 w-24" />
+    <div className="border border-ink/20 bg-paper p-5">
+      <Skeleton className="mb-3 h-3 w-24" />
       <Skeleton className="h-8 w-32" />
     </div>
   )

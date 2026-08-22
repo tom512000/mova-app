@@ -1,8 +1,10 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
+import { ArrowLeft } from 'lucide-react'
 import { fetchMovie } from '@/services/moviesService'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
+import { Badge } from '@/components/ui/Badge'
 import { formatDate, formatMinutesAsDuration, formatRating } from '@/utils/format'
 
 export function MovieDetailPage() {
@@ -27,69 +29,77 @@ export function MovieDetailPage() {
   if (isError || !movie) return <ErrorState message={(error as Error)?.message} />
 
   return (
-    <div className="flex flex-col gap-6">
-      <Link to="/movies" className="text-sm text-neutral-500 hover:underline dark:text-neutral-400">
-        ← Retour aux films
+    <div className="flex flex-col gap-8">
+      <Link
+        to="/movies"
+        className="inline-flex w-fit items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-subtle transition-colors hover:text-accent"
+      >
+        <ArrowLeft className="h-3 w-3" strokeWidth={1.5} /> Retour aux films
       </Link>
 
       {movie.backdropUrl && (
-        <div className="relative -mx-6 -mt-2 h-56 overflow-hidden lg:-mx-8">
-          <img src={movie.backdropUrl} alt="" className="h-full w-full object-cover opacity-60" />
-          <div className="absolute inset-0 bg-gradient-to-t from-neutral-50 dark:from-neutral-950" />
+        <div className="relative -mx-4 h-64 overflow-hidden border-y-4 border-ink sm:h-80 lg:-mx-8">
+          <img src={movie.backdropUrl} alt="" className="h-full w-full object-cover grayscale" />
+          <div className="absolute inset-0 bg-linear-to-t from-paper via-transparent to-transparent" />
         </div>
       )}
 
-      <div className="flex flex-col gap-6 sm:flex-row">
-        <div className="w-40 shrink-0 overflow-hidden rounded-xl bg-neutral-200 shadow-md dark:bg-neutral-800">
-          {movie.posterUrl ? (
-            <img src={movie.posterUrl} alt={movie.title} className="w-full" />
-          ) : (
-            <div className="flex aspect-[2/3] items-center justify-center text-xs text-neutral-400">Pas d'affiche</div>
-          )}
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
+        <div className="lg:col-span-4">
+          <div className="border border-ink bg-surface-2">
+            {movie.posterUrl ? (
+              <img src={movie.posterUrl} alt={movie.title} className="w-full grayscale" />
+            ) : (
+              <div className="flex aspect-2/3 items-center justify-center font-mono text-xs uppercase tracking-widest text-subtle">
+                Pas d'affiche
+              </div>
+            )}
+          </div>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-subtle">Fig. 1 &mdash; {movie.title}</p>
         </div>
 
-        <div className="flex-1">
-          <h1 className="text-3xl font-semibold tracking-tight">
-            {movie.title} {movie.releaseYear && <span className="font-normal text-neutral-400">({movie.releaseYear})</span>}
+        <div className="lg:col-span-8">
+          <h1 className="font-serif text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl">
+            {movie.title} {movie.releaseYear && <span className="font-normal text-subtle">({movie.releaseYear})</span>}
           </h1>
           {movie.originalTitle && movie.originalTitle !== movie.title && (
-            <p className="text-sm italic text-neutral-500 dark:text-neutral-400">{movie.originalTitle}</p>
+            <p className="mt-1 font-body text-sm italic text-subtle">{movie.originalTitle}</p>
           )}
 
-          <div className="mt-3 flex flex-wrap gap-2 text-xs text-neutral-500 dark:text-neutral-400">
-            {movie.runtimeMinutes && <span>{formatMinutesAsDuration(movie.runtimeMinutes)}</span>}
+          <div className="mt-4 flex flex-wrap gap-2">
+            {movie.runtimeMinutes && <Badge>{formatMinutesAsDuration(movie.runtimeMinutes)}</Badge>}
             {movie.genres.map((g) => (
-              <span key={g} className="rounded-full bg-neutral-100 px-2 py-0.5 dark:bg-neutral-800">
-                {g}
-              </span>
+              <Badge key={g}>{g}</Badge>
             ))}
             {movie.countries.map((c) => (
-              <span key={c} className="rounded-full bg-neutral-100 px-2 py-0.5 dark:bg-neutral-800">
-                {c}
-              </span>
+              <Badge key={c}>{c}</Badge>
             ))}
           </div>
 
-          {movie.synopsis && <p className="mt-4 max-w-2xl text-sm text-neutral-700 dark:text-neutral-300">{movie.synopsis}</p>}
+          {movie.synopsis && (
+            <p className="mt-6 max-w-2xl text-justify font-body text-sm leading-relaxed text-ink/80 first-letter:float-left first-letter:pr-2 first-letter:font-serif first-letter:text-7xl first-letter:font-black first-letter:leading-[0.75] first-letter:text-ink">
+              {movie.synopsis}
+            </p>
+          )}
 
           {movie.directors.length > 0 && (
-            <p className="mt-4 text-sm">
-              <span className="text-neutral-500 dark:text-neutral-400">Réalisé par </span>
-              <span className="font-medium">{movie.directors.map((d) => d.name).join(', ')}</span>
+            <p className="mt-6 text-sm">
+              <span className="font-mono text-xs uppercase tracking-widest text-subtle">Réalisé par </span>
+              <span className="font-serif font-bold">{movie.directors.map((d) => d.name).join(', ')}</span>
             </p>
           )}
 
           {movie.cast.length > 0 && (
-            <p className="mt-1 text-sm">
-              <span className="text-neutral-500 dark:text-neutral-400">Avec </span>
-              {movie.cast.slice(0, 6).map((c) => c.name).join(', ')}
+            <p className="mt-2 text-sm">
+              <span className="font-mono text-xs uppercase tracking-widest text-subtle">Avec </span>
+              <span className="font-body">{movie.cast.slice(0, 6).map((c) => c.name).join(', ')}</span>
             </p>
           )}
 
-          <div className="mt-4 flex gap-4 text-sm">
+          <div className="mt-6 flex flex-wrap items-center gap-5 border-t border-ink/20 pt-4 font-mono text-xs">
             {movie.tmdbVoteAverage !== null && (
               <span>
-                Note TMDB : <strong>{movie.tmdbVoteAverage.toFixed(1)}</strong>
+                TMDB <strong className="text-base">{movie.tmdbVoteAverage.toFixed(1)}</strong>
               </span>
             )}
             {movie.imdbId && (
@@ -97,42 +107,44 @@ export function MovieDetailPage() {
                 href={`https://www.imdb.com/title/${movie.imdbId}/`}
                 target="_blank"
                 rel="noreferrer"
-                className="text-neutral-500 hover:underline dark:text-neutral-400"
+                className="uppercase tracking-widest text-accent hover:underline"
               >
-                IMDb ↗
+                IMDb &#8599;
               </a>
             )}
           </div>
         </div>
       </div>
 
-      <section className="rounded-xl border border-neutral-200 bg-white p-5 dark:border-neutral-800 dark:bg-neutral-900">
-        <h2 className="mb-3 text-lg font-medium">
-          Mes visionnages ({movie.watches.length})
-        </h2>
-        <div className="flex flex-col divide-y divide-neutral-100 dark:divide-neutral-800">
+      <section className="border border-ink p-5 sm:p-6">
+        <h2 className="mb-4 font-serif text-2xl font-bold">Mes visionnages ({movie.watches.length})</h2>
+        <div className="flex flex-col divide-y divide-ink/15">
           {movie.watches.map((watch) => (
-            <div key={watch.id} className="flex flex-col gap-1 py-3">
-              <div className="flex items-center justify-between text-sm">
-                <span className="font-medium">{formatDate(watch.watchedDate)}</span>
+            <div key={watch.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0">
+              <div className="flex items-center justify-between font-mono text-sm">
+                <span className="font-semibold">{formatDate(watch.watchedDate)}</span>
                 <span className="flex items-center gap-2">
-                  {watch.isRewatch && (
-                    <span className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] font-medium dark:bg-neutral-800">Rewatch</span>
-                  )}
+                  {watch.isRewatch && <Badge>Rewatch</Badge>}
                   <span>★ {formatRating(watch.rating)}</span>
                 </span>
               </div>
               {watch.reviewText && (
-                <p className={watch.containsSpoilers ? 'text-sm text-neutral-400 blur-sm hover:blur-none' : 'text-sm text-neutral-600 dark:text-neutral-300'}>
+                <p
+                  className={
+                    watch.containsSpoilers
+                      ? 'font-body text-sm text-faint blur-sm transition-all duration-200 hover:blur-none'
+                      : 'font-body text-sm text-ink/70'
+                  }
+                >
                   {watch.reviewText}
                 </p>
               )}
               {watch.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {watch.tags.map((tag) => (
-                    <span key={tag} className="rounded-full bg-neutral-100 px-2 py-0.5 text-[10px] dark:bg-neutral-800">
+                    <Badge key={tag} variant="outline">
                       #{tag}
-                    </span>
+                    </Badge>
                   ))}
                 </div>
               )}

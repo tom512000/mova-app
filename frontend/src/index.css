@@ -1,9 +1,58 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;0,900;1,400&family=Lora:ital,wght@0,400;0,600;1,400&display=swap');
 @import "tailwindcss";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/*
+ * "Newsprint" design tokens. Light = the original spec (paper/ink on warm
+ * off-white). Dark ("Midnight Edition") inverts it — near-black stock, warm
+ * off-white ink, a hotter red so the accent still reads at full strength
+ * against a much darker surface. Every component consumes the semantic
+ * --color-* names below, never a raw hex, so the two editions stay in sync.
+ */
 :root {
-  color-scheme: light dark;
+  --paper: #f9f9f7;
+  --ink: #111111;
+  --muted: #e5e5e0;
+  --accent: #cc0000;
+  --accent-ink: #f9f9f7;
+  --surface: #f5f5f5;
+  --surface-2: #e5e5e5;
+  --subtle: #737373;
+  --faint: #a3a3a3;
+
+  color-scheme: light;
+}
+
+.dark {
+  --paper: #131211;
+  --ink: #f3f1ea;
+  --muted: #2b2a27;
+  --accent: #ff3b30;
+  --accent-ink: #131211;
+  --surface: #1d1c19;
+  --surface-2: #262521;
+  --subtle: #a8a6a0;
+  --faint: #6e6c66;
+
+  color-scheme: dark;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-subtle: var(--subtle);
+  --color-faint: var(--faint);
+
+  --font-serif: 'Playfair Display', 'Times New Roman', serif;
+  --font-body: 'Lora', Georgia, serif;
+  --font-sans: 'Inter', 'Helvetica Neue', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Courier New', monospace;
 }
 
 html,
@@ -13,8 +62,28 @@ body,
 }
 
 body {
-  @apply bg-neutral-50 text-neutral-900 dark:bg-neutral-950 dark:text-neutral-100;
-  font-feature-settings: "cv11", "ss01";
+  background-color: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23111111' fill-opacity='0.04' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+  transition: background-color 200ms ease-out, color 200ms ease-out;
+}
+
+.dark body {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='4' viewBox='0 0 4 4'%3E%3Cpath fill='%23f3f1ea' fill-opacity='0.05' d='M1 3h1v1H1V3zm2-2h1v1H3V1z'%3E%3C/path%3E%3C/svg%3E");
+}
+
+/* Zero border radius, no exceptions — the newsprint style is built entirely
+   from sharp 90-degree rectangles. Enforced globally rather than trusted to
+   every className, since a stray rounded-* utility or a third-party widget
+   (chart tooltips, etc.) would otherwise slip through. */
+#root * {
+  border-radius: 0 !important;
+}
+
+::selection {
+  background-color: var(--accent);
+  color: var(--accent-ink);
 }
 
 ::-webkit-scrollbar {
@@ -27,6 +96,37 @@ body {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-neutral-300 dark:bg-neutral-700;
-  border-radius: 9999px;
+  background-color: var(--ink);
+  opacity: 0.25;
+}
+
+/* Fine graph-paper texture for major sections — see .newsprint-texture usage. */
+.newsprint-texture {
+  position: relative;
+}
+
+.newsprint-texture::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(0deg, transparent 98%, color-mix(in srgb, var(--ink) 5%, transparent) 100%),
+    linear-gradient(90deg, transparent 98%, color-mix(in srgb, var(--ink) 5%, transparent) 100%);
+  background-size: 3px 3px;
+  pointer-events: none;
+  opacity: 0.5;
+}
+
+/* Hard offset "cutout" shadow used on hoverable cards instead of a soft blur. */
+.hard-shadow-hover {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out;
+}
+
+.hard-shadow-hover:hover {
+  box-shadow: 4px 4px 0 0 var(--ink);
+  transform: translate(-2px, -2px);
+}
+
+.dark .hard-shadow-hover:hover {
+  box-shadow: 4px 4px 0 0 var(--ink);
 }
