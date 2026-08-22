@@ -1,0 +1,12 @@
+# Root env (real secrets) — .env.example is the committed template
+/.env
+
+# Editor / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Letterboxd exports you might drop here for local testing — never commit personal data
+/exports/
+*.zip
