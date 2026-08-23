@@ -2,6 +2,16 @@ export type EnrichmentStatus = 'pending' | 'enriched' | 'failed' | 'ambiguous'
 export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'list'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 
+export interface SyncState {
+  configured: boolean
+  autoSyncEnabled: boolean
+  username: string | null
+  lastSyncedAt: string | null
+  lastSyncStatus: 'success' | 'failed' | null
+  lastSyncError: string | null
+  lastRunWatchesImported: number
+}
+
 export interface MovieSummary {
   id: number
   title: string

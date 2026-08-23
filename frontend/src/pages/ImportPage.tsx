@@ -1,9 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
-import { UploadCloud } from 'lucide-react'
+import { RefreshCw, UploadCloud } from 'lucide-react'
 import { fetchImportBatches, uploadLetterboxdExport } from '@/services/importService'
+import { fetchSyncState, triggerSync } from '@/services/syncService'
 import { ImportBatchRow } from '@/components/ImportBatchRow'
 import { ErrorState } from '@/components/ErrorState'
+import { Button } from '@/components/ui/Button'
+import { Badge } from '@/components/ui/Badge'
 import type { ImportBatch } from '@/types/api'
 import { cn } from '@/utils/cn'
 
@@ -85,6 +88,79 @@ export function ImportPage() {
         {history.data && history.data.length === 0 && <p className="text-sm text-subtle">Aucun import pour l'instant.</p>}
         {history.data?.map((batch) => <ImportBatchRow key={batch.id} initial={batch} />)}
       </section>
+
+      <LetterboxdRssSyncSection />
     </div>
+  )
+}
+
+function LetterboxdRssSyncSection() {
+  const queryClient = useQueryClient()
+
+  const { data: syncState, isLoading } = useQuery({ queryKey: ['sync', 'letterboxd'], queryFn: fetchSyncState })
+
+  const trigger = useMutation({
+    mutationFn: triggerSync,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['sync', 'letterboxd'], data)
+      // The actual sync runs asynchronously in the worker — refresh shortly after
+      // dispatching so the result (success/failure, count) shows up without a manual reload.
+      setTimeout(() => queryClient.invalidateQueries({ queryKey: ['sync', 'letterboxd'] }), 4000)
+    },
+  })
+
+  if (isLoading || !syncState) return null
+
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h2 className="font-serif text-2xl font-bold">Synchronisation RSS</h2>
+          {syncState.configured ? (
+            <>
+              <p className="mt-1 font-mono text-xs text-subtle">
+                @{syncState.username} &middot; {syncState.autoSyncEnabled ? 'automatique (toutes les heures)' : 'manuelle uniquement'}
+              </p>
+              <p className="mt-1 max-w-md font-body text-xs text-subtle">
+                Ne remonte que les films <em>loggés au journal</em> Letterboxd (avec une date). Une note ajoutée via les étoiles
+                rapides, sans passer par le journal, n'apparaît jamais dans ce flux &mdash; réimporte le CSV pour celles-là.
+              </p>
+            </>
+          ) : (
+            <p className="mt-1 max-w-md font-body text-sm text-subtle">
+              Configure <code className="font-mono text-xs">LETTERBOXD_USERNAME</code> (et <code className="font-mono text-xs">LETTERBOXD_RSS_SYNC_ENABLED=true</code> pour l'automatique) dans le fichier .env pour activer la synchro.
+            </p>
+          )}
+        </div>
+        {syncState.configured && (
+          <Button variant="secondary" size="sm" onClick={() => trigger.mutate()} disabled={trigger.isPending}>
+            <RefreshCw className={cn('h-3.5 w-3.5', trigger.isPending && 'animate-spin')} strokeWidth={1.5} />
+            {trigger.isPending ? 'Synchro en cours' : 'Synchroniser maintenant'}
+          </Button>
+        )}
+      </div>
+
+      {syncState.configured && (
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          {syncState.lastSyncedAt ? (
+            <>
+              <Badge variant={syncState.lastSyncStatus === 'failed' ? 'accent' : 'solid'}>
+                {syncState.lastSyncStatus === 'failed' ? 'Échec' : 'OK'}
+              </Badge>
+              <span className="font-mono text-xs text-subtle">
+                Dernière synchro : {new Date(syncState.lastSyncedAt).toLocaleString('fr-FR')}
+                {syncState.lastSyncStatus !== 'failed' &&
+                  ` · ${syncState.lastRunWatchesImported} nouveau${syncState.lastRunWatchesImported > 1 ? 'x' : ''} visionnage${syncState.lastRunWatchesImported > 1 ? 's' : ''}`}
+              </span>
+            </>
+          ) : (
+            <span className="font-mono text-xs text-subtle">Jamais synchronisé pour l'instant.</span>
+          )}
+        </div>
+      )}
+      {syncState.lastSyncStatus === 'failed' && syncState.lastSyncError && (
+        <p className="mt-2 font-mono text-xs text-accent">{syncState.lastSyncError}</p>
+      )}
+    </section>
   )
 }

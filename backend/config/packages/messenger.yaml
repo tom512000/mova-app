@@ -10,8 +10,7 @@ framework:
         routing:
             App\Message\ProcessImportBatchMessage: async
             App\Message\EnrichMovieMessage: async
-            # SyncLetterboxdRssMessage is dispatched by a Symfony Scheduler #[AsSchedule]
-            # provider once RSS sync ships (iteration 5) — not wired to a transport yet.
+            App\Message\SyncLetterboxdRssMessage: async
 
 # when@test:
 #    framework:

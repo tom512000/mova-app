@@ -37,12 +37,23 @@ final class EnrichMovieMessageHandler
         $movie->setLastEnrichmentAttemptAt(new \DateTimeImmutable());
 
         try {
-            $resolution = $this->tmdbResolver->resolve($movie);
-            $details = $this->tmdbClient->getMovieDetails($resolution['tmdbId']);
+            // A movie synced from the Letterboxd RSS feed already carries its TMDB id
+            // (tmdb:movieId is in the feed itself), so searching again would be
+            // redundant and could in rare cases even pick a different candidate.
+            $tmdbId = $movie->getTmdbId();
+            $imdbIdFromFallback = null;
+
+            if (null === $tmdbId) {
+                $resolution = $this->tmdbResolver->resolve($movie);
+                $tmdbId = $resolution['tmdbId'];
+                $imdbIdFromFallback = $resolution['imdbId'];
+            }
+
+            $details = $this->tmdbClient->getMovieDetails($tmdbId);
             $this->tmdbMovieMapper->map($movie, $details);
 
-            if (null !== $resolution['imdbId'] && null === $movie->getImdbId()) {
-                $movie->setImdbId($resolution['imdbId']);
+            if (null !== $imdbIdFromFallback && null === $movie->getImdbId()) {
+                $movie->setImdbId($imdbIdFromFallback);
             }
 
             $movie->setEnrichmentStatus(EnrichmentStatus::ENRICHED);
