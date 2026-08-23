@@ -1,4 +1,4 @@
-export type EnrichmentStatus = 'pending' | 'enriched' | 'failed' | 'ambiguous'
+export type EnrichmentStatus = 'pending' | 'enriched' | 'failed' | 'ambiguous' | 'excluded'
 export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'list'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 

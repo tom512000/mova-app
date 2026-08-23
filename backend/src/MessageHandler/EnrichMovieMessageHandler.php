@@ -30,7 +30,14 @@ final class EnrichMovieMessageHandler
     public function __invoke(EnrichMovieMessage $message): void
     {
         $movie = $this->movieRepository->find($message->movieId);
-        if (null === $movie || EnrichmentStatus::ENRICHED === $movie->getEnrichmentStatus()) {
+        if (null === $movie) {
+            return;
+        }
+
+        // ENRICHED is done; EXCLUDED means a human already confirmed this Letterboxd
+        // entry has no TMDB movie match (see EnrichmentStatus::EXCLUDED) — retrying it
+        // on every CSV re-import is exactly what let TmdbResolver re-pick a wrong movie.
+        if (\in_array($movie->getEnrichmentStatus(), [EnrichmentStatus::ENRICHED, EnrichmentStatus::EXCLUDED], true)) {
             return;
         }
 

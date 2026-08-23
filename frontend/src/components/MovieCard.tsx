@@ -7,6 +7,7 @@ const STATUS_LABEL: Partial<Record<MovieSummary['enrichmentStatus'], string>> = 
   pending: 'En cours',
   ambiguous: 'À vérifier',
   failed: 'Échec TMDB',
+  excluded: 'Non trouvé sur TMDB',
 }
 
 export function MovieCard({ movie }: { movie: MovieSummary }) {
