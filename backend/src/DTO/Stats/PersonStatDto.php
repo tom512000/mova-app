@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace App\DTO\Stats;
 
-final readonly class DirectorStatDto
+/**
+ * Shared shape for any "most-watched person" ranking (directors, actors, ...) —
+ * the aggregation only differs by which Credit role is filtered on.
+ */
+final readonly class PersonStatDto
 {
     public function __construct(
         public int $personId,

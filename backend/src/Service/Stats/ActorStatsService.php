@@ -8,7 +8,7 @@ use App\DTO\Stats\PersonStatDto;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 
-final class DirectorStatsService
+final class ActorStatsService
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
@@ -18,7 +18,7 @@ final class DirectorStatsService
     /**
      * @return PersonStatDto[]
      */
-    public function getDirectorStats(int $limit = 25): array
+    public function getActorStats(int $limit = 25): array
     {
         $rows = $this->entityManager->getConnection()->executeQuery(
             "SELECT
@@ -30,7 +30,7 @@ final class DirectorStatsService
                 MIN(w.rating) AS worst_rating
             FROM watch w
             JOIN movie m ON m.id = w.movie_id
-            JOIN credit c ON c.movie_id = m.id AND c.role = 'director'
+            JOIN credit c ON c.movie_id = m.id AND c.role = 'actor'
             JOIN person p ON p.id = c.person_id
             GROUP BY p.id, p.name
             ORDER BY movie_count DESC, average_rating DESC NULLS LAST

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Service\Stats\ActorStatsService;
 use App\Service\Stats\DirectorStatsService;
 use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
@@ -48,5 +49,13 @@ final class StatsController
         $limit = min(100, max(1, (int) $request->query->get('limit', 25)));
 
         return new JsonResponse($service->getDirectorStats($limit));
+    }
+
+    #[Route('/actors', methods: ['GET'])]
+    public function actors(Request $request, ActorStatsService $service): JsonResponse
+    {
+        $limit = min(100, max(1, (int) $request->query->get('limit', 25)));
+
+        return new JsonResponse($service->getActorStats($limit));
     }
 }

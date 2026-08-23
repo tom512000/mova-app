@@ -111,7 +111,7 @@ export interface GenreStat {
   totalWatchTimeMinutes: number
 }
 
-export interface DirectorStat {
+export interface PersonStat {
   personId: number
   name: string
   movieCount: number

@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { fetchDirectorStats, fetchGenreStats, fetchOverviewStats, fetchRatingStats, fetchTimelineStats } from '@/services/statsService'
+import { fetchActorStats, fetchDirectorStats, fetchGenreStats, fetchOverviewStats, fetchRatingStats, fetchTimelineStats } from '@/services/statsService'
+import type { PersonStat } from '@/types/api'
 import { StatCard } from '@/components/StatCard'
 import { SkeletonGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
@@ -21,6 +22,7 @@ export function DashboardPage() {
   const ratings = useQuery({ queryKey: ['stats', 'ratings'], queryFn: fetchRatingStats })
   const genres = useQuery({ queryKey: ['stats', 'genres'], queryFn: fetchGenreStats })
   const directors = useQuery({ queryKey: ['stats', 'directors'], queryFn: () => fetchDirectorStats(6) })
+  const actors = useQuery({ queryKey: ['stats', 'actors'], queryFn: () => fetchActorStats(6) })
 
   if (overview.isLoading) return <SkeletonGrid count={8} />
   if (overview.isError) return <ErrorState message={(overview.error as Error).message} />
@@ -129,24 +131,52 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <section className="border border-ink p-5 sm:p-6">
-        <h2 className="mb-4 font-serif text-2xl font-bold">Réalisateurs les plus vus</h2>
-        {directors.isLoading && <SkeletonGrid count={3} />}
-        {directors.data && directors.data.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {directors.data.map((d) => (
-              <div key={d.personId} className="hard-shadow-hover border border-ink/30 p-4">
-                <p className="font-serif text-lg font-bold">{d.name}</p>
-                <p className="mt-0.5 font-mono text-xs text-subtle">
-                  {d.movieCount} film{d.movieCount > 1 ? 's' : ''} &middot; {formatRating(d.averageRating)} moyenne
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          directors.data && <p className="text-sm text-subtle">Pas encore de réalisateurs enrichis via TMDB.</p>
-        )}
-      </section>
+      <PersonStatSection
+        title="Réalisateur·rice·s les plus vu·e·s"
+        isLoading={directors.isLoading}
+        data={directors.data}
+        emptyMessage="Pas encore de réalisateur·rice·s enrichi·e·s via TMDB."
+      />
+
+      <PersonStatSection
+        title="Acteur·rice·s les plus vu·e·s"
+        isLoading={actors.isLoading}
+        data={actors.data}
+        emptyMessage="Pas encore d'acteur·rice·s enrichi·e·s via TMDB."
+      />
     </div>
+  )
+}
+
+function PersonStatSection({
+  title,
+  isLoading,
+  data,
+  emptyMessage,
+}: {
+  title: string
+  isLoading: boolean
+  data: PersonStat[] | undefined
+  emptyMessage: string
+}) {
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <h2 className="mb-4 font-serif text-2xl font-bold">{title}</h2>
+      {isLoading && <SkeletonGrid count={3} />}
+      {data && data.length > 0 ? (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {data.map((p) => (
+            <div key={p.personId} className="hard-shadow-hover border border-ink/30 p-4">
+              <p className="font-serif text-lg font-bold">{p.name}</p>
+              <p className="mt-0.5 font-mono text-xs text-subtle">
+                {p.movieCount} film{p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
+              </p>
+            </div>
+          ))}
+        </div>
+      ) : (
+        data && <p className="text-sm text-subtle">{emptyMessage}</p>
+      )}
+    </section>
   )
 }

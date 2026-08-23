@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/apiClient'
-import type { DirectorStat, GenreStat, OverviewStats, RatingStats, TimelineBucket } from '@/types/api'
+import type { GenreStat, OverviewStats, PersonStat, RatingStats, TimelineBucket } from '@/types/api'
 
 export async function fetchOverviewStats(): Promise<OverviewStats> {
   const { data } = await apiClient.get<OverviewStats>('/stats/overview')
@@ -21,7 +21,12 @@ export async function fetchGenreStats(): Promise<GenreStat[]> {
   return data
 }
 
-export async function fetchDirectorStats(limit = 25): Promise<DirectorStat[]> {
-  const { data } = await apiClient.get<DirectorStat[]>('/stats/directors', { params: { limit } })
+export async function fetchDirectorStats(limit = 25): Promise<PersonStat[]> {
+  const { data } = await apiClient.get<PersonStat[]>('/stats/directors', { params: { limit } })
+  return data
+}
+
+export async function fetchActorStats(limit = 25): Promise<PersonStat[]> {
+  const { data } = await apiClient.get<PersonStat[]>('/stats/actors', { params: { limit } })
   return data
 }
