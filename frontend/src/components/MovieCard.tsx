@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import type { MovieSummary } from '@/types/api'
-import { formatRating } from '@/utils/format'
 import { Badge } from '@/components/ui/Badge'
+import { StarRating } from '@/components/ui/StarRating'
 
 const STATUS_LABEL: Partial<Record<MovieSummary['enrichmentStatus'], string>> = {
   pending: 'En cours',
@@ -38,7 +38,7 @@ export function MovieCard({ movie }: { movie: MovieSummary }) {
         <p className="truncate font-serif text-sm font-bold leading-tight group-hover:text-accent">{movie.title}</p>
         <div className="mt-1.5 flex items-center justify-between font-mono text-[11px] text-subtle">
           <span>{movie.releaseYear ?? '—'}</span>
-          <span>★ {formatRating(movie.myAverageRating)}</span>
+          <StarRating rating={movie.myAverageRating} />
         </div>
       </div>
     </Link>

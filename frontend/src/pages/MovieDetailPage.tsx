@@ -5,7 +5,8 @@ import { fetchMovie } from '@/services/moviesService'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
-import { formatDate, formatMinutesAsDuration, formatRating } from '@/utils/format'
+import { StarRating } from '@/components/ui/StarRating'
+import { formatDate, formatMinutesAsDuration } from '@/utils/format'
 
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -125,7 +126,7 @@ export function MovieDetailPage() {
                 <span className="font-semibold">{formatDate(watch.watchedDate)}</span>
                 <span className="flex items-center gap-2">
                   {watch.isRewatch && <Badge>Rewatch</Badge>}
-                  <span>★ {formatRating(watch.rating)}</span>
+                  <StarRating rating={watch.rating} size="md" />
                 </span>
               </div>
               {watch.reviewText && (

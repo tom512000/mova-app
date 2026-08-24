@@ -1,6 +1,7 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { RatingDistributionPoint } from '@/types/api'
 import { CHART_COLORS, CHART_FONT_MONO, useIsDarkMode } from '@/charts/palette'
+import { ratingToStars } from '@/utils/format'
 
 export function RatingDistributionChart({ data }: { data: RatingDistributionPoint[] }) {
   const isDark = useIsDarkMode()
@@ -25,7 +26,7 @@ export function RatingDistributionChart({ data }: { data: RatingDistributionPoin
         <Tooltip
           cursor={{ fill: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.04)' }}
           contentStyle={{ background: surface, border: `1px solid ${textColor}`, color: textColor, fontFamily: CHART_FONT_MONO, fontSize: 12 }}
-          labelFormatter={(v) => `${v} ★`}
+          labelFormatter={(label) => ratingToStars(typeof label === 'number' ? label : null)}
           formatter={(value) => [`${value} film${Number(value) > 1 ? 's' : ''}`, 'Note']}
         />
         <Bar dataKey="count" fill={barColor} maxBarSize={36} />
