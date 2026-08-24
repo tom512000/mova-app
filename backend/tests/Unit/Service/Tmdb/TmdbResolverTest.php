@@ -14,7 +14,32 @@ use PHPUnit\Framework\TestCase;
 
 final class TmdbResolverTest extends TestCase
 {
-    public function testReturnsConfidentSearchMatch(): void
+    public function testPrefersTheLetterboxdPageOverASearchMatch(): void
+    {
+        $movie = $this->movie('back-to-school-2019', 'Back to School', 2019);
+
+        // The regression this ordering exists for: TmdbClient searches with language=fr-FR,
+        // so the real film ("La Grande Classe") carries neither the title nor the original
+        // title Letterboxd exported, while an unrelated 1-vote short named exactly
+        // "Back To School" scores a perfect title+year match and wins outright.
+        $tmdbClient = $this->createMock(TmdbClientInterface::class);
+        $tmdbClient->expects(self::never())->method('searchMovie');
+
+        $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
+        $pageResolver->expects(self::once())
+            ->method('resolve')
+            ->with('back-to-school-2019')
+            ->willReturn(['tmdbId' => 624060, 'tmdbTvId' => null, 'imdbId' => 'tt9426210']);
+
+        $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
+
+        $result = $resolver->resolve($movie);
+
+        self::assertSame(624060, $result['tmdbId']);
+        self::assertSame('tt9426210', $result['imdbId']);
+    }
+
+    public function testFallsBackToAConfidentSearchMatchWhenThePageHasNoTmdbLink(): void
     {
         $movie = $this->movie('dune-part-two', 'Dune: Part Two', 2024);
 
@@ -25,7 +50,7 @@ final class TmdbResolverTest extends TestCase
         ]);
 
         $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
-        $pageResolver->expects(self::never())->method('resolve');
+        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'tmdbTvId' => null, 'imdbId' => null]);
 
         $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
 
@@ -34,30 +59,22 @@ final class TmdbResolverTest extends TestCase
         self::assertSame(693134, $result['tmdbId']);
     }
 
-    public function testFallsBackToLetterboxdPageWhenSearchIsAmbiguous(): void
+    public function testRefusesToSearchForAMovieWhenLetterboxdPointsAtASeries(): void
     {
-        $movie = $this->movie('the-invisible-man', 'The Invisible Man', 2020);
+        $movie = $this->movie('lupin-2021-1', 'Lupin', 2021);
 
-        // Both candidates are one year off from the Letterboxd year (2020) and share the
-        // exact same title, so they tie on score — not confident enough to pick either.
+        // /search/movie can never return a series, so letting it run would guarantee a
+        // wrong film rather than no film.
         $tmdbClient = $this->createMock(TmdbClientInterface::class);
-        $tmdbClient->method('searchMovie')->willReturn([
-            ['id' => 1, 'title' => 'The Invisible Man', 'original_title' => 'The Invisible Man', 'release_date' => '2019-12-31'],
-            ['id' => 2, 'title' => 'The Invisible Man', 'original_title' => 'The Invisible Man', 'release_date' => '2021-01-01'],
-        ]);
+        $tmdbClient->expects(self::never())->method('searchMovie');
 
         $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
-        $pageResolver->expects(self::once())
-            ->method('resolve')
-            ->with('the-invisible-man')
-            ->willReturn(['tmdbId' => 2, 'imdbId' => 'tt1051906']);
+        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'tmdbTvId' => 96677, 'imdbId' => null]);
 
         $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
 
-        $result = $resolver->resolve($movie);
-
-        self::assertSame(2, $result['tmdbId']);
-        self::assertSame('tt1051906', $result['imdbId']);
+        $this->expectException(AmbiguousMatchException::class);
+        $resolver->resolve($movie);
     }
 
     public function testThrowsWhenNothingResolves(): void
@@ -68,7 +85,7 @@ final class TmdbResolverTest extends TestCase
         $tmdbClient->method('searchMovie')->willReturn([]);
 
         $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
-        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'imdbId' => null]);
+        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'tmdbTvId' => null, 'imdbId' => null]);
 
         $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
 

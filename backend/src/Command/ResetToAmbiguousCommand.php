@@ -51,24 +51,7 @@ final class ResetToAmbiguousCommand extends Command
             return Command::FAILURE;
         }
 
-        $movie->setTmdbId(null);
-        $movie->setImdbId(null);
-        $movie->setOriginalTitle(null);
-        $movie->setReleaseDate(null);
-        $movie->setRuntimeMinutes(null);
-        $movie->setSynopsis(null);
-        $movie->setTagline(null);
-        $movie->setOriginalLanguage(null);
-        $movie->setBudget(null);
-        $movie->setRevenue(null);
-        $movie->setPopularity(null);
-        $movie->setTmdbVoteAverage(null);
-        $movie->setTmdbVoteCount(null);
-        $movie->setPosterPath(null);
-        $movie->setBackdropPath(null);
-        $movie->clearGenres();
-        $movie->clearCountries();
-        $movie->clearCredits();
+        $movie->clearTmdbData();
         $movie->setEnrichmentStatus(EnrichmentStatus::AMBIGUOUS);
         $movie->setEnrichmentError((string) $input->getArgument('reason'));
         $this->entityManager->flush();

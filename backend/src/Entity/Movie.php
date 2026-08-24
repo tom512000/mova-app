@@ -398,6 +398,36 @@ class Movie
         return $this;
     }
 
+    /**
+     * Strips every TMDB-derived field, leaving only what the Letterboxd export itself
+     * provided (slug, title, watched year). Used when a match turns out to be wrong:
+     * the stale poster/runtime/credits of the *other* film must go, otherwise they keep
+     * feeding the stats (a 5-minute short winning "shortest film", say).
+     */
+    public function clearTmdbData(): static
+    {
+        $this->tmdbId = null;
+        $this->imdbId = null;
+        $this->originalTitle = null;
+        $this->releaseDate = null;
+        $this->runtimeMinutes = null;
+        $this->synopsis = null;
+        $this->tagline = null;
+        $this->originalLanguage = null;
+        $this->budget = null;
+        $this->revenue = null;
+        $this->popularity = null;
+        $this->tmdbVoteAverage = null;
+        $this->tmdbVoteCount = null;
+        $this->posterPath = null;
+        $this->backdropPath = null;
+        $this->clearGenres();
+        $this->clearCountries();
+        $this->clearCredits();
+
+        return $this->touch();
+    }
+
     /** @return Collection<int, Genre> */
     public function getGenres(): Collection
     {

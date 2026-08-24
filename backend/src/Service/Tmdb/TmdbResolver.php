@@ -10,13 +10,25 @@ use App\Service\Letterboxd\LetterboxdFilmPageResolverInterface;
 
 /**
  * Resolves the TMDB id for a Movie stub imported from a Letterboxd CSV export, which
- * never carries one. Strategy (validated with the user given Letterboxd exports have
- * no external ids at all):
+ * never carries one. Strategy:
  *
- *   1. TMDB /search/movie by title+year, scored by title similarity + year match.
- *   2. If no candidate is confident enough, fall back to reading the TMDB/IMDb links
- *      embedded in the film's public Letterboxd page (letterboxd.com/film/<slug>/).
+ *   1. Read the TMDB/IMDb links Letterboxd itself publishes on the film's public page
+ *      (letterboxd.com/film/<slug>/). The slug comes straight from the export, so this
+ *      is an exact mapping rather than a guess — one request per unique film, cached
+ *      permanently by LetterboxdFilmPageResolver.
+ *   2. Only if that page yields nothing, fall back to TMDB /search/movie by title+year,
+ *      scored by title similarity + year match.
  *   3. If neither works, throw AmbiguousMatchException — never guess silently.
+ *
+ * The search used to come first, which produced *confidently wrong* matches: TmdbClient
+ * queries TMDB with language=fr-FR, so a candidate's `title` and `original_title` are its
+ * French and original titles — never the English/international title Letterboxd exports.
+ * "Back to School" (slug back-to-school-2019) is the French film "La Grande Classe", which
+ * therefore scored ~0 on title similarity while an unrelated 1-vote short literally named
+ * "Back To School" scored a perfect 1.0 and won. Every foreign film whose Letterboxd title
+ * differs from its TMDB title hits that same hole, so title scoring cannot be the primary
+ * signal — see App\Command\AuditTmdbMatchesCommand, which repairs libraries imported before
+ * this order was flipped.
  */
 final class TmdbResolver
 {
@@ -40,14 +52,24 @@ final class TmdbResolver
         $title = $movie->getTitle();
         $year = $movie->getReleaseYear();
 
+        $page = $this->letterboxdFilmPageResolver->resolve($movie->getLetterboxdSlug());
+        if (null !== $page['tmdbId']) {
+            return ['tmdbId' => $page['tmdbId'], 'imdbId' => $page['imdbId']];
+        }
+
+        // Letterboxd links this entry to a TMDB *series*: no movie can be correct here, and
+        // searching /search/movie anyway is exactly what used to attach a random film to it.
+        if (null !== $page['tmdbTvId']) {
+            throw new AmbiguousMatchException(sprintf(
+                '"%s" est une série TMDB (tv/%d) côté Letterboxd, aucun film correspondant.',
+                $title,
+                $page['tmdbTvId']
+            ));
+        }
+
         $best = $this->findBestSearchCandidate($title, $year);
         if (null !== $best) {
             return ['tmdbId' => $best, 'imdbId' => null];
-        }
-
-        $pageResult = $this->letterboxdFilmPageResolver->resolve($movie->getLetterboxdSlug());
-        if (null !== $pageResult['tmdbId']) {
-            return ['tmdbId' => $pageResult['tmdbId'], 'imdbId' => $pageResult['imdbId']];
         }
 
         throw new AmbiguousMatchException(sprintf(
