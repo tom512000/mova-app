@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Entity\Enum\CreditRole;
 use App\Service\Profile\ViewedProfileResolver;
-use App\Service\Stats\ActorStatsService;
-use App\Service\Stats\DirectorStatsService;
+use App\Service\Stats\ActivityStatsService;
+use App\Service\Stats\CountryStatsService;
 use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
+use App\Service\Stats\PersonStatsService;
 use App\Service\Stats\RatingStatsService;
 use App\Service\Stats\TimelineStatsService;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -54,18 +56,52 @@ final class StatsController
     }
 
     #[Route('/directors', methods: ['GET'])]
-    public function directors(Request $request, DirectorStatsService $service): JsonResponse
+    public function directors(Request $request, PersonStatsService $service): JsonResponse
     {
-        $limit = min(100, max(1, (int) $request->query->get('limit', 25)));
-
-        return new JsonResponse($service->getDirectorStats($this->profileResolver->getViewedUser(), $limit));
+        return new JsonResponse($service->getStats(
+            $this->profileResolver->getViewedUser(),
+            CreditRole::DIRECTOR,
+            $this->limitFrom($request),
+        ));
     }
 
     #[Route('/actors', methods: ['GET'])]
-    public function actors(Request $request, ActorStatsService $service): JsonResponse
+    public function actors(Request $request, PersonStatsService $service): JsonResponse
     {
-        $limit = min(100, max(1, (int) $request->query->get('limit', 25)));
+        return new JsonResponse($service->getStats(
+            $this->profileResolver->getViewedUser(),
+            CreditRole::ACTOR,
+            $this->limitFrom($request),
+        ));
+    }
 
-        return new JsonResponse($service->getActorStats($this->profileResolver->getViewedUser(), $limit));
+    #[Route('/writers', methods: ['GET'])]
+    public function writers(Request $request, PersonStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getStats(
+            $this->profileResolver->getViewedUser(),
+            CreditRole::WRITER,
+            $this->limitFrom($request),
+        ));
+    }
+
+    #[Route('/countries', methods: ['GET'])]
+    public function countries(Request $request, CountryStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getCountryStats(
+            $this->profileResolver->getViewedUser(),
+            $this->limitFrom($request, 12),
+        ));
+    }
+
+    #[Route('/activity', methods: ['GET'])]
+    public function activity(ActivityStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getActivity($this->profileResolver->getViewedUser()));
+    }
+
+    private function limitFrom(Request $request, int $default = 25): int
+    {
+        return min(100, max(1, (int) $request->query->get('limit', $default)));
     }
 }

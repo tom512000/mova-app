@@ -168,3 +168,32 @@ export interface ShareAcceptResult {
   profile: ProfileSummary
   alreadyGranted: boolean
 }
+
+export interface CountryStat {
+  countryName: string
+  isoCode: string
+  movieCount: number
+  averageRating: number | null
+}
+
+export interface WeekdayStat {
+  weekday: number
+  label: string
+  watchCount: number
+  averageRating: number | null
+}
+
+export interface ActivityDay {
+  date: string
+  watchCount: number
+}
+
+export interface ActivityStats {
+  activeDays: number
+  spanDays: number
+  busiestDayCount: number
+  busiestDate: string | null
+  longestStreakDays: number
+  weekdays: WeekdayStat[]
+  calendar: ActivityDay[]
+}
