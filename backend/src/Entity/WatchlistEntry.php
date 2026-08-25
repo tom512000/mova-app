@@ -10,13 +10,18 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: WatchlistEntryRepository::class)]
 #[ORM\Table(name: 'watchlist_entry')]
-#[ORM\UniqueConstraint(name: 'uniq_watchlist_entry_movie', fields: ['movie'])]
+#[ORM\UniqueConstraint(name: 'uniq_watchlist_entry_user_movie', fields: ['user', 'movie'])]
+#[ORM\Index(name: 'idx_watchlist_entry_user', fields: ['user'])]
 class WatchlistEntry
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private User $user;
 
     #[ORM\ManyToOne(targetEntity: Movie::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -28,8 +33,9 @@ class WatchlistEntry
     #[ORM\Column]
     private \DateTimeImmutable $createdAt;
 
-    public function __construct(Movie $movie)
+    public function __construct(User $user, Movie $movie)
     {
+        $this->user = $user;
         $this->movie = $movie;
         $this->createdAt = new \DateTimeImmutable();
     }
@@ -37,6 +43,11 @@ class WatchlistEntry
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
     }
 
     public function getMovie(): Movie

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\LetterboxdSyncState;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -18,8 +19,8 @@ class LetterboxdSyncStateRepository extends ServiceEntityRepository
         parent::__construct($registry, LetterboxdSyncState::class);
     }
 
-    public function findOneByUsername(string $username): ?LetterboxdSyncState
+    public function findOneByUser(User $user): ?LetterboxdSyncState
     {
-        return $this->findOneBy(['username' => $username]);
+        return $this->findOneBy(['user' => $user]);
     }
 }

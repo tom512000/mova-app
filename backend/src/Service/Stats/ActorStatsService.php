@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Stats;
 
 use App\DTO\Stats\PersonStatDto;
+use App\Entity\User;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -18,7 +19,7 @@ final class ActorStatsService
     /**
      * @return PersonStatDto[]
      */
-    public function getActorStats(int $limit = 25): array
+    public function getActorStats(User $user, int $limit = 25): array
     {
         $rows = $this->entityManager->getConnection()->executeQuery(
             "SELECT
@@ -32,10 +33,11 @@ final class ActorStatsService
             JOIN movie m ON m.id = w.movie_id
             JOIN credit c ON c.movie_id = m.id AND c.role = 'actor'
             JOIN person p ON p.id = c.person_id
+            WHERE w.user_id = :userId
             GROUP BY p.id, p.name
             ORDER BY movie_count DESC, average_rating DESC NULLS LAST
             LIMIT :limit",
-            ['limit' => $limit],
+            ['limit' => $limit, 'userId' => $user->getId()],
             ['limit' => ParameterType::INTEGER]
         )->fetchAllAssociative();
 

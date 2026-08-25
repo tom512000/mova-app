@@ -7,6 +7,7 @@ namespace App\Service\Import;
 use App\Entity\ImportBatch;
 use App\Entity\ImportRowError;
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Exception\ImportRowException;
 use App\Exception\ImportRowSkippedException;
 use Doctrine\ORM\EntityManagerInterface;
@@ -36,9 +37,13 @@ abstract class AbstractCsvImporter implements ImporterInterface
         // at flush time), but the object reference stays valid and ->getId() resolves after.
         $touchedMovies = [];
 
+        // The owner rides along on the batch: a worker process has no ambient current user,
+        // so every Watch/WatchlistEntry the row creates has to be told whose it is.
+        $user = $batch->getUser();
+
         foreach ($this->csvReader->readAssoc($filepath) as $rowNumber => $row) {
             try {
-                $movie = $this->importRow($row);
+                $movie = $this->importRow($row, $user);
                 if (null !== $movie) {
                     $touchedMovies[spl_object_id($movie)] = $movie;
                 }
@@ -63,7 +68,7 @@ abstract class AbstractCsvImporter implements ImporterInterface
      *
      * @throws ImportRowException for a row that cannot be imported (isolates the failure to this row)
      */
-    abstract protected function importRow(array $row): ?Movie;
+    abstract protected function importRow(array $row, User $user): ?Movie;
 
     /**
      * @param array<string, string|null> $row

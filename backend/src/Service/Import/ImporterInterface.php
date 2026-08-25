@@ -17,7 +17,8 @@ interface ImporterInterface
     public function supports(string $filename, array $header): bool;
 
     /**
-     * Imports every row of $filepath into $batch, updating its row counters and
+     * Imports every row of $filepath into $batch, on behalf of $batch's owning user,
+     * updating its row counters and
      * attaching an ImportRowError for every row that could not be processed
      * (never letting a single bad row abort the whole batch).
      *

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Stats;
 
 use App\DTO\Stats\TimelineBucketDto;
+use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class TimelineStatsService
@@ -17,7 +18,7 @@ final class TimelineStatsService
     /**
      * @return TimelineBucketDto[]
      */
-    public function getTimeline(string $granularity = 'year'): array
+    public function getTimeline(User $user, string $granularity = 'year'): array
     {
         $format = 'month' === $granularity ? 'YYYY-MM' : 'YYYY';
 
@@ -30,9 +31,10 @@ final class TimelineStatsService
             FROM watch w
             JOIN movie m ON m.id = w.movie_id
             WHERE w.watched_date IS NOT NULL
+              AND w.user_id = :userId
             GROUP BY period
             ORDER BY period ASC",
-            ['format' => $format]
+            ['format' => $format, 'userId' => $user->getId()]
         )->fetchAllAssociative();
 
         return array_map(

@@ -10,6 +10,8 @@ use App\DTO\MovieSummaryDto;
 use App\DTO\WatchDto;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Movie;
+use App\Entity\User;
+use App\Entity\Watch;
 use App\Service\Stats\StatsMath;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -21,11 +23,16 @@ final class MovieMapper
     ) {
     }
 
-    public function toSummaryDto(Movie $movie): MovieSummaryDto
+    public function toSummaryDto(Movie $movie, User $viewedUser): MovieSummaryDto
     {
+        // Movie::getWatches() spans every account that ever logged this film, since the
+        // Movie row is shared TMDB catalogue. Filtering to the viewed profile here is what
+        // stops one user's ratings and rewatch counts showing up on another's card.
+        $watches = $this->watchesOf($movie, $viewedUser);
+
         $ratings = array_values(array_filter(array_map(
-            static fn ($w) => $w->getRating(),
-            $movie->getWatches()->toArray()
+            static fn (Watch $w) => $w->getRating(),
+            $watches
         )));
 
         return new MovieSummaryDto(
@@ -34,12 +41,23 @@ final class MovieMapper
             releaseYear: $movie->getReleaseYear(),
             posterUrl: $this->posterUrl($movie->getPosterPath()),
             myAverageRating: StatsMath::mean($ratings),
-            watchCount: $movie->getWatches()->count(),
+            watchCount: \count($watches),
             enrichmentStatus: $movie->getEnrichmentStatus(),
         );
     }
 
-    public function toDetailDto(Movie $movie): MovieDetailDto
+    /**
+     * @return list<Watch>
+     */
+    private function watchesOf(Movie $movie, User $viewedUser): array
+    {
+        return array_values(array_filter(
+            $movie->getWatches()->toArray(),
+            static fn (Watch $w) => $w->getUser()->getId() === $viewedUser->getId()
+        ));
+    }
+
+    public function toDetailDto(Movie $movie, User $viewedUser): MovieDetailDto
     {
         $directors = [];
         $cast = [];
@@ -59,7 +77,7 @@ final class MovieMapper
         }
 
         $watches = array_map(
-            static fn ($w) => new WatchDto(
+            static fn (Watch $w) => new WatchDto(
                 id: $w->getId(),
                 watchedDate: $w->getWatchedDate()?->format('Y-m-d'),
                 rating: $w->getRating(),
@@ -68,7 +86,7 @@ final class MovieMapper
                 containsSpoilers: $w->hasSpoilers(),
                 tags: array_map(static fn ($t) => $t->getName(), $w->getTags()->toArray()),
             ),
-            $movie->getWatches()->toArray()
+            $this->watchesOf($movie, $viewedUser)
         );
         usort($watches, static fn (WatchDto $a, WatchDto $b) => ($a->watchedDate ?? '') <=> ($b->watchedDate ?? ''));
 

@@ -13,12 +13,17 @@ use Doctrine\ORM\Mapping as ORM;
 
 #[ORM\Entity(repositoryClass: ImportBatchRepository::class)]
 #[ORM\Table(name: 'import_batch')]
+#[ORM\Index(name: 'idx_import_batch_user', fields: ['user'])]
 class ImportBatch
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private User $user;
 
     #[ORM\Column(length: 255)]
     private string $filename;
@@ -58,8 +63,9 @@ class ImportBatch
     #[ORM\OneToMany(targetEntity: ImportRowError::class, mappedBy: 'importBatch', orphanRemoval: true, cascade: ['persist'])]
     private Collection $rowErrors;
 
-    public function __construct(string $filename, string $storedPath, ImportFileType $fileType)
+    public function __construct(User $user, string $filename, string $storedPath, ImportFileType $fileType)
     {
+        $this->user = $user;
         $this->filename = $filename;
         $this->storedPath = $storedPath;
         $this->fileType = $fileType;
@@ -71,6 +77,11 @@ class ImportBatch
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
     }
 
     public function getFilename(): string

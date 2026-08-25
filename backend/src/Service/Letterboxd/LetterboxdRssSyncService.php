@@ -9,6 +9,7 @@ use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\WatchSource;
 use App\Entity\LetterboxdSyncState;
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Entity\Watch;
 use App\Exception\LetterboxdRssException;
 use App\Message\EnrichMovieMessage;
@@ -17,7 +18,6 @@ use App\Repository\MovieRepository;
 use App\Repository\WatchRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\Messenger\MessageBusInterface;
 
 /**
@@ -30,8 +30,6 @@ use Symfony\Component\Messenger\MessageBusInterface;
 final class LetterboxdRssSyncService
 {
     public function __construct(
-        #[Autowire('%app.letterboxd.username%')]
-        private readonly string $username,
         private readonly LetterboxdRssClientInterface $rssClient,
         private readonly MovieRepository $movieRepository,
         private readonly WatchRepository $watchRepository,
@@ -42,20 +40,25 @@ final class LetterboxdRssSyncService
     ) {
     }
 
-    public function sync(): void
+    public function sync(User $user): void
     {
-        if ('' === $this->username) {
-            throw new LetterboxdRssException('LETTERBOXD_USERNAME non configuré.');
+        $username = $user->getLetterboxdUsername();
+        if (null === $username) {
+            throw new LetterboxdRssException('Aucun compte Letterboxd configuré sur ce profil.');
         }
 
-        $state = $this->syncStateRepository->findOneByUsername($this->username);
+        $state = $this->syncStateRepository->findOneByUser($user);
         if (null === $state) {
-            $state = new LetterboxdSyncState($this->username);
+            $state = new LetterboxdSyncState($user, $username);
             $this->entityManager->persist($state);
+        } else {
+            // The account can be repointed at a different Letterboxd username; the state row
+            // tracks the user, so keep its label in step rather than stranding the old one.
+            $state->setUsername($username);
         }
 
         try {
-            $imported = $this->importNewEntries();
+            $imported = $this->importNewEntries($user, $username);
             $state->markSuccess($imported);
         } catch (\Throwable $e) {
             $this->logger->error('Letterboxd RSS sync failed: {message}', ['message' => $e->getMessage(), 'exception' => $e]);
@@ -65,21 +68,21 @@ final class LetterboxdRssSyncService
         $this->entityManager->flush();
     }
 
-    private function importNewEntries(): int
+    private function importNewEntries(User $user, string $username): int
     {
-        $entries = $this->rssClient->fetchDiaryEntries($this->username);
+        $entries = $this->rssClient->fetchDiaryEntries($username);
 
         $touchedMovies = [];
         $imported = 0;
 
         foreach ($entries as $entry) {
-            if (null !== $this->watchRepository->findOneByExternalRef($entry->guid)) {
+            if (null !== $this->watchRepository->findOneByExternalRef($user, $entry->guid)) {
                 continue; // already synced on a previous run
             }
 
             $movie = $this->findOrCreateMovie($entry);
 
-            $watch = new Watch($movie, WatchSource::RSS_SYNC);
+            $watch = new Watch($user, $movie, WatchSource::RSS_SYNC);
             $watch->setExternalRef($entry->guid);
             $watch->setWatchedDate($entry->watchedDate);
             $watch->setRating($entry->rating);

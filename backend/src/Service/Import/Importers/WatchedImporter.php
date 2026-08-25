@@ -7,6 +7,7 @@ namespace App\Service\Import\Importers;
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Entity\Watch;
 use App\Exception\ImportRowSkippedException;
 use App\Repository\WatchRepository;
@@ -50,7 +51,7 @@ final class WatchedImporter extends AbstractCsvImporter
         return 'watched.csv' === strtolower($filename);
     }
 
-    protected function importRow(array $row): ?Movie
+    protected function importRow(array $row, User $user): ?Movie
     {
         $name = $this->requireColumn($row, 'Name');
         $letterboxdUri = $this->requireColumn($row, 'Letterboxd URI');
@@ -61,11 +62,11 @@ final class WatchedImporter extends AbstractCsvImporter
         // A movie with no id yet is a brand-new stub from this same import run — not flushed,
         // so it cannot have any Watch in the database yet, and querying by it would fail
         // (Doctrine can only bind a persisted entity with an identifier as a query parameter).
-        if (null !== $movie->getId() && $this->watchRepository->hasAnyWatch($movie)) {
+        if (null !== $movie->getId() && $this->watchRepository->hasAnyWatch($user, $movie)) {
             throw new ImportRowSkippedException();
         }
 
-        $watch = new Watch($movie, WatchSource::CSV_IMPORT);
+        $watch = new Watch($user, $movie, WatchSource::CSV_IMPORT);
         $watch->setWatchedDate($this->parseOptionalDate($row['Date'] ?? null));
         $this->entityManager->persist($watch);
         $movie->addWatch($watch);

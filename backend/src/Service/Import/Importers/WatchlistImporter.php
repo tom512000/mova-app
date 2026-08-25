@@ -6,6 +6,7 @@ namespace App\Service\Import\Importers;
 
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Entity\WatchlistEntry;
 use App\Repository\WatchlistEntryRepository;
 use App\Service\Import\AbstractCsvImporter;
@@ -43,7 +44,7 @@ final class WatchlistImporter extends AbstractCsvImporter
         return 'watchlist.csv' === strtolower($filename);
     }
 
-    protected function importRow(array $row): ?Movie
+    protected function importRow(array $row, User $user): ?Movie
     {
         $name = $this->requireColumn($row, 'Name');
         $letterboxdUri = $this->requireColumn($row, 'Letterboxd URI');
@@ -55,14 +56,14 @@ final class WatchlistImporter extends AbstractCsvImporter
         // A movie with no id yet is a brand-new stub from this same import run — not flushed,
         // so it cannot have any WatchlistEntry in the database yet (see other importers for
         // the same pattern with Watch).
-        $existing = null !== $movie->getId() ? $this->watchlistEntryRepository->findOneByMovie($movie) : null;
+        $existing = null !== $movie->getId() ? $this->watchlistEntryRepository->findOneByMovie($user, $movie) : null;
         if (null !== $existing) {
             $existing->setAddedDate($addedDate);
 
             return $movie;
         }
 
-        $entry = new WatchlistEntry($movie);
+        $entry = new WatchlistEntry($user, $movie);
         $entry->setAddedDate($addedDate);
         $this->entityManager->persist($entry);
 

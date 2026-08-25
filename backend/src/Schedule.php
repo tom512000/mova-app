@@ -3,7 +3,7 @@
 namespace App;
 
 use App\Message\SyncLetterboxdRssMessage;
-use Symfony\Component\DependencyInjection\Attribute\Autowire;
+use App\Repository\UserRepository;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
 use Symfony\Component\Scheduler\RecurringMessage;
 use Symfony\Component\Scheduler\Schedule as SymfonySchedule;
@@ -15,8 +15,7 @@ class Schedule implements ScheduleProviderInterface
 {
     public function __construct(
         private CacheInterface $cache,
-        #[Autowire('%app.letterboxd.rss_sync_enabled%')]
-        private bool $rssSyncEnabled,
+        private UserRepository $userRepository,
     ) {
     }
 
@@ -27,10 +26,18 @@ class Schedule implements ScheduleProviderInterface
             ->processOnlyLastMissedRun(true) // ensure only last missed task is run
         ;
 
-        // Gated by LETTERBOXD_RSS_SYNC_ENABLED so a deployment without a configured
-        // username doesn't hammer a feed URL that isn't meaningful.
-        if ($this->rssSyncEnabled) {
-            $schedule->with(RecurringMessage::every('1 hour', new SyncLetterboxdRssMessage()));
+        // One recurring message per opted-in account rather than one global job: the sync
+        // is per-user now, and a single message could only ever name one of them. Users
+        // without a Letterboxd username are excluded by the query, so no job is scheduled
+        // for a feed URL that isn't meaningful.
+        //
+        // The schedule is built once per worker start, so an account that enables syncing
+        // later is picked up on the worker's next restart (see backend-worker's
+        // --time-limit=3600 in docker-compose.yml, which recycles it hourly).
+        foreach ($this->userRepository->findWithRssSyncEnabled() as $user) {
+            $schedule->with(
+                RecurringMessage::every('1 hour', new SyncLetterboxdRssMessage((int) $user->getId()))
+            );
         }
 
         return $schedule;

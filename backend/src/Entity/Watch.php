@@ -17,15 +17,20 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: WatchRepository::class)]
 #[ORM\Table(name: 'watch')]
-#[ORM\UniqueConstraint(name: 'uniq_watch_external_ref', fields: ['externalRef'])]
+#[ORM\UniqueConstraint(name: 'uniq_watch_user_external_ref', fields: ['user', 'externalRef'])]
 #[ORM\Index(name: 'idx_watch_watched_date', fields: ['watchedDate'])]
 #[ORM\Index(name: 'idx_watch_movie', fields: ['movie'])]
+#[ORM\Index(name: 'idx_watch_user', fields: ['user'])]
 class Watch
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\ManyToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private User $user;
 
     #[ORM\ManyToOne(targetEntity: Movie::class, inversedBy: 'watches')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -67,8 +72,9 @@ class Watch
     #[ORM\JoinTable(name: 'watch_tag')]
     private Collection $tags;
 
-    public function __construct(Movie $movie, WatchSource $source)
+    public function __construct(User $user, Movie $movie, WatchSource $source)
     {
+        $this->user = $user;
         $this->movie = $movie;
         $this->source = $source;
         $this->createdAt = new \DateTimeImmutable();
@@ -78,6 +84,11 @@ class Watch
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
     }
 
     public function getMovie(): Movie

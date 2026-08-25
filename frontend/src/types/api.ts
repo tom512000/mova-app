@@ -144,3 +144,27 @@ export interface ImportUploadResponse {
   batches: ImportBatch[]
   unsupportedFiles: string[]
 }
+
+export interface AuthUser {
+  id: number
+  email: string
+  displayName: string
+  letterboxdUsername: string | null
+  rssSyncEnabled: boolean
+}
+
+export interface ProfileSummary {
+  id: number
+  displayName: string
+  isSelf: boolean
+}
+
+export interface ShareLink {
+  token: string
+  createdAt: string
+}
+
+export interface ShareAcceptResult {
+  profile: ProfileSummary
+  alreadyGranted: boolean
+}

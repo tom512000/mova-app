@@ -13,16 +13,24 @@ use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\Person;
 use App\Entity\Tag;
+use App\Entity\User;
 use App\Entity\Watch;
+use App\Repository\UserRepository;
 use Doctrine\Bundle\FixturesBundle\Fixture;
+use Doctrine\Bundle\FixturesBundle\FixtureGroupInterface;
+use Doctrine\Common\DataFixtures\DependentFixtureInterface;
 use Doctrine\Persistence\ObjectManager;
 
 /**
  * A small hand-picked, TMDB-shaped dataset so the dashboard and movie pages can be
  * exercised without a real Letterboxd export or a TMDB API key. Run with:
- *   php bin/console doctrine:fixtures:load
+ *   php bin/console doctrine:fixtures:load --group=demo
+ *
+ * Watches need an owner now, so this loads onto the guest account from UserFixtures. It is
+ * deliberately NOT in the 'users' group: loading it without --append purges every table,
+ * which would destroy an imported library, so it stays opt-in and separate.
  */
-final class AppFixtures extends Fixture
+final class AppFixtures extends Fixture implements FixtureGroupInterface, DependentFixtureInterface
 {
     /** @var array<string, Genre> */
     private array $genres = [];
@@ -33,8 +41,31 @@ final class AppFixtures extends Fixture
     /** @var array<string, Person> */
     private array $people = [];
 
+    public function __construct(
+        private readonly UserRepository $userRepository,
+    ) {
+    }
+
+    /**
+     * @return string[]
+     */
+    public static function getGroups(): array
+    {
+        return ['demo'];
+    }
+
+    /**
+     * @return array<class-string>
+     */
+    public function getDependencies(): array
+    {
+        return [UserFixtures::class];
+    }
+
     public function load(ObjectManager $manager): void
     {
+        $owner = $this->requireUser(UserFixtures::GUEST_EMAIL);
+
         foreach ($this->movieData() as $data) {
             $movie = new Movie($data['slug'], $data['title']);
             $movie->setTmdbId($data['tmdbId']);
@@ -67,7 +98,7 @@ final class AppFixtures extends Fixture
             $manager->persist($movie);
 
             foreach ($data['watches'] as $watchData) {
-                $watch = new Watch($movie, WatchSource::CSV_IMPORT);
+                $watch = new Watch($owner, $movie, WatchSource::CSV_IMPORT);
                 $watch->setWatchedDate(new \DateTimeImmutable($watchData['date']));
                 $watch->setRating($watchData['rating']);
                 $watch->setIsRewatch($watchData['rewatch'] ?? false);
@@ -83,6 +114,16 @@ final class AppFixtures extends Fixture
         }
 
         $manager->flush();
+    }
+
+    private function requireUser(string $email): User
+    {
+        $user = $this->userRepository->findOneByEmail($email);
+        if (null === $user) {
+            throw new \RuntimeException(sprintf('Compte "%s" absent : charge d\'abord le groupe "users".', $email));
+        }
+
+        return $user;
     }
 
     private function genre(ObjectManager $manager, string $name): Genre

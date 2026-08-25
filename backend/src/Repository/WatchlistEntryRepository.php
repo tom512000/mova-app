@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Entity\WatchlistEntry;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -19,18 +20,20 @@ class WatchlistEntryRepository extends ServiceEntityRepository
         parent::__construct($registry, WatchlistEntry::class);
     }
 
-    public function findOneByMovie(Movie $movie): ?WatchlistEntry
+    public function findOneByMovie(User $user, Movie $movie): ?WatchlistEntry
     {
-        return $this->findOneBy(['movie' => $movie]);
+        return $this->findOneBy(['user' => $user, 'movie' => $movie]);
     }
 
     /**
      * @return array{items: Movie[], total: int}
      */
-    public function search(?string $query, int $page, int $perPage): array
+    public function search(User $user, ?string $query, int $page, int $perPage): array
     {
         $qb = $this->createQueryBuilder('we')
-            ->join('we.movie', 'm');
+            ->join('we.movie', 'm')
+            ->where('we.user = :user')
+            ->setParameter('user', $user);
 
         if (null !== $query && '' !== $query) {
             $qb->andWhere('LOWER(m.title) LIKE :query')

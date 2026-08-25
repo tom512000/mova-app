@@ -10,6 +10,7 @@ use App\Mapper\ImportBatchMapper;
 use App\Message\ProcessImportBatchMessage;
 use App\Repository\ImportBatchRepository;
 use App\Service\Import\ImporterRegistry;
+use App\Service\Profile\ViewedProfileResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
@@ -26,6 +27,7 @@ final class ImportController
     private const MAX_UPLOAD_BYTES = 100 * 1024 * 1024;
 
     public function __construct(
+        private readonly ViewedProfileResolver $profileResolver,
         private readonly ImporterRegistry $importerRegistry,
         private readonly EntityManagerInterface $entityManager,
         private readonly MessageBusInterface $messageBus,
@@ -39,6 +41,10 @@ final class ImportController
     #[Route('/letterboxd', methods: ['POST'])]
     public function upload(Request $request): JsonResponse
     {
+        // Deliberately getAuthenticatedUser(), not getViewedUser(): importing into a profile
+        // that was merely shared with you must be impossible, even with a forged profileId.
+        $user = $this->profileResolver->getAuthenticatedUser();
+
         $file = $request->files->get('file');
         if (!$file instanceof UploadedFile || !$file->isValid()) {
             return new JsonResponse(['error' => 'Aucun fichier valide reçu (champ "file" attendu).'], Response::HTTP_BAD_REQUEST);
@@ -73,7 +79,7 @@ final class ImportController
                 continue;
             }
 
-            $batch = new ImportBatch($originalName, $path, $importer->getFileType());
+            $batch = new ImportBatch($user, $originalName, $path, $importer->getFileType());
             $this->entityManager->persist($batch);
             $batches[] = $batch;
         }
@@ -98,7 +104,7 @@ final class ImportController
     #[Route('/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
     public function show(int $id): JsonResponse
     {
-        $batch = $this->importBatchRepository->find($id);
+        $batch = $this->importBatchRepository->findOneOwnedBy($this->profileResolver->getAuthenticatedUser(), $id);
         if (null === $batch) {
             return new JsonResponse(['error' => 'Import introuvable.'], Response::HTTP_NOT_FOUND);
         }
@@ -109,7 +115,7 @@ final class ImportController
     #[Route('', methods: ['GET'])]
     public function list(): JsonResponse
     {
-        $batches = $this->importBatchRepository->findBy([], ['createdAt' => 'DESC'], 50);
+        $batches = $this->importBatchRepository->findRecentForUser($this->profileResolver->getAuthenticatedUser());
 
         return new JsonResponse(array_map($this->importBatchMapper->toDto(...), $batches));
     }

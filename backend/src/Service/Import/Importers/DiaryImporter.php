@@ -8,6 +8,7 @@ use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Movie;
 use App\Entity\Tag;
+use App\Entity\User;
 use App\Entity\Watch;
 use App\Repository\TagRepository;
 use App\Repository\WatchRepository;
@@ -52,7 +53,7 @@ final class DiaryImporter extends AbstractCsvImporter
         return 'diary.csv' === strtolower($filename);
     }
 
-    protected function importRow(array $row): ?Movie
+    protected function importRow(array $row, User $user): ?Movie
     {
         $name = $this->requireColumn($row, 'Name');
         $letterboxdUri = $this->requireColumn($row, 'Letterboxd URI');
@@ -63,11 +64,11 @@ final class DiaryImporter extends AbstractCsvImporter
 
         $externalRef = sprintf('diary:%s:%s', $letterboxdUri, $watchedDate?->format('Y-m-d') ?? 'unknown');
 
-        $watch = $this->watchRepository->findOneByExternalRef($externalRef);
+        $watch = $this->watchRepository->findOneByExternalRef($user, $externalRef);
         $movie = $this->movieUpserter->upsert($slug, $name, $this->parseOptionalYear($row['Year'] ?? null));
 
         if (null === $watch) {
-            $watch = new Watch($movie, WatchSource::CSV_IMPORT);
+            $watch = new Watch($user, $movie, WatchSource::CSV_IMPORT);
             $watch->setExternalRef($externalRef);
             $this->entityManager->persist($watch);
             $movie->addWatch($watch);

@@ -5,11 +5,15 @@ declare(strict_types=1);
 namespace App\Repository;
 
 use App\Entity\Movie;
+use App\Entity\User;
 use App\Entity\Watch;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
 /**
+ * Every lookup here takes the owning User. Watches are per-account, so an unscoped query
+ * would let one user's diary decide whether another user's import creates a row.
+ *
  * @extends ServiceEntityRepository<Watch>
  */
 class WatchRepository extends ServiceEntityRepository
@@ -19,17 +23,19 @@ class WatchRepository extends ServiceEntityRepository
         parent::__construct($registry, Watch::class);
     }
 
-    public function findOneByExternalRef(string $externalRef): ?Watch
+    public function findOneByExternalRef(User $user, string $externalRef): ?Watch
     {
-        return $this->findOneBy(['externalRef' => $externalRef]);
+        return $this->findOneBy(['user' => $user, 'externalRef' => $externalRef]);
     }
 
-    public function hasAnyWatch(Movie $movie): bool
+    public function hasAnyWatch(User $user, Movie $movie): bool
     {
         return null !== $this->createQueryBuilder('w')
             ->select('w.id')
             ->where('w.movie = :movie')
+            ->andWhere('w.user = :user')
             ->setParameter('movie', $movie)
+            ->setParameter('user', $user)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -43,12 +49,14 @@ class WatchRepository extends ServiceEntityRepository
      * RatingsImporter now backfills that date from ratings.csv's own "Date" column and the
      * placeholder must still be found (not re-created) on a later re-import.
      */
-    public function findOneWithoutExternalRefByMovie(Movie $movie): ?Watch
+    public function findOneWithoutExternalRefByMovie(User $user, Movie $movie): ?Watch
     {
         return $this->createQueryBuilder('w')
             ->where('w.movie = :movie')
+            ->andWhere('w.user = :user')
             ->andWhere('w.externalRef IS NULL')
             ->setParameter('movie', $movie)
+            ->setParameter('user', $user)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -58,12 +66,14 @@ class WatchRepository extends ServiceEntityRepository
      * Used by ReviewsImporter to attach a review to the diary Watch that matches
      * the same film and watched date.
      */
-    public function findOneByMovieAndWatchedDate(Movie $movie, \DateTimeImmutable $watchedDate): ?Watch
+    public function findOneByMovieAndWatchedDate(User $user, Movie $movie, \DateTimeImmutable $watchedDate): ?Watch
     {
         return $this->createQueryBuilder('w')
             ->where('w.movie = :movie')
+            ->andWhere('w.user = :user')
             ->andWhere('w.watchedDate = :watchedDate')
             ->setParameter('movie', $movie)
+            ->setParameter('user', $user)
             ->setParameter('watchedDate', $watchedDate)
             ->setMaxResults(1)
             ->getQuery()

@@ -16,13 +16,17 @@ use Doctrine\ORM\Mapping as ORM;
  */
 #[ORM\Entity(repositoryClass: LetterboxdSyncStateRepository::class)]
 #[ORM\Table(name: 'letterboxd_sync_state')]
-#[ORM\UniqueConstraint(name: 'uniq_sync_state_username', fields: ['username'])]
+#[ORM\UniqueConstraint(name: 'uniq_sync_state_user', fields: ['user'])]
 class LetterboxdSyncState
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\OneToOne(targetEntity: User::class)]
+    #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
+    private User $user;
 
     #[ORM\Column(length: 255)]
     private string $username;
@@ -40,14 +44,27 @@ class LetterboxdSyncState
     #[ORM\Column]
     private int $lastRunWatchesImported = 0;
 
-    public function __construct(string $username)
+    public function __construct(User $user, string $username)
     {
+        $this->user = $user;
         $this->username = $username;
     }
 
     public function getId(): ?int
     {
         return $this->id;
+    }
+
+    public function getUser(): User
+    {
+        return $this->user;
+    }
+
+    public function setUsername(string $username): static
+    {
+        $this->username = $username;
+
+        return $this;
     }
 
     public function getUsername(): string

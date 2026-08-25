@@ -6,6 +6,7 @@ namespace App\Repository;
 
 use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Movie;
+use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -32,10 +33,13 @@ class MovieRepository extends ServiceEntityRepository
     /**
      * @return array{items: Movie[], total: int}
      */
-    public function search(?string $query, ?string $genre, ?int $year, int $page, int $perPage): array
+    public function search(User $user, ?string $query, ?string $genre, ?int $year, int $page, int $perPage): array
     {
+        // "Films" means films *this profile* has watched — the Movie table itself is the
+        // shared TMDB catalogue and holds every film any account ever imported.
         $qb = $this->createQueryBuilder('m')
-            ->andWhere('EXISTS (SELECT 1 FROM App\Entity\Watch w WHERE w.movie = m)');
+            ->andWhere('EXISTS (SELECT 1 FROM App\Entity\Watch w WHERE w.movie = m AND w.user = :user)')
+            ->setParameter('user', $user);
 
         if (null !== $query && '' !== $query) {
             $qb->andWhere('LOWER(m.title) LIKE :query')

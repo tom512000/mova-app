@@ -10,8 +10,10 @@ parameters:
     app.tmdb.api_key: '%env(TMDB_API_KEY)%'
     app.tmdb.api_base_url: '%env(TMDB_API_BASE_URL)%'
     app.tmdb.image_base_url: '%env(TMDB_IMAGE_BASE_URL)%'
-    app.letterboxd.username: '%env(LETTERBOXD_USERNAME)%'
-    app.letterboxd.rss_sync_enabled: '%env(bool:LETTERBOXD_RSS_SYNC_ENABLED)%'
+    # LETTERBOXD_USERNAME / LETTERBOXD_RSS_SYNC_ENABLED used to live here as app-wide
+    # parameters. They belong to each User entity row now, because one env var cannot
+    # describe two accounts syncing two different Letterboxd feeds. The env vars are
+    # only read once, by the multi-user migration, to seed the owner account.
 
 services:
     # default configuration for services in *this* file
@@ -32,6 +34,11 @@ services:
     # this creates a service per class whose id is the fully-qualified class name
     App\:
         resource: '../src/'
+
+    # $debug isn't autowirable (it's a container parameter, not a typed service).
+    App\EventSubscriber\ApiExceptionSubscriber:
+        arguments:
+            $debug: '%kernel.debug%'
 
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

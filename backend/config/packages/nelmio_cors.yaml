@@ -5,6 +5,10 @@ nelmio_cors:
         allow_methods: ['GET', 'OPTIONS', 'POST', 'PUT', 'PATCH', 'DELETE']
         allow_headers: ['Content-Type', 'Authorization']
         expose_headers: ['Link']
+        # Authentication is a session cookie, so the browser only attaches it when the
+        # response says credentials are allowed — and it refuses to pair that with a
+        # wildcard origin, which is why allow_origin stays an explicit regex.
+        allow_credentials: true
         max_age: 3600
     paths:
         '^/': null

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Stats;
 
 use App\DTO\Stats\RatingStatsDto;
+use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class RatingStatsService
@@ -14,12 +15,12 @@ final class RatingStatsService
     ) {
     }
 
-    public function getRatingStats(): RatingStatsDto
+    public function getRatingStats(User $user): RatingStatsDto
     {
         $ratings = array_map(
             static fn (array $row) => (float) $row['rating'],
             $this->entityManager->getConnection()
-                ->executeQuery('SELECT rating FROM watch WHERE rating IS NOT NULL')
+                ->executeQuery('SELECT rating FROM watch WHERE rating IS NOT NULL AND user_id = :userId', ['userId' => $user->getId()])
                 ->fetchAllAssociative()
         );
 

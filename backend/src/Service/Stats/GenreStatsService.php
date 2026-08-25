@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Stats;
 
 use App\DTO\Stats\GenreStatDto;
+use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class GenreStatsService
@@ -17,7 +18,7 @@ final class GenreStatsService
     /**
      * @return GenreStatDto[]
      */
-    public function getGenreStats(): array
+    public function getGenreStats(User $user): array
     {
         $rows = $this->entityManager->getConnection()->executeQuery(
             'SELECT
@@ -30,8 +31,10 @@ final class GenreStatsService
             JOIN movie m ON m.id = w.movie_id
             JOIN movie_genre mg ON mg.movie_id = m.id
             JOIN genre g ON g.id = mg.genre_id
+            WHERE w.user_id = :userId
             GROUP BY g.id, g.name
-            ORDER BY watch_count DESC'
+            ORDER BY watch_count DESC',
+            ['userId' => $user->getId()]
         )->fetchAllAssociative();
 
         return array_map(
