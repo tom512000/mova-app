@@ -69,6 +69,7 @@ export function DashboardPage() {
         <StatCard
           label="Durée moyenne"
           value={stats.averageMovieRuntimeMinutes ? formatMinutesAsDuration(Math.round(stats.averageMovieRuntimeMinutes)) : '—'}
+          hint={stats.averageMovieRuntimeMinutes ? `${Math.round(stats.averageMovieRuntimeMinutes)} minutes` : '—'}
         />
         <StatCard
           label="Film le plus long"
