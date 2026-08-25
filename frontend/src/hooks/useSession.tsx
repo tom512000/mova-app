@@ -29,7 +29,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
   const [activeProfileId, setActiveProfileIdState] = useState<number | null>(null)
 
-  const session = useQuery({
+  // Typed nullable because logout writes null into it to sign out without waiting for the
+  // API; fetchCurrentUser itself only ever resolves to a user.
+  const session = useQuery<AuthUser | null>({
     queryKey: ['auth', 'me'],
     queryFn: fetchCurrentUser,
     // A 401 here is the normal "not logged in" answer, not a transient failure, so retrying
@@ -91,12 +93,24 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   )
 
   const logout = useCallback(async () => {
-    await logoutRequest()
+    // The request goes out first, then the local session is dropped without waiting for it.
+    // Logging out is a decision the UI can honour immediately, and awaiting the round trip
+    // left the button looking dead for as long as the API took to answer.
+    const request = logoutRequest()
+
     setActiveProfileId(null)
     setActiveProfileIdState(null)
-    // clear(), not invalidate: the next account must not briefly see the previous one's
-    // cached films while its own requests are still in flight.
-    queryClient.clear()
+    // null (not a removal) so the query resolves to "no user" right away and RequireAuth
+    // redirects; removing it would flip the query back to loading and render nothing.
+    queryClient.setQueryData(['auth', 'me'], null)
+
+    try {
+      await request
+    } finally {
+      // clear(), not invalidate: the next account must not briefly see the previous one's
+      // cached films while its own requests are still in flight.
+      queryClient.clear()
+    }
   }, [queryClient])
 
   const activeProfile = useMemo(() => {

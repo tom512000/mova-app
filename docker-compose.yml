@@ -24,6 +24,11 @@ services:
         condition: service_healthy
     environment:
       APP_ENV: ${APP_ENV:-dev}
+      # Set APP_DEBUG=0 when the project sits on a slow filesystem (a Windows bind mount, a
+      # OneDrive folder). Debug mode re-checks every file the DI container was compiled from
+      # on each request, which is ~1s of pure stat() there. The cost is that changes to
+      # config, services or routes then need `php bin/console cache:clear`.
+      APP_DEBUG: ${APP_DEBUG:-1}
       APP_SECRET: ${APP_SECRET:-changemechangemechangeme}
       DATABASE_URL: postgresql://${POSTGRES_USER:-letterboxd}:${POSTGRES_PASSWORD:-letterboxd}@postgres:5432/${POSTGRES_DB:-letterboxd}?serverVersion=16&charset=utf8
       MESSENGER_TRANSPORT_DSN: doctrine://default?auto_setup=0
@@ -36,6 +41,13 @@ services:
     volumes:
       - ./backend:/app
       - backend_vendor:/app/vendor
+      # var/cache holds the compiled DI container, and Symfony's dev mode stats every file
+      # it was built from on each request. Over the Windows bind mount above that alone cost
+      # ~2.4s per request; keeping it on a container-local volume brings it back to normal.
+      # var/share (the app cache pool) and var/imports deliberately stay on the bind mount:
+      # both are shared with the worker and meant to outlive a `cache:clear`.
+      - backend_cache:/app/var/cache
+      - backend_log:/app/var/log
     ports:
       - "${BACKEND_PORT:-8000}:80"
 
@@ -63,6 +75,11 @@ services:
     volumes:
       - ./backend:/app
       - backend_vendor:/app/vendor
+      # Its own cache volume rather than the web container's: two processes warming the same
+      # compiled container concurrently can race. Both still rebuild on their own when a
+      # config file changes, since the source stays bind-mounted.
+      - backend_worker_cache:/app/var/cache
+      - backend_worker_log:/app/var/log
 
   frontend:
     build:
@@ -89,4 +106,8 @@ services:
 volumes:
   postgres_data:
   backend_vendor:
+  backend_cache:
+  backend_log:
+  backend_worker_cache:
+  backend_worker_log:
   frontend_node_modules:
