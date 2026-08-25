@@ -1,6 +1,11 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchCurrentUser, login as loginRequest, logout as logoutRequest } from '@/services/authService'
+import {
+  fetchCurrentUser,
+  login as loginRequest,
+  logout as logoutRequest,
+  register as registerRequest,
+} from '@/services/authService'
 import { fetchProfiles } from '@/services/profileService'
 import { setActiveProfileId } from '@/services/apiClient'
 import type { AuthUser, ProfileSummary } from '@/types/api'
@@ -13,6 +18,7 @@ interface SessionValue {
   activeProfile: ProfileSummary | null
   isViewingOtherProfile: boolean
   login: (email: string, password: string) => Promise<void>
+  register: (email: string, displayName: string, password: string) => Promise<void>
   logout: () => Promise<void>
   switchProfile: (profileId: number) => void
 }
@@ -71,6 +77,19 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     [queryClient]
   )
 
+  // Registering signs the account in server-side, so the only thing left to do here is
+  // adopt the returned user — exactly the same tail as login.
+  const register = useCallback(
+    async (email: string, displayName: string, password: string) => {
+      const created = await registerRequest(email, displayName, password)
+      setActiveProfileId(null)
+      setActiveProfileIdState(null)
+      queryClient.setQueryData(['auth', 'me'], created)
+      await queryClient.invalidateQueries()
+    },
+    [queryClient]
+  )
+
   const logout = useCallback(async () => {
     await logoutRequest()
     setActiveProfileId(null)
@@ -93,10 +112,11 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       activeProfile,
       isViewingOtherProfile: activeProfileId !== null,
       login,
+      register,
       logout,
       switchProfile,
     }),
-    [user, session.isLoading, profileList, activeProfile, activeProfileId, login, logout, switchProfile]
+    [user, session.isLoading, profileList, activeProfile, activeProfileId, login, register, logout, switchProfile]
   )
 
   return <SessionContext value={value}>{children}</SessionContext>

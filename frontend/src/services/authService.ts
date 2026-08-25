@@ -11,6 +11,15 @@ export async function login(email: string, password: string): Promise<AuthUser> 
   return data
 }
 
+export async function register(email: string, displayName: string, password: string): Promise<AuthUser> {
+  const { data } = await apiClient.post<AuthUser>('/auth/register', { email, displayName, password })
+  return data
+}
+
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  await apiClient.put('/auth/password', { currentPassword, newPassword })
+}
+
 export async function logout(): Promise<void> {
   await apiClient.post('/auth/logout')
 }

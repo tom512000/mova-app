@@ -7,12 +7,15 @@ import { MovieDetailPage } from '@/pages/MovieDetailPage'
 import { WatchlistPage } from '@/pages/WatchlistPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { LoginPage } from '@/pages/LoginPage'
+import { RegisterPage } from '@/pages/RegisterPage'
+import { AccountPage } from '@/pages/AccountPage'
 import { SharePage } from '@/pages/SharePage'
 
 export function App() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/register" element={<RegisterPage />} />
 
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
@@ -21,6 +24,7 @@ export function App() {
           <Route path="movies/:id" element={<MovieDetailPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
           <Route path="import" element={<ImportPage />} />
+          <Route path="account" element={<AccountPage />} />
           <Route path="share/:token" element={<SharePage />} />
         </Route>
       </Route>

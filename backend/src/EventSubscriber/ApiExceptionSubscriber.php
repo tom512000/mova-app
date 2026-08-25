@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Event\ExceptionEvent;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Symfony\Component\HttpKernel\KernelEvents;
+use Symfony\Component\Validator\Exception\ValidationFailedException;
 
 /**
  * Keeps /api answering JSON when something throws. Without this Symfony renders its HTML
@@ -47,6 +48,17 @@ final class ApiExceptionSubscriber implements EventSubscriberInterface
         }
 
         $exception = $event->getThrowable();
+
+        $violations = $this->extractViolations($exception);
+        if (null !== $violations) {
+            $event->setResponse(new JsonResponse(
+                ['error' => 'Les informations saisies sont invalides.', 'violations' => $violations],
+                Response::HTTP_UNPROCESSABLE_ENTITY
+            ));
+
+            return;
+        }
+
         $statusCode = $exception instanceof HttpExceptionInterface
             ? $exception->getStatusCode()
             : Response::HTTP_INTERNAL_SERVER_ERROR;
@@ -58,5 +70,33 @@ final class ApiExceptionSubscriber implements EventSubscriberInterface
             : $exception->getMessage();
 
         $event->setResponse(new JsonResponse(['error' => $message], $statusCode));
+    }
+
+    /**
+     * #[MapRequestPayload] reports a failed constraint as an HttpException wrapping the
+     * ValidationFailedException. Flattening it here is what lets a form highlight the
+     * offending field instead of showing one generic "invalid payload".
+     *
+     * @return list<array{field: string, message: string}>|null null when this isn't a validation failure
+     */
+    private function extractViolations(\Throwable $exception): ?array
+    {
+        $validationFailure = $exception instanceof ValidationFailedException
+            ? $exception
+            : $exception->getPrevious();
+
+        if (!$validationFailure instanceof ValidationFailedException) {
+            return null;
+        }
+
+        $violations = [];
+        foreach ($validationFailure->getViolations() as $violation) {
+            $violations[] = [
+                'field' => $violation->getPropertyPath(),
+                'message' => (string) $violation->getMessage(),
+            ];
+        }
+
+        return $violations;
     }
 }

@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Moon, Share2, Sun } from 'lucide-react'
+import { Link, NavLink, Outlet } from 'react-router-dom'
+import { LogOut, Moon, Share2, Sun, UserRound } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { useSession } from '@/hooks/useSession'
 import { ProfileSwitcher } from '@/components/ProfileSwitcher'
@@ -20,7 +20,7 @@ const EDITION_DATE = new Date().toLocaleDateString('fr-FR', { weekday: 'long', d
 
 export function AppLayout() {
   const { theme, toggleTheme } = useTheme()
-  const { activeProfile, isViewingOtherProfile, logout } = useSession()
+  const { user, activeProfile, isViewingOtherProfile, logout } = useSession()
   const [isSharing, setIsSharing] = useState(false)
 
   const navItems = NAV_ITEMS.filter((item) => !item.ownerOnly || !isViewingOtherProfile)
@@ -43,6 +43,13 @@ export function AppLayout() {
                   Partager
                 </button>
               )}
+              <Link
+                to="/account"
+                className="inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent"
+              >
+                <UserRound className="h-3 w-3" strokeWidth={2} />
+                <span className="max-w-32 truncate">{user?.displayName ?? 'Mon compte'}</span>
+              </Link>
               <button
                 onClick={() => void logout()}
                 className="inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent"

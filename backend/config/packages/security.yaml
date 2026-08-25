@@ -36,10 +36,12 @@ security:
             entry_point: App\Security\JsonAuthenticationHandler
 
     access_control:
-        # Login is the only public door. Accepting a share link is deliberately NOT public:
-        # a grant records *who* was given access, so the recipient has to be a known account.
+        # Login and registration are the only public doors. Accepting a share link is
+        # deliberately NOT public: a grant records *who* was given access, so the recipient
+        # has to be a known account.
         # Only the first matching rule applies, so the specific path has to come first.
         - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
+        - { path: ^/api/auth/register$, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:
