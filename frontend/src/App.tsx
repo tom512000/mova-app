@@ -6,6 +6,7 @@ import { MoviesPage } from '@/pages/MoviesPage'
 import { MovieDetailPage } from '@/pages/MovieDetailPage'
 import { WatchlistPage } from '@/pages/WatchlistPage'
 import { ImportPage } from '@/pages/ImportPage'
+import { FilmGuessGamePage } from '@/pages/FilmGuessGamePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { AccountPage } from '@/pages/AccountPage'
@@ -23,6 +24,7 @@ export function App() {
           <Route path="movies" element={<MoviesPage />} />
           <Route path="movies/:id" element={<MovieDetailPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
+          <Route path="games/film/:mode" element={<FilmGuessGamePage />} />
           <Route path="import" element={<ImportPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="share/:token" element={<SharePage />} />

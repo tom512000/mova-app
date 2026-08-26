@@ -6,11 +6,13 @@ namespace App\Repository;
 
 use App\DTO\MovieFacetsDto;
 use App\DTO\MovieSearchCriteria;
+use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\MovieSortField;
 use App\Entity\Movie;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
+use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -120,6 +122,51 @@ class MovieRepository extends ServiceEntityRepository
             'items' => $this->findByIdsOrdered(array_map('intval', $ids)),
             'total' => $total,
         ];
+    }
+
+    /**
+     * One film the profile could reasonably be asked to guess: watched, and enriched enough
+     * that every rung of FilmClueBuilder's ladder has something to say — the conditions below
+     * mirror that list exactly, studios aside, which TMDB does not always have. Ordering by a
+     * hash of the seed makes the pick reproducible: the daily puzzle needs the same answer all
+     * day, and a test needs to know what it will get.
+     *
+     * @param list<int> $excludeIds recent answers, so the infinite mode stops repeating itself
+     */
+    public function findGuessable(User $user, string $seed, array $excludeIds = []): ?Movie
+    {
+        $params = [
+            'userId' => $user->getId(),
+            'seed' => $seed,
+            'director' => CreditRole::DIRECTOR->value,
+            'actor' => CreditRole::ACTOR->value,
+        ];
+        $types = [];
+
+        $exclusion = '';
+        if ([] !== $excludeIds) {
+            $exclusion = ' AND m.id NOT IN (:excluded)';
+            $params['excluded'] = $excludeIds;
+            $types['excluded'] = ArrayParameterType::INTEGER;
+        }
+
+        $id = $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT m.id
+            FROM movie m
+            WHERE EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)
+                AND m.release_year IS NOT NULL
+                AND EXISTS (SELECT 1 FROM movie_genre mg WHERE mg.movie_id = m.id)
+                AND EXISTS (SELECT 1 FROM movie_country mc WHERE mc.movie_id = m.id)
+                AND EXISTS (SELECT 1 FROM credit cd WHERE cd.movie_id = m.id AND cd.role = :director)
+                AND (SELECT COUNT(*) FROM credit ca WHERE ca.movie_id = m.id AND ca.role = :actor) >= 3'
+            .$exclusion.'
+            ORDER BY md5(:seed || m.id::text)
+            LIMIT 1',
+            $params,
+            $types
+        )->fetchOne();
+
+        return false === $id || null === $id ? null : $this->find((int) $id);
     }
 
     public function facetsFor(User $user): MovieFacetsDto

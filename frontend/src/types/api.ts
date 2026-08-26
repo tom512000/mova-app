@@ -22,6 +22,37 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
+export type GameMode = 'daily' | 'infinite'
+export type GameStatus = 'in_progress' | 'won' | 'lost'
+
+export interface GameClue {
+  label: string
+  value: string
+}
+
+export interface GameGuess {
+  movieId: number
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  correct: boolean
+}
+
+/**
+ * The board as the player is allowed to see it: `clues` holds only what has been unlocked,
+ * and `answer` stays null until the run is over.
+ */
+export interface GameState {
+  mode: GameMode
+  status: GameStatus
+  attemptsUsed: number
+  maxAttempts: number
+  clues: GameClue[]
+  guesses: GameGuess[]
+  answer: MovieSummary | null
+  puzzleDate: string | null
+}
+
 export type CreditRole = 'director' | 'writer' | 'actor'
 
 /** The person a listing was narrowed to, resolved server-side from the id in the URL. */

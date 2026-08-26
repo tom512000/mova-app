@@ -4,13 +4,41 @@ import { LogOut, Moon, Share2, Sun, UserRound } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { useSession } from '@/hooks/useSession'
 import { ProfileSwitcher } from '@/components/ProfileSwitcher'
+import { NavDropdown, type NavDropdownEntry } from '@/components/NavDropdown'
+import { navItemClass } from '@/layouts/navItemClass'
 import { ShareProfileDialog } from '@/components/ShareProfileDialog'
-import { cn } from '@/utils/cn'
 
-const NAV_ITEMS = [
+interface NavLinkItem {
+  to: string
+  label: string
+  end?: boolean
+  ownerOnly?: boolean
+}
+
+interface NavMenuItem {
+  label: string
+  matchPrefix: string
+  items: NavDropdownEntry[]
+  ownerOnly?: boolean
+}
+
+type NavItem = NavLinkItem | NavMenuItem
+
+const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/movies', label: 'Films' },
   { to: '/watchlist', label: 'Watchlist' },
+  // Games are played, not browsed: like Import they act on the logged-in account, so they
+  // go away while another profile is being viewed rather than pretending to act on it.
+  {
+    label: 'Jeux',
+    matchPrefix: '/games',
+    ownerOnly: true,
+    items: [
+      { to: '/games/film/daily', label: 'Film mystère', hint: 'Quotidien · une partie par jour' },
+      { to: '/games/film/infinite', label: 'Film mystère', hint: 'Infini · autant que tu veux' },
+    ],
+  },
   // Import writes, and writing only ever targets the logged-in account — so it disappears
   // while another profile is being viewed rather than pretending to act on it.
   { to: '/import', label: 'Import', ownerOnly: true },
@@ -75,21 +103,25 @@ export function AppLayout() {
 
             <div className="flex flex-wrap items-center justify-center gap-1">
               <nav className="flex flex-wrap items-center justify-center gap-1" aria-label="Navigation principale">
-                {navItems.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    className={({ isActive }) =>
-                      cn(
-                        'border-b-2 px-4 py-3 font-sans text-xs font-semibold uppercase tracking-widest transition-colors duration-200',
-                        isActive ? 'border-accent text-accent' : 'border-transparent text-ink hover:text-accent'
-                      )
-                    }
-                  >
-                    {item.label}
-                  </NavLink>
-                ))}
+                {navItems.map((item) =>
+                  'items' in item ? (
+                    <NavDropdown
+                      key={item.label}
+                      label={item.label}
+                      items={item.items}
+                      matchPrefix={item.matchPrefix}
+                    />
+                  ) : (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      end={item.end}
+                      className={({ isActive }) => navItemClass(isActive)}
+                    >
+                      {item.label}
+                    </NavLink>
+                  )
+                )}
               </nav>
 
               <button

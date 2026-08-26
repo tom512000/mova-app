@@ -111,6 +111,11 @@ class Movie
     #[ORM\JoinTable(name: 'movie_country')]
     private Collection $countries;
 
+    /** @var Collection<int, Studio> */
+    #[ORM\ManyToMany(targetEntity: Studio::class)]
+    #[ORM\JoinTable(name: 'movie_studio')]
+    private Collection $studios;
+
     /** @var Collection<int, Credit> */
     #[ORM\OneToMany(targetEntity: Credit::class, mappedBy: 'movie', orphanRemoval: true, cascade: ['persist'])]
     private Collection $credits;
@@ -127,6 +132,7 @@ class Movie
         $this->updatedAt = new \DateTimeImmutable();
         $this->genres = new ArrayCollection();
         $this->countries = new ArrayCollection();
+        $this->studios = new ArrayCollection();
         $this->credits = new ArrayCollection();
         $this->watches = new ArrayCollection();
     }
@@ -423,6 +429,7 @@ class Movie
         $this->backdropPath = null;
         $this->clearGenres();
         $this->clearCountries();
+        $this->clearStudios();
         $this->clearCredits();
 
         return $this->touch();
@@ -468,6 +475,28 @@ class Movie
     public function clearCountries(): static
     {
         $this->countries->clear();
+
+        return $this;
+    }
+
+    /** @return Collection<int, Studio> */
+    public function getStudios(): Collection
+    {
+        return $this->studios;
+    }
+
+    public function addStudio(Studio $studio): static
+    {
+        if (!$this->studios->contains($studio)) {
+            $this->studios->add($studio);
+        }
+
+        return $this;
+    }
+
+    public function clearStudios(): static
+    {
+        $this->studios->clear();
 
         return $this;
     }

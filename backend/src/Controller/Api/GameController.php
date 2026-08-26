@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Controller\Api;
+
+use App\Entity\Enum\GameMode;
+use App\Exception\GameException;
+use App\Service\Game\FilmGuessGame;
+use App\Service\Profile\ViewedProfileResolver;
+use Symfony\Component\HttpFoundation\JsonResponse;
+use Symfony\Component\HttpFoundation\Request;
+use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Attribute\Route;
+
+/**
+ * Playing is a write, and writes belong to the account making them — every action here
+ * resolves getAuthenticatedUser(), never getViewedUser(). A forged profileId therefore
+ * cannot start or advance a game on somebody else's library, the same rule that keeps
+ * import owner-only.
+ */
+#[Route('/api/games/film', requirements: ['mode' => 'daily|infinite'])]
+final class GameController
+{
+    public function __construct(
+        private readonly ViewedProfileResolver $profileResolver,
+        private readonly FilmGuessGame $game,
+    ) {
+    }
+
+    #[Route('/{mode}', methods: ['GET'])]
+    public function state(string $mode): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+        $session = $this->game->current($user, GameMode::from($mode));
+
+        // Null rather than an empty board: the client decides whether to offer "Jouer" or
+        // "Nouvelle partie", and starting a run is an explicit act.
+        return new JsonResponse(['session' => null === $session ? null : $this->game->toState($session)]);
+    }
+
+    #[Route('/{mode}/start', methods: ['POST'])]
+    public function start(string $mode): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        try {
+            $session = $this->game->start($user, GameMode::from($mode));
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)], Response::HTTP_CREATED);
+    }
+
+    #[Route('/{mode}/guess', methods: ['POST'])]
+    public function guess(string $mode, Request $request): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        $session = $this->game->current($user, GameMode::from($mode));
+        if (null === $session) {
+            return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode((string) $request->getContent(), true);
+        $movieId = \is_array($payload) ? (int) ($payload['movieId'] ?? 0) : 0;
+        if ($movieId <= 0) {
+            return new JsonResponse(['error' => 'Aucun film proposé.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $session = $this->game->guess($user, $session, $movieId);
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)]);
+    }
+}

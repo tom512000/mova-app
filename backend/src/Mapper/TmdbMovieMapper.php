@@ -10,9 +10,11 @@ use App\Entity\Enum\CreditRole;
 use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\Person;
+use App\Entity\Studio;
 use App\Repository\CountryRepository;
 use App\Repository\GenreRepository;
 use App\Repository\PersonRepository;
+use App\Repository\StudioRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -38,6 +40,7 @@ final class TmdbMovieMapper
         private readonly GenreRepository $genreRepository,
         private readonly CountryRepository $countryRepository,
         private readonly PersonRepository $personRepository,
+        private readonly StudioRepository $studioRepository,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -78,6 +81,7 @@ final class TmdbMovieMapper
 
         $this->mapGenres($movie, $details['genres'] ?? []);
         $this->mapCountries($movie, $details['production_countries'] ?? []);
+        $this->mapStudios($movie, $details['production_companies'] ?? []);
         $this->mapCredits($movie, $details['credits'] ?? []);
 
         $movie->touch();
@@ -116,6 +120,34 @@ final class TmdbMovieMapper
                 $this->entityManager->persist($country);
             }
             $movie->addCountry($country);
+        }
+    }
+
+    /**
+     * @param array<int, array{id: int, name: string}> $companies
+     */
+    public function mapStudios(Movie $movie, array $companies): void
+    {
+        $movie->clearStudios();
+
+        // Same guard as $personCache, scoped to one call: the repository lookup below only
+        // sees flushed rows, so listing a company twice would create it twice.
+        $seen = [];
+
+        foreach ($companies as $companyData) {
+            if ('' === ($companyData['name'] ?? '') || isset($seen[$companyData['id']])) {
+                continue;
+            }
+            $seen[$companyData['id']] = true;
+
+            $studio = $this->studioRepository->findOneByTmdbId($companyData['id']);
+            if (null === $studio) {
+                $studio = new Studio();
+                $studio->setTmdbId($companyData['id']);
+                $studio->setName($companyData['name']);
+                $this->entityManager->persist($studio);
+            }
+            $movie->addStudio($studio);
         }
     }
 
