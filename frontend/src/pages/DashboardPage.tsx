@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   fetchActivityStats,
   fetchActorStats,
@@ -29,6 +29,7 @@ import { cn } from '@/utils/cn'
 
 export function DashboardPage() {
   const [granularity, setGranularity] = useState<'month' | 'year'>('year')
+  const navigate = useNavigate()
 
   const overview = useQuery({ queryKey: ['stats', 'overview'], queryFn: fetchOverviewStats })
   const timeline = useQuery({ queryKey: ['stats', 'timeline', granularity], queryFn: () => fetchTimelineStats(granularity) })
@@ -134,7 +135,15 @@ export function DashboardPage() {
             </p>
           )}
           {ratings.isLoading && <SkeletonGrid count={1} />}
-          {ratings.data && <RatingDistributionChart data={ratings.data.distribution} />}
+          {ratings.data && (
+            <>
+              <RatingDistributionChart
+                data={ratings.data.distribution}
+                onSelect={(rating) => navigate(`/movies?rating=${rating}`)}
+              />
+              <ChartHint />
+            </>
+          )}
         </section>
 
         <section className="newsprint-texture border border-ink p-5 sm:p-6">
@@ -154,7 +163,13 @@ export function DashboardPage() {
           )}
           {genres.isLoading && <SkeletonGrid count={1} />}
           {genres.data && genres.data.length > 0 ? (
-            <GenreBarChart data={genres.data} />
+            <>
+              <GenreBarChart
+                data={genres.data}
+                onSelect={(genre) => navigate(`/movies?genre=${encodeURIComponent(genre)}`)}
+              />
+              <ChartHint />
+            </>
           ) : (
             genres.data && <p className="text-sm text-subtle">Pas encore de genres enrichis via TMDB.</p>
           )}
@@ -221,6 +236,15 @@ export function DashboardPage() {
         emptyMessage="Pas encore de scénaristes enrichi·e·s via TMDB."
       />
     </div>
+  )
+}
+
+/** Bars are a shortcut into the listing, but nothing says so until it is written down. */
+function ChartHint() {
+  return (
+    <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-subtle">
+      Clique une barre pour filtrer les films
+    </p>
   )
 }
 

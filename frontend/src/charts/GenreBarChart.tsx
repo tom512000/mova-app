@@ -1,8 +1,16 @@
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
 import type { GenreStat } from '@/types/api'
 import { CHART_COLORS, CHART_FONT_MONO, useIsDarkMode } from '@/charts/palette'
+import { barPayload } from '@/charts/barSelection'
 
-export function GenreBarChart({ data }: { data: GenreStat[] }) {
+export function GenreBarChart({
+  data,
+  onSelect,
+}: {
+  data: GenreStat[]
+  /** Called with the genre a clicked bar stands for; the bars stay inert without it. */
+  onSelect?: (genreName: string) => void
+}) {
   const isDark = useIsDarkMode()
   const barColor = isDark ? CHART_COLORS.seriesBlueDark : CHART_COLORS.seriesBlueLight
   const gridColor = isDark ? CHART_COLORS.gridlineDark : CHART_COLORS.gridlineLight
@@ -36,7 +44,19 @@ export function GenreBarChart({ data }: { data: GenreStat[] }) {
             ]
           }}
         />
-        <Bar dataKey="watchCount" fill={barColor} maxBarSize={20} />
+        <Bar
+          dataKey="watchCount"
+          fill={barColor}
+          maxBarSize={20}
+          className={onSelect ? 'cursor-pointer' : undefined}
+          onClick={
+            onSelect &&
+            ((entry: unknown) => {
+              const genre = barPayload<GenreStat>(entry)
+              if (genre) onSelect(genre.genreName)
+            })
+          }
+        />
       </BarChart>
     </ResponsiveContainer>
   )

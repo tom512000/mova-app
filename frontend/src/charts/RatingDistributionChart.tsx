@@ -2,8 +2,16 @@ import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxi
 import type { RatingDistributionPoint } from '@/types/api'
 import { CHART_COLORS, CHART_FONT_MONO, useIsDarkMode } from '@/charts/palette'
 import { ratingToStars } from '@/utils/format'
+import { barPayload } from '@/charts/barSelection'
 
-export function RatingDistributionChart({ data }: { data: RatingDistributionPoint[] }) {
+export function RatingDistributionChart({
+  data,
+  onSelect,
+}: {
+  data: RatingDistributionPoint[]
+  /** Called with the note a clicked bar stands for; the bars stay inert without it. */
+  onSelect?: (rating: number) => void
+}) {
   const isDark = useIsDarkMode()
   const barColor = isDark ? CHART_COLORS.seriesBlueDark : CHART_COLORS.seriesBlueLight
   const gridColor = isDark ? CHART_COLORS.gridlineDark : CHART_COLORS.gridlineLight
@@ -29,7 +37,19 @@ export function RatingDistributionChart({ data }: { data: RatingDistributionPoin
           labelFormatter={(label) => ratingToStars(typeof label === 'number' ? label : null)}
           formatter={(value) => [`${value} film${Number(value) > 1 ? 's' : ''}`, 'Note']}
         />
-        <Bar dataKey="count" fill={barColor} maxBarSize={36} />
+        <Bar
+          dataKey="count"
+          fill={barColor}
+          maxBarSize={36}
+          className={onSelect ? 'cursor-pointer' : undefined}
+          onClick={
+            onSelect &&
+            ((entry: unknown) => {
+              const point = barPayload<RatingDistributionPoint>(entry)
+              if (point) onSelect(point.rating)
+            })
+          }
+        />
       </BarChart>
     </ResponsiveContainer>
   )
