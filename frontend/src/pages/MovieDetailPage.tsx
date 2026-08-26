@@ -7,6 +7,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 import { formatDate, formatMinutesAsDuration } from '@/utils/format'
+import type { Credit, CreditRole } from '@/types/api'
 
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -39,7 +40,7 @@ export function MovieDetailPage() {
       </Link>
 
       {movie.backdropUrl && (
-        <div className="relative -mx-4 h-64 overflow-hidden border-y-4 border-ink sm:h-80 lg:-mx-8">
+        <div className="relative -mx-4 h-64 overflow-hidden border-y-4 border-ink sm:h-80">
           <img src={movie.backdropUrl} alt="" className="h-full w-full object-cover grayscale" />
           <div className="absolute inset-0 bg-linear-to-t from-paper via-transparent to-transparent" />
         </div>
@@ -86,14 +87,14 @@ export function MovieDetailPage() {
           {movie.directors.length > 0 && (
             <p className="mt-6 text-sm">
               <span className="font-mono text-xs uppercase tracking-widest text-subtle">Réalisé par </span>
-              <span className="font-serif font-bold">{movie.directors.map((d) => d.name).join(', ')}</span>
+              <CreditLinks credits={movie.directors} role="director" className="font-serif font-bold" />
             </p>
           )}
 
           {movie.cast.length > 0 && (
             <p className="mt-2 text-sm">
               <span className="font-mono text-xs uppercase tracking-widest text-subtle">Avec </span>
-              <span className="font-body">{movie.cast.slice(0, 6).map((c) => c.name).join(', ')}</span>
+              <CreditLinks credits={movie.cast.slice(0, 6)} role="actor" className="font-body" />
             </p>
           )}
 
@@ -154,5 +155,35 @@ export function MovieDetailPage() {
         </div>
       </section>
     </div>
+  )
+}
+
+/**
+ * Every name is a way into the library: it opens the listing filtered on that person in
+ * that role. A person can hold two credits on the same film, hence the index in the key.
+ */
+function CreditLinks({
+  credits,
+  role,
+  className,
+}: {
+  credits: Credit[]
+  role: CreditRole
+  className?: string
+}) {
+  return (
+    <>
+      {credits.map((credit, index) => (
+        <span key={`${credit.personId}-${index}`}>
+          {index > 0 && ', '}
+          <Link
+            to={`/movies?personId=${credit.personId}&personRole=${role}`}
+            className={`underline-offset-4 decoration-accent decoration-2 hover:underline ${className ?? ''}`}
+          >
+            {credit.name}
+          </Link>
+        </span>
+      ))}
+    </>
   )
 }
