@@ -22,6 +22,15 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
+export type CreditRole = 'director' | 'writer' | 'actor'
+
+/** The person a listing was narrowed to, resolved server-side from the id in the URL. */
+export interface PersonFilter {
+  id: number
+  name: string
+  role: CreditRole | null
+}
+
 export type MovieSortField = 'title' | 'rating' | 'year' | 'watched' | 'added' | 'runtime' | 'random'
 export type SortDirection = 'asc' | 'desc'
 
@@ -38,6 +47,7 @@ export interface MovieListResponse {
   total: number
   page: number
   perPage: number
+  person: PersonFilter | null
 }
 
 export interface Credit {

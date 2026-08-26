@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Functional\Controller\Api;
 
+use App\Entity\Credit;
+use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
 use App\Entity\Movie;
+use App\Entity\Person;
 use App\Entity\User;
 use App\Entity\Watch;
 use Doctrine\ORM\EntityManagerInterface;
@@ -26,9 +29,12 @@ final class MovieControllerTest extends WebTestCase
     /** Prefixed so they cannot collide with the globally unique genre names already stored. */
     private const COMEDY = 'ZZ-Test-Comedie';
     private const SCIFI = 'ZZ-Test-SF';
+    private const PERSON = 'ZZ Test Personne';
 
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
+    /** Directs Brazil and Dune, and acts in Amelie - enough to tell the roles apart. */
+    private int $personId;
 
     protected function setUp(): void
     {
@@ -154,6 +160,45 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame($first, $paged);
     }
 
+    public function testPersonFilterNarrowsToOneCreditRole(): void
+    {
+        self::assertSame(['Brazil', 'Dune'], $this->titlesFor("personId={$this->personId}&personRole=director"));
+        self::assertSame(['Amélie'], $this->titlesFor("personId={$this->personId}&personRole=actor"));
+        self::assertSame([], $this->titlesFor("personId={$this->personId}&personRole=writer"));
+
+        // Without a role the same person answers for every credit they hold.
+        self::assertSame(['Amélie', 'Brazil', 'Dune'], $this->titlesFor("personId={$this->personId}"));
+    }
+
+    public function testPersonFilterCombinesWithTheOtherFiltersAndSorts(): void
+    {
+        self::assertSame(
+            ['Brazil'],
+            $this->titlesFor("personId={$this->personId}&personRole=director&year=1985")
+        );
+        self::assertSame(
+            ['Dune', 'Brazil'],
+            $this->titlesFor("personId={$this->personId}&personRole=director&sort=year&direction=desc")
+        );
+    }
+
+    public function testTheListingNamesThePersonItWasFilteredOn(): void
+    {
+        $this->titlesFor("personId={$this->personId}&personRole=director");
+        self::assertSame(
+            ['id' => $this->personId, 'name' => self::PERSON, 'role' => 'director'],
+            $this->json()['person']
+        );
+
+        // No person filter, nothing to label.
+        $this->titlesFor('');
+        self::assertNull($this->json()['person']);
+
+        // An id nobody matches narrows to nothing rather than silently listing everything.
+        self::assertSame([], $this->titlesFor('personId=99999999'));
+        self::assertNull($this->json()['person']);
+    }
+
     public function testFacetsOnlyOfferValuesThisProfileOwns(): void
     {
         $this->client->request('GET', '/api/movies/facets');
@@ -204,7 +249,22 @@ final class MovieControllerTest extends WebTestCase
         $this->watch($user, $dune, '2023-12-01', 2.0);
         $this->watch($user, $dune, '2024-04-02', 5.0);
 
+        $person = (new Person())->setName(self::PERSON);
+        $this->entityManager->persist($person);
+        $this->credit($brazil, $person, CreditRole::DIRECTOR);
+        $this->credit($dune, $person, CreditRole::DIRECTOR);
+        $this->credit($amelie, $person, CreditRole::ACTOR);
+
         $this->entityManager->flush();
+
+        $this->personId = (int) $person->getId();
+    }
+
+    private function credit(Movie $movie, Person $person, CreditRole $role): void
+    {
+        $credit = new Credit($movie, $person, $role);
+        $movie->addCredit($credit);
+        $this->entityManager->persist($credit);
     }
 
     private function genre(string $name): Genre

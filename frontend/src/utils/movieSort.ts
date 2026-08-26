@@ -1,4 +1,4 @@
-import type { MovieSortField, SortDirection } from '@/types/api'
+import type { CreditRole, MovieSortField, SortDirection } from '@/types/api'
 
 interface SortOption {
   value: MovieSortField
@@ -19,6 +19,13 @@ export const SORT_OPTIONS: SortOption[] = [
 
 export function defaultDirectionFor(sort: MovieSortField): SortDirection {
   return SORT_OPTIONS.find((option) => option.value === sort)?.defaultDirection ?? 'asc'
+}
+
+/** Reads as a sentence in the filter chip: "Réalisé par Quentin Dupieux". */
+export const ROLE_PREFIX: Record<CreditRole, string> = {
+  director: 'Réalisé par',
+  actor: 'Avec',
+  writer: 'Écrit par',
 }
 
 export interface MovieFilterState {

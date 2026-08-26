@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\DTO\MovieSearchCriteria;
+use App\DTO\PersonFilterDto;
+use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\MovieSortField;
 use App\Mapper\MovieMapper;
 use App\Repository\MovieRepository;
+use App\Repository\PersonRepository;
 use App\Service\Profile\ViewedProfileResolver;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -26,8 +29,12 @@ final class MovieController
     }
 
     #[Route('', methods: ['GET'])]
-    public function list(Request $request, MovieRepository $movieRepository, MovieMapper $mapper): JsonResponse
-    {
+    public function list(
+        Request $request,
+        MovieRepository $movieRepository,
+        PersonRepository $personRepository,
+        MovieMapper $mapper,
+    ): JsonResponse {
         $viewedUser = $this->profileResolver->getViewedUser();
         $criteria = $this->criteriaFrom($request);
 
@@ -41,6 +48,7 @@ final class MovieController
             'total' => $result['total'],
             'page' => $criteria->page,
             'perPage' => $criteria->perPage,
+            'person' => $this->resolvePerson($criteria, $personRepository),
         ]);
     }
 
@@ -92,6 +100,8 @@ final class MovieController
             year: $query->has('year') && '' !== $query->get('year') ? (int) $query->get('year') : null,
             rating: !$unratedOnly && '' !== $rating ? $this->clampRating((float) $rating) : null,
             unratedOnly: $unratedOnly,
+            personId: $query->has('personId') ? max(1, (int) $query->get('personId')) : null,
+            personRole: CreditRole::tryFrom((string) $query->get('personRole', '')),
             sort: $sort,
             descending: $descending,
             // Only alphanumerics reach the SQL, though it is a bound parameter either way.
@@ -99,6 +109,23 @@ final class MovieController
             page: max(1, (int) $query->get('page', 1)),
             perPage: min(100, max(1, (int) $query->get('perPage', 24))),
         );
+    }
+
+    /**
+     * The client filters on an id but has to label the filter with a name, so the listing
+     * hands it back rather than making it fetch the person separately.
+     */
+    private function resolvePerson(MovieSearchCriteria $criteria, PersonRepository $personRepository): ?PersonFilterDto
+    {
+        if (null === $criteria->personId) {
+            return null;
+        }
+
+        $person = $personRepository->find($criteria->personId);
+
+        return null === $person
+            ? null
+            : new PersonFilterDto((int) $person->getId(), $person->getName(), $criteria->personRole);
     }
 
     private function trimmedOrNull(mixed $value): ?string

@@ -12,7 +12,7 @@ import {
   fetchTimelineStats,
   fetchWriterStats,
 } from '@/services/statsService'
-import type { PersonStat } from '@/types/api'
+import type { CreditRole, PersonStat } from '@/types/api'
 import { StatCard } from '@/components/StatCard'
 import { SkeletonGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
@@ -198,6 +198,7 @@ export function DashboardPage() {
       </section>
 
       <PersonStatSection
+        role="director"
         title="Réalisateur·rice·s les plus vu·e·s"
         isLoading={directors.isLoading}
         data={directors.data}
@@ -205,6 +206,7 @@ export function DashboardPage() {
       />
 
       <PersonStatSection
+        role="actor"
         title="Acteur·rice·s les plus vu·e·s"
         isLoading={actors.isLoading}
         data={actors.data}
@@ -212,6 +214,7 @@ export function DashboardPage() {
       />
 
       <PersonStatSection
+        role="writer"
         title="Scénaristes les plus vu·e·s"
         isLoading={writers.isLoading}
         data={writers.data}
@@ -222,11 +225,13 @@ export function DashboardPage() {
 }
 
 function PersonStatSection({
+  role,
   title,
   isLoading,
   data,
   emptyMessage,
 }: {
+  role: CreditRole
   title: string
   isLoading: boolean
   data: PersonStat[] | undefined
@@ -239,12 +244,17 @@ function PersonStatSection({
       {data && data.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((p) => (
-            <div key={p.personId} className="hard-shadow-hover border border-ink/30 p-4">
-              <p className="font-serif text-lg font-bold">{p.name}</p>
+            // Each card is the entry point to that person's films in the library.
+            <Link
+              key={p.personId}
+              to={`/movies?personId=${p.personId}&personRole=${role}`}
+              className="hard-shadow-hover group block border border-ink/30 p-4"
+            >
+              <p className="font-serif text-lg font-bold group-hover:text-accent">{p.name}</p>
               <p className="mt-0.5 font-mono text-xs text-subtle">
                 {p.movieCount} film{p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
               </p>
-            </div>
+            </Link>
           ))}
         </div>
       ) : (

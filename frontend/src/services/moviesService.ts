@@ -1,5 +1,5 @@
 import { apiClient } from '@/services/apiClient'
-import type { MovieDetail, MovieFacets, MovieListResponse, MovieSortField, SortDirection } from '@/types/api'
+import type { CreditRole, MovieDetail, MovieFacets, MovieListResponse, MovieSortField, SortDirection } from '@/types/api'
 
 export interface MovieSearchParams {
   q?: string
@@ -7,6 +7,9 @@ export interface MovieSearchParams {
   year?: number
   /** An exact half-star note, or 'none' for the films left unrated. */
   rating?: string
+  /** Keeps films this person is credited on, optionally narrowed to one role. */
+  personId?: number
+  personRole?: CreditRole
   sort?: MovieSortField
   direction?: SortDirection
   /** Keeps a random sort stable from one page to the next. */

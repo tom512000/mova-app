@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { ratingToStars } from '@/utils/format'
 import { SORT_OPTIONS, defaultDirectionFor, type MovieFilterState } from '@/utils/movieSort'
-import type { MovieSortField, SortDirection } from '@/types/api'
+import type { CreditRole, MovieSortField, SortDirection } from '@/types/api'
 
 const PER_PAGE = 24
 
@@ -37,6 +37,10 @@ export function MoviesPage() {
   }
   const seed = params.get('seed') ?? ''
   const page = Math.max(1, Number(params.get('page') ?? 1))
+  // Reached by clicking a name on the dashboard: the URL carries the id, the listing
+  // answers with the name to label it.
+  const personId = Number(params.get('personId') ?? 0)
+  const personRole = params.get('personRole') as CreditRole | null
 
   const updateParams = useCallback(
     (patch: Record<string, string | null | undefined>) => {
@@ -68,7 +72,7 @@ export function MoviesPage() {
   const facets = useQuery({ queryKey: ['movies', 'facets'], queryFn: fetchMovieFacets, staleTime: 5 * 60 * 1000 })
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['movies', { ...filters, q, seed, page }],
+    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole }],
     queryFn: () =>
       fetchMovies({
         q: q || undefined,
@@ -78,6 +82,8 @@ export function MoviesPage() {
         sort: filters.sort,
         direction: filters.direction,
         seed: filters.sort === 'random' ? seed : undefined,
+        personId: personId || undefined,
+        personRole: personRole ?? undefined,
         page,
         perPage: PER_PAGE,
       }),
@@ -103,7 +109,14 @@ export function MoviesPage() {
     setParams(new URLSearchParams(), { replace: true })
   }
 
-  const hasFilters = filters.genre !== '' || filters.rating !== '' || filters.year !== '' || q !== ''
+  // Until the listing comes back the name is unknown, but the chip must already be there
+  // or the bar would jump a line once it arrives.
+  const activePerson = personId
+    ? { name: data?.person?.name ?? '…', role: data?.person?.role ?? personRole }
+    : null
+
+  const hasFilters =
+    filters.genre !== '' || filters.rating !== '' || filters.year !== '' || q !== '' || personId > 0
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
 
@@ -125,8 +138,10 @@ export function MoviesPage() {
         isDirty={isDirty}
         onChange={handleFilterChange}
         onSortChange={handleSortChange}
+        person={activePerson}
         onReshuffle={() => updateParams({ seed: newSeed(), page: null })}
         onReset={handleReset}
+        onClearPerson={() => updateParams({ personId: null, personRole: null, page: null })}
       />
 
       {data && (

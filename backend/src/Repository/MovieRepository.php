@@ -75,6 +75,16 @@ class MovieRepository extends ServiceEntityRepository
             $params['rating'] = number_format($criteria->rating, 1, '.', '');
         }
 
+        if (null !== $criteria->personId) {
+            $credit = 'EXISTS (SELECT 1 FROM credit c WHERE c.movie_id = m.id AND c.person_id = :personId';
+            $params['personId'] = $criteria->personId;
+            if (null !== $criteria->personRole) {
+                $credit .= ' AND c.role = :personRole';
+                $params['personRole'] = $criteria->personRole->value;
+            }
+            $conditions[] = $credit.')';
+        }
+
         // The join to the aggregate is also what restricts the shared catalogue to the films
         // this profile has actually watched.
         $from = 'FROM movie m
