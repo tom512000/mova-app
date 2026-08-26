@@ -22,6 +22,17 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
+export type MovieSortField = 'title' | 'rating' | 'year' | 'watched' | 'added' | 'runtime' | 'random'
+export type SortDirection = 'asc' | 'desc'
+
+/** The values the current profile can actually filter on, straight from its library. */
+export interface MovieFacets {
+  genres: string[]
+  years: number[]
+  ratings: number[]
+  hasUnrated: boolean
+}
+
 export interface MovieListResponse {
   items: MovieSummary[]
   total: number
