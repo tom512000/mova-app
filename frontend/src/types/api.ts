@@ -286,6 +286,29 @@ export interface CountryStat {
   averageRating: number | null
 }
 
+/** A film seen while it was still new, and the gap that earned it the place. */
+export interface ReleaseWindowMovie {
+  movieId: number
+  title: string
+  releaseYear: number | null
+  releaseDate: string
+  /** The first viewing: a rewatch cannot make a film "seen at release". */
+  firstWatchedDate: string
+  daysAfterRelease: number
+}
+
+export interface ReleaseWindowStats {
+  /** The window, in days after release. */
+  withinDays: number
+  count: number
+  /** How many of those landed inside the first week. */
+  firstWeek: number
+  /** Films that could qualify at all — those TMDB has a release date for. */
+  comparable: number
+  /** Closest to release first. */
+  movies: ReleaseWindowMovie[]
+}
+
 export interface WeekdayStat {
   weekday: number
   label: string

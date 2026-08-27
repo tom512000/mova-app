@@ -12,6 +12,7 @@ use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
 use App\Service\Stats\RatingStatsService;
+use App\Service\Stats\ReleaseWindowStatsService;
 use App\Service\Stats\TimelineStatsService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -98,6 +99,12 @@ final class StatsController
     public function activity(ActivityStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getActivity($this->profileResolver->getViewedUser()));
+    }
+
+    #[Route('/at-release', methods: ['GET'])]
+    public function atRelease(ReleaseWindowStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getReleaseWindowStats($this->profileResolver->getViewedUser()));
     }
 
     private function limitFrom(Request $request, int $default = 25): int

@@ -9,10 +9,11 @@ import {
   fetchGenreStats,
   fetchOverviewStats,
   fetchRatingStats,
+  fetchReleaseWindowStats,
   fetchTimelineStats,
   fetchWriterStats,
 } from '@/services/statsService'
-import type { CreditRole, PersonStat } from '@/types/api'
+import type { CreditRole, PersonStat, ReleaseWindowStats } from '@/types/api'
 import { StatCard } from '@/components/StatCard'
 import { SkeletonGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
@@ -40,6 +41,7 @@ export function DashboardPage() {
   const writers = useQuery({ queryKey: ['stats', 'writers'], queryFn: () => fetchWriterStats(6) })
   const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(12) })
   const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats })
+  const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
 
   if (overview.isLoading) return <SkeletonGrid count={8} />
   if (overview.isError) return <ErrorState message={(overview.error as Error).message} />
@@ -68,11 +70,13 @@ export function DashboardPage() {
       </div>
 
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
-        <StatCard
-          label="Films vus"
-          value={stats.totalMovies}
-          hint={stats.totalRewatches > 0 ? `${stats.totalWatches} visionnages · ${stats.totalRewatches} rewatch${stats.totalRewatches > 1 ? 'es' : ''}` : undefined}
-        />
+        <Link to="/movies" className="block">
+          <StatCard
+            label="Films vus"
+            value={stats.totalMovies}
+            hint={stats.totalRewatches > 0 ? `${stats.totalWatches} visionnages · ${stats.totalRewatches} rewatch${stats.totalRewatches > 1 ? 'es' : ''}` : undefined}
+          />
+        </Link>
         <Link to="/watchlist" className="block">
           <StatCard label="Watchlist" value={stats.totalWatchlist} />
         </Link>
@@ -176,14 +180,25 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <section className="border border-ink p-5 sm:p-6">
-        <h2 className="mb-1 font-serif text-2xl font-bold">Pays de production</h2>
-        <p className="mb-4 font-mono text-xs text-subtle">
-          Une coproduction compte pour chaque pays impliqué
-        </p>
-        {countries.isLoading && <SkeletonGrid count={1} />}
-        {countries.data && <CountryBarChart data={countries.data} />}
-      </section>
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <section className="border border-ink p-5 sm:p-6">
+          <h2 className="mb-1 font-serif text-2xl font-bold">Pays de production</h2>
+          <p className="mb-4 font-mono text-xs text-subtle">
+            Une coproduction compte pour chaque pays impliqué
+          </p>
+          {countries.isLoading && <SkeletonGrid count={1} />}
+          {countries.data && <CountryBarChart data={countries.data} />}
+        </section>
+
+        <section className="border border-ink p-5 sm:p-6">
+          <h2 className="mb-1 font-serif text-2xl font-bold">Vus à leur sortie</h2>
+          <p className="mb-4 font-mono text-xs text-subtle">
+            Découverts dans le mois suivant leur sortie
+          </p>
+          {atRelease.isLoading && <SkeletonGrid count={1} />}
+          {atRelease.data && <ReleaseWindowPanel stats={atRelease.data} />}
+        </section>
+      </div>
 
       <section className="border border-ink p-5 sm:p-6">
         <h2 className="font-serif text-2xl font-bold">Rythme</h2>
@@ -245,6 +260,60 @@ function ChartHint() {
     <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-subtle">
       Clique une barre pour filtrer les films
     </p>
+  )
+}
+
+/**
+ * The films caught while they were still new, closest to release first.
+ *
+ * The denominator is stated rather than implied: a film TMDB has no release date for can
+ * never qualify, and quietly counting it against the total would understate the tally.
+ */
+function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
+  if (stats.count === 0) {
+    return (
+      <p className="py-12 text-center font-body text-sm text-subtle">
+        Aucun film vu dans le mois de sa sortie.
+      </p>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-4">
+      {/*
+        Centred, not baseline-aligned: a baseline pins the number to the *first* line, which
+        leaves a two-line block hanging well below it. And the two lines are siblings in a
+        column rather than one paragraph split by a <br>, so they cannot drift apart.
+      */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-2">
+        <p className="font-mono text-5xl font-semibold leading-none tabular-nums">{stats.count}</p>
+        <div className="flex flex-col gap-1 font-mono text-xs uppercase leading-tight tracking-widest text-subtle">
+          <span>sur {stats.comparable} films datés</span>
+          {stats.firstWeek > 0 && (
+            <span>
+              dont <b className="text-ink">{stats.firstWeek}</b> dans la première semaine
+            </span>
+          )}
+        </div>
+      </div>
+
+      <ol className="flex max-h-72 flex-col divide-y divide-ink/15 overflow-y-auto border-t border-ink/20">
+        {stats.movies.map((movie) => (
+          <li key={movie.movieId} className="flex items-baseline gap-3 py-2.5">
+            <span className="w-14 shrink-0 font-mono text-[10px] uppercase tracking-widest text-subtle tabular-nums">
+              {movie.daysAfterRelease === 0 ? 'Jour J' : `J+${movie.daysAfterRelease}`}
+            </span>
+            <Link
+              to={`/movies/${movie.movieId}`}
+              className="min-w-0 flex-1 truncate font-serif text-base font-bold hover:text-accent"
+            >
+              {movie.title}
+            </Link>
+            <span className="shrink-0 font-mono text-xs text-subtle tabular-nums">{movie.releaseYear ?? '—'}</span>
+          </li>
+        ))}
+      </ol>
+    </div>
   )
 }
 

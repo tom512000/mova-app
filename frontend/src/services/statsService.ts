@@ -6,6 +6,7 @@ import type {
   OverviewStats,
   PersonStat,
   RatingStats,
+  ReleaseWindowStats,
   TimelineBucket,
 } from '@/types/api'
 
@@ -51,5 +52,10 @@ export async function fetchCountryStats(limit = 12): Promise<CountryStat[]> {
 
 export async function fetchActivityStats(): Promise<ActivityStats> {
   const { data } = await apiClient.get<ActivityStats>('/stats/activity')
+  return data
+}
+
+export async function fetchReleaseWindowStats(): Promise<ReleaseWindowStats> {
+  const { data } = await apiClient.get<ReleaseWindowStats>('/stats/at-release')
   return data
 }
