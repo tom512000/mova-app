@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
@@ -7,7 +8,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 import { formatDate, formatMinutesAsDuration } from '@/utils/format'
-import type { Credit, CreditRole } from '@/types/api'
+import type { Credit, CreditRole, Watch } from '@/types/api'
 
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -118,6 +119,8 @@ export function MovieDetailPage() {
         </div>
       </div>
 
+      <ReviewSection watches={movie.watches} />
+
       <section className="border border-ink p-5 sm:p-6">
         <h2 className="mb-4 font-serif text-2xl font-bold">Mes visionnages ({movie.watches.length})</h2>
         <div className="flex flex-col divide-y divide-ink/15">
@@ -130,17 +133,6 @@ export function MovieDetailPage() {
                   <StarRating rating={watch.rating} size="md" />
                 </span>
               </div>
-              {watch.reviewText && (
-                <p
-                  className={
-                    watch.containsSpoilers
-                      ? 'font-body text-sm text-faint blur-sm transition-all duration-200 hover:blur-none'
-                      : 'font-body text-sm text-ink/70'
-                  }
-                >
-                  {watch.reviewText}
-                </p>
-              )}
               {watch.tags.length > 0 && (
                 <div className="flex flex-wrap gap-1">
                   {watch.tags.map((tag) => (
@@ -155,6 +147,71 @@ export function MovieDetailPage() {
         </div>
       </section>
     </div>
+  )
+}
+
+/**
+ * What I wrote about the film, given its own block above the viewing log.
+ *
+ * The synopsis further up is TMDB's voice; this is mine, so it is set larger, in the body
+ * face, behind a heavy rule — and it disappears entirely on the films I said nothing about
+ * rather than leaving an empty section on almost every page.
+ */
+function ReviewSection({ watches }: { watches: Watch[] }) {
+  const reviews = watches.filter((watch) => watch.reviewText)
+  if (reviews.length === 0) return null
+
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <h2 className="mb-4 font-serif text-2xl font-bold">
+        {reviews.length > 1 ? `Mes critiques (${reviews.length})` : 'Ma critique'}
+      </h2>
+      <div className="flex flex-col divide-y divide-ink/15">
+        {reviews.map((watch) => (
+          <article key={watch.id} className="py-5 first:pt-0 last:pb-0">
+            <header className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <span className="flex items-center gap-2 font-mono text-xs uppercase tracking-widest text-subtle">
+                {formatDate(watch.watchedDate)}
+                {watch.isRewatch && <Badge>Rewatch</Badge>}
+              </span>
+              <StarRating rating={watch.rating} size="md" />
+            </header>
+            <ReviewBody watch={watch} />
+          </article>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+/**
+ * A review can run to several paragraphs, so the line breaks it was written with are kept.
+ */
+function ReviewBody({ watch }: { watch: Watch }) {
+  const [revealed, setRevealed] = useState(false)
+
+  if (watch.containsSpoilers && !revealed) {
+    return (
+      // A button rather than the blur-on-hover this used to be: hovering is something only
+      // a mouse can do, which left the text unreachable on a phone and by keyboard.
+      <div className="mt-3 flex flex-col items-center gap-2 border border-dashed border-ink/40 p-6 text-center">
+        <p className="font-mono text-[10px] uppercase tracking-widest text-subtle">
+          Cette critique dévoile l'intrigue
+        </p>
+        <button
+          onClick={() => setRevealed(true)}
+          className="font-mono text-xs uppercase tracking-widest text-accent underline decoration-2 underline-offset-4 hover:no-underline"
+        >
+          L'afficher quand même
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <blockquote className="mt-3 whitespace-pre-line border-l-4 border-ink pl-4 font-body text-base leading-relaxed text-ink/85 italic">
+      {watch.reviewText}
+    </blockquote>
   )
 }
 
