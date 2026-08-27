@@ -120,6 +120,16 @@ export interface PersonFilter {
   role: CreditRole | null
 }
 
+/** One exhibit on the museum wall. Thinner than MovieSummary — the wall loads all of them. */
+export interface MoviePoster {
+  id: number
+  title: string
+  releaseYear: number | null
+  /** Always present: the wall only ever holds films that have artwork. */
+  posterUrl: string
+  myAverageRating: number | null
+}
+
 export type MovieSortField = 'title' | 'rating' | 'year' | 'watched' | 'added' | 'runtime' | 'random'
 export type SortDirection = 'asc' | 'desc'
 

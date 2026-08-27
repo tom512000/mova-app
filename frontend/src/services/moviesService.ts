@@ -1,5 +1,13 @@
 import { apiClient } from '@/services/apiClient'
-import type { CreditRole, MovieDetail, MovieFacets, MovieListResponse, MovieSortField, SortDirection } from '@/types/api'
+import type {
+  CreditRole,
+  MovieDetail,
+  MovieFacets,
+  MovieListResponse,
+  MoviePoster,
+  MovieSortField,
+  SortDirection,
+} from '@/types/api'
 
 export interface MovieSearchParams {
   q?: string
@@ -31,4 +39,15 @@ export async function fetchMovieFacets(): Promise<MovieFacets> {
 export async function fetchMovie(id: number): Promise<MovieDetail> {
   const { data } = await apiClient.get<MovieDetail>(`/movies/${id}`)
   return data
+}
+
+/**
+ * Every poster the profile owns, unpaged: the museum wall is one continuous surface, so a
+ * page boundary in the middle of it would be a wall you cannot walk past.
+ */
+export async function fetchPosterWall(sort: MovieSortField, direction: SortDirection, seed?: string) {
+  const { data } = await apiClient.get<{ items: MoviePoster[]; total: number }>('/movies/posters', {
+    params: { sort, direction, seed },
+  })
+  return data.items
 }

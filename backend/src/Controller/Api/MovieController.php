@@ -56,6 +56,23 @@ final class MovieController
      * Feeds the filter dropdowns. Separate from the listing because it only changes when
      * the library does, so the client can cache it across every filter change.
      */
+    /**
+     * The museum wall: every poster the profile owns, in one response. Unpaged on purpose —
+     * the wall is one continuous surface, and a page boundary in the middle of it would be
+     * a wall you cannot walk past.
+     */
+    #[Route('/posters', methods: ['GET'])]
+    public function posters(Request $request, MovieRepository $movieRepository, MovieMapper $mapper): JsonResponse
+    {
+        $criteria = $this->criteriaFrom($request);
+        $rows = $movieRepository->posterWall($this->profileResolver->getViewedUser(), $criteria);
+
+        return new JsonResponse([
+            'items' => array_map($mapper->toPosterDto(...), $rows),
+            'total' => \count($rows),
+        ]);
+    }
+
     #[Route('/facets', methods: ['GET'])]
     public function facets(MovieRepository $movieRepository): JsonResponse
     {

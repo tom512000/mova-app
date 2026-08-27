@@ -88,18 +88,7 @@ class MovieRepository extends ServiceEntityRepository
             $conditions[] = $credit.')';
         }
 
-        // The join to the aggregate is also what restricts the shared catalogue to the films
-        // this profile has actually watched.
-        $from = 'FROM movie m
-            JOIN (
-                SELECT w.movie_id,
-                    AVG(w.rating) AS average_rating,
-                    MAX(w.watched_date) AS last_watched_date,
-                    MAX(w.created_at) AS added_at
-                FROM watch w
-                WHERE w.user_id = :userId
-                GROUP BY w.movie_id
-            ) agg ON agg.movie_id = m.id';
+        $from = $this->watchedByProfile();
         $where = [] === $conditions ? '' : ' WHERE '.implode(' AND ', $conditions);
 
         $connection = $this->getEntityManager()->getConnection();
@@ -231,6 +220,47 @@ class MovieRepository extends ServiceEntityRepository
             ratings: array_values(array_map('floatval', $ratings)),
             hasUnrated: $hasUnrated,
         );
+    }
+
+    /**
+     * Every poster in the profile's library, in one shot and without hydrating a single
+     * entity: the museum wall shows all of them at once, so paging it would only mean the
+     * wall could not be scrolled past its first screen.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function posterWall(User $user, MovieSearchCriteria $criteria): array
+    {
+        $params = ['userId' => $user->getId()];
+        if (MovieSortField::RANDOM === $criteria->sort) {
+            $params['seed'] = $criteria->seed ?? '';
+        }
+
+        return $this->getEntityManager()->getConnection()->executeQuery(
+            'SELECT m.id, m.title, m.release_year, m.poster_path, agg.average_rating '
+            .$this->watchedByProfile()
+            .' WHERE m.poster_path IS NOT NULL'
+            ." ORDER BY {$this->orderBy($criteria)}",
+            $params
+        )->fetchAllAssociative();
+    }
+
+    /**
+     * The catalogue narrowed to what this profile has watched, with its per-film aggregates.
+     * The join is what does the narrowing, which is why it is never a LEFT one.
+     */
+    private function watchedByProfile(): string
+    {
+        return 'FROM movie m
+            JOIN (
+                SELECT w.movie_id,
+                    AVG(w.rating) AS average_rating,
+                    MAX(w.watched_date) AS last_watched_date,
+                    MAX(w.created_at) AS added_at
+                FROM watch w
+                WHERE w.user_id = :userId
+                GROUP BY w.movie_id
+            ) agg ON agg.movie_id = m.id';
     }
 
     /**

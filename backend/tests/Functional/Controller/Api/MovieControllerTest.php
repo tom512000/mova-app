@@ -215,6 +215,54 @@ final class MovieControllerTest extends WebTestCase
     /**
      * @return list<string>
      */
+    public function testTheMuseumWallHangsOnlyWhatHasArtwork(): void
+    {
+        $payload = $this->wall('sort=title&direction=asc');
+
+        // "100% Wolf" and "Casablanca" have no poster: nothing to hang.
+        self::assertSame(['Amélie', 'Brazil', 'Dune'], array_column($payload['items'], 'title'));
+        self::assertSame(3, $payload['total']);
+    }
+
+    public function testTheWallComesBackWhole(): void
+    {
+        // A page boundary in the middle of a wall would be a wall you cannot walk past, so
+        // the paging parameters the listing honours are deliberately ignored here.
+        self::assertCount(3, $this->wall('perPage=1&page=2')['items']);
+    }
+
+    public function testAnExhibitCarriesOnlyWhatItNeedsToHang(): void
+    {
+        $first = $this->wall('sort=title&direction=asc')['items'][0];
+
+        self::assertSame(['id', 'title', 'releaseYear', 'posterUrl', 'myAverageRating'], array_keys($first));
+        // A wall holds dozens at once, so it asks TMDB for the thumbnail, not the card size.
+        self::assertStringContainsString('/w185/amelie.jpg', $first['posterUrl']);
+        self::assertSame(4.5, $first['myAverageRating']);
+    }
+
+    public function testTheWallIsHungInTheOrderItWasAskedFor(): void
+    {
+        self::assertSame(
+            ['Dune', 'Amélie', 'Brazil'],
+            array_column($this->wall('sort=year&direction=desc')['items'], 'title')
+        );
+
+        // Dune was watched twice, at 2 and at 5: the wall shows the same average the cards do.
+        self::assertSame(3.5, $this->wall('sort=year&direction=desc')['items'][0]['myAverageRating']);
+    }
+
+    /**
+     * @return array{items: list<array<string, mixed>>, total: int}
+     */
+    private function wall(string $queryString): array
+    {
+        $this->client->request('GET', '/api/movies/posters?'.$queryString);
+        self::assertResponseIsSuccessful();
+
+        return $this->json();
+    }
+
     private function titlesFor(string $queryString): array
     {
         $this->client->request('GET', '/api/movies?perPage=50&'.$queryString);
@@ -242,10 +290,15 @@ final class MovieControllerTest extends WebTestCase
         $brazil = $this->movie('Brazil', 1985, 132, $scifi);
         $this->watch($user, $brazil, '2024-03-10', 3.0);
 
+        // Only some of the library has artwork, so the museum wall has something to exclude.
+        $amelie->setPosterPath('/amelie.jpg');
+        $brazil->setPosterPath('/brazil.jpg');
+
         $casablanca = $this->movie('Casablanca', 1942, 102, $comedy);
         $this->watch($user, $casablanca, '2024-02-01', null);
 
         $dune = $this->movie('Dune', 2021, 155, $scifi);
+        $dune->setPosterPath('/dune.jpg');
         $this->watch($user, $dune, '2023-12-01', 2.0);
         $this->watch($user, $dune, '2024-04-02', 5.0);
 

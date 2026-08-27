@@ -28,6 +28,8 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/movies', label: 'Films' },
   { to: '/watchlist', label: 'Watchlist' },
+  // Read-only like the listings, so it stays available while viewing someone else's profile.
+  { to: '/museum', label: 'Musée' },
   // Games are played, not browsed: like Import they act on the logged-in account, so they
   // go away while another profile is being viewed rather than pretending to act on it.
   {

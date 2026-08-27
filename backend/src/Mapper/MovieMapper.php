@@ -6,6 +6,7 @@ namespace App\Mapper;
 
 use App\DTO\CreditDto;
 use App\DTO\MovieDetailDto;
+use App\DTO\MoviePosterDto;
 use App\DTO\MovieSummaryDto;
 use App\DTO\WatchDto;
 use App\Entity\Enum\CreditRole;
@@ -21,6 +22,26 @@ final class MovieMapper
         #[Autowire('%app.tmdb.image_base_url%')]
         private readonly string $imageBaseUrl,
     ) {
+    }
+
+    /**
+     * Straight from a raw row rather than an entity: the museum wall asks for the whole
+     * library at once, and hydrating seven hundred Movies to read four columns off each
+     * would be the slowest way to draw a picture.
+     *
+     * @param array<string, mixed> $row from MovieRepository::posterWall()
+     */
+    public function toPosterDto(array $row): MoviePosterDto
+    {
+        return new MoviePosterDto(
+            id: (int) $row['id'],
+            title: (string) $row['title'],
+            releaseYear: null !== $row['release_year'] ? (int) $row['release_year'] : null,
+            // w185 rather than the w342 a card gets: a wall holds dozens at once and they
+            // are never shown much wider than a thumbnail.
+            posterUrl: "{$this->imageBaseUrl}/w185{$row['poster_path']}",
+            myAverageRating: null !== $row['average_rating'] ? round((float) $row['average_rating'], 2) : null,
+        );
     }
 
     public function toSummaryDto(Movie $movie, User $viewedUser): MovieSummaryDto

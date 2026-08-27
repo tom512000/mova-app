@@ -5,6 +5,7 @@ import { DashboardPage } from '@/pages/DashboardPage'
 import { MoviesPage } from '@/pages/MoviesPage'
 import { MovieDetailPage } from '@/pages/MovieDetailPage'
 import { WatchlistPage } from '@/pages/WatchlistPage'
+import { MuseumPage } from '@/pages/MuseumPage'
 import { ImportPage } from '@/pages/ImportPage'
 import { ClueGamePage } from '@/pages/ClueGamePage'
 import { ComparisonGamePage } from '@/pages/ComparisonGamePage'
@@ -27,6 +28,7 @@ export function App() {
           <Route path="movies" element={<MoviesPage />} />
           <Route path="movies/:id" element={<MovieDetailPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
+          <Route path="museum" element={<MuseumPage />} />
           <Route path="games/clue/:mode" element={<ClueGamePage />} />
           <Route path="games/compare/:mode" element={<ComparisonGamePage />} />
           <Route path="games/poster/:mode" element={<PosterGamePage />} />
