@@ -1,10 +1,10 @@
-import { Link, useParams } from 'react-router-dom'
-import { Check, X } from 'lucide-react'
+import { useParams } from 'react-router-dom'
 import { useFilmGame } from '@/hooks/useFilmGame'
 import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
+import { GuessList } from '@/components/game/GuessList'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
@@ -61,29 +61,7 @@ export function ClueGamePage() {
           {session.guesses.length > 0 && (
             <section className="border border-ink p-5 sm:p-6">
               <h2 className="mb-4 font-serif text-2xl font-bold">Propositions ({session.guesses.length})</h2>
-              <ol className="flex flex-col divide-y divide-ink/15">
-                {session.guesses.map((entry, index) => (
-                  <li key={entry.movieId} className="flex items-center gap-3 py-3 first:pt-0 last:pb-0">
-                    <span className="w-5 shrink-0 font-mono text-[10px] text-subtle">{index + 1}</span>
-                    {entry.posterUrl ? (
-                      <img src={entry.posterUrl} alt="" className="h-14 w-10 shrink-0 object-cover grayscale" />
-                    ) : (
-                      <span className="h-14 w-10 shrink-0 bg-surface-2" aria-hidden />
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <Link to={`/movies/${entry.movieId}`} className="font-serif text-base font-bold hover:text-accent">
-                        {entry.title}
-                      </Link>
-                      <span className="ml-2 font-mono text-xs text-subtle">{entry.releaseYear ?? '—'}</span>
-                    </span>
-                    {entry.correct ? (
-                      <Check className="h-5 w-5 shrink-0 text-ink" strokeWidth={2.5} aria-label="Bonne réponse" />
-                    ) : (
-                      <X className="h-5 w-5 shrink-0 text-subtle" strokeWidth={2} aria-label="Raté" />
-                    )}
-                  </li>
-                ))}
-              </ol>
+              <GuessList guesses={session.guesses} />
             </section>
           )}
         </>

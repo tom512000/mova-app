@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * cannot start or advance a game on somebody else's library, the same rule that keeps
  * import owner-only.
  */
-#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare', 'mode' => 'daily|infinite'])]
+#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare|poster', 'mode' => 'daily|infinite'])]
 final class GameController
 {
     public function __construct(

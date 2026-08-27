@@ -16,9 +16,13 @@ use App\Entity\Enum\GameStatus;
 final readonly class GameStateDto
 {
     /**
-     * @param list<ClueDto>      $clues   only the ones unlocked so far, and empty in the
-     *                                    comparison game, which has no ladder
+     * @param list<ClueDto>      $clues   only the ones unlocked so far, and empty in the two
+     *                                    games that have no ladder
      * @param list<GameGuessDto> $guesses in the order they were played
+     * @param PosterPixelsDto|null $poster the artwork at the sharpness earned so far, in the
+     *                                     poster game only. It belongs in this DTO rather
+     *                                     than behind an image route so that everything the
+     *                                     player may see still passes through one gate.
      */
     public function __construct(
         public GameKind $game,
@@ -30,6 +34,7 @@ final readonly class GameStateDto
         public array $guesses,
         public ?MovieSummaryDto $answer,
         public ?string $puzzleDate,
+        public ?PosterPixelsDto $poster = null,
     ) {
     }
 }

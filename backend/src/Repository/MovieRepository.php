@@ -8,6 +8,7 @@ use App\DTO\MovieFacetsDto;
 use App\DTO\MovieSearchCriteria;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\EnrichmentStatus;
+use App\Entity\Enum\GameKind;
 use App\Entity\Enum\MovieSortField;
 use App\Entity\Movie;
 use App\Entity\User;
@@ -125,23 +126,35 @@ class MovieRepository extends ServiceEntityRepository
     }
 
     /**
-     * One film the profile could reasonably be asked to guess: watched, and enriched enough
-     * that every rung of FilmClueBuilder's ladder has something to say — the conditions below
-     * mirror that list exactly, studios aside, which TMDB does not always have. Ordering by a
-     * hash of the seed makes the pick reproducible: the daily puzzle needs the same answer all
-     * day, and a test needs to know what it will get.
+     * One film the profile could reasonably be asked to guess: watched, and carrying whatever
+     * the game in question needs to be playable at all — which is not the same thing from one
+     * game to the next, hence the split below. Ordering by a hash of the seed makes the pick
+     * reproducible: the daily puzzle needs the same answer all day, and a test needs to know
+     * what it will get.
      *
      * @param list<int> $excludeIds recent answers, so the infinite mode stops repeating itself
      */
-    public function findGuessable(User $user, string $seed, array $excludeIds = []): ?Movie
+    public function findGuessable(User $user, GameKind $game, string $seed, array $excludeIds = []): ?Movie
     {
-        $params = [
-            'userId' => $user->getId(),
-            'seed' => $seed,
-            'director' => CreditRole::DIRECTOR->value,
-            'actor' => CreditRole::ACTOR->value,
-        ];
+        $params = ['userId' => $user->getId(), 'seed' => $seed];
         $types = [];
+
+        if (GameKind::POSTER === $game) {
+            // The artwork is the entire game, so it is the entire requirement: a film with
+            // no year, no credits and no studio is perfectly playable here.
+            $playable = 'AND m.poster_path IS NOT NULL';
+        } else {
+            // The clue ladder and the comparison card walk the same attributes, so an answer
+            // missing one of them would leave a rung blank or a tile grey for the wrong
+            // reason. This list has to keep mirroring FilmClueBuilder.
+            $playable = 'AND m.release_year IS NOT NULL
+                AND EXISTS (SELECT 1 FROM movie_genre mg WHERE mg.movie_id = m.id)
+                AND EXISTS (SELECT 1 FROM movie_country mc WHERE mc.movie_id = m.id)
+                AND EXISTS (SELECT 1 FROM credit cd WHERE cd.movie_id = m.id AND cd.role = :director)
+                AND (SELECT COUNT(*) FROM credit ca WHERE ca.movie_id = m.id AND ca.role = :actor) >= 3';
+            $params['director'] = CreditRole::DIRECTOR->value;
+            $params['actor'] = CreditRole::ACTOR->value;
+        }
 
         $exclusion = '';
         if ([] !== $excludeIds) {
@@ -154,11 +167,7 @@ class MovieRepository extends ServiceEntityRepository
             'SELECT m.id
             FROM movie m
             WHERE EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)
-                AND m.release_year IS NOT NULL
-                AND EXISTS (SELECT 1 FROM movie_genre mg WHERE mg.movie_id = m.id)
-                AND EXISTS (SELECT 1 FROM movie_country mc WHERE mc.movie_id = m.id)
-                AND EXISTS (SELECT 1 FROM credit cd WHERE cd.movie_id = m.id AND cd.role = :director)
-                AND (SELECT COUNT(*) FROM credit ca WHERE ca.movie_id = m.id AND ca.role = :actor) >= 3'
+                '.$playable
             .$exclusion.'
             ORDER BY md5(:seed || m.id::text)
             LIMIT 1',

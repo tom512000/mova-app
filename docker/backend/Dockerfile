@@ -5,7 +5,8 @@ RUN install-php-extensions \
     intl \
     zip \
     opcache \
-    apcu
+    apcu \
+    gd
 
 ENV SERVER_NAME=:80
 ENV COMPOSER_ALLOW_SUPERUSER=1

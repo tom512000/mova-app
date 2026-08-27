@@ -22,7 +22,7 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
-export type GameKind = 'clue' | 'compare'
+export type GameKind = 'clue' | 'compare' | 'poster'
 export type GameMode = 'daily' | 'infinite'
 export type GameStatus = 'in_progress' | 'won' | 'lost'
 export type FacetMatch = 'exact' | 'close' | 'none' | 'unknown'
@@ -63,6 +63,20 @@ export interface GameGuess {
 }
 
 /**
+ * The answer's poster at the sharpness earned so far. The grid is the whole payload — no
+ * URL, no full-size image to un-blur — so there is nothing here to cheat with.
+ */
+export interface PosterPixels {
+  width: number
+  height: number
+  /** Which rung of the ladder, 1-based, and how many there are. */
+  step: number
+  steps: number
+  /** Row-major '#rrggbb', exactly width × height of them. */
+  colors: string[]
+}
+
+/**
  * The board as the player is allowed to see it: `clues` holds only what has been unlocked,
  * and `answer` stays null until the run is over.
  */
@@ -76,6 +90,8 @@ export interface GameState {
   guesses: GameGuess[]
   answer: MovieSummary | null
   puzzleDate: string | null
+  /** Populated in the poster game only. Null when TMDB's artwork could not be read. */
+  poster: PosterPixels | null
 }
 
 export type CreditRole = 'director' | 'writer' | 'actor'

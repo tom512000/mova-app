@@ -20,10 +20,10 @@ use App\Repository\WatchRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * "Guess the film I watched", in both of its flavours: one drip-feeds clues about the
- * answer, the other lays each guess beside it attribute by attribute. The board, the
- * bookkeeping and the two modes are identical — only what a guess reveals differs, which
- * is why they share this class and split at toState().
+ * "Guess the film I watched", in all three of its flavours: one drip-feeds clues about the
+ * answer, one lays each guess beside it attribute by attribute, and one shows its poster
+ * from too far away. The board, the bookkeeping and the two modes are identical — only what
+ * a guess buys you differs, which is why they share this class and split at toState().
  *
  * The answer never crosses the wire while a run is open. toState() is the only place
  * allowed to decide what the player may see, so that rule has exactly one home.
@@ -50,6 +50,7 @@ final class FilmGuessGame
         private readonly MovieMapper $movieMapper,
         private readonly FilmClueBuilder $clueBuilder,
         private readonly FilmComparisonBuilder $comparisonBuilder,
+        private readonly PosterPixelator $pixelator,
     ) {
     }
 
@@ -113,6 +114,12 @@ final class FilmGuessGame
         // comparison game has nothing to hand out up front — the guesses are the feedback.
         $revealed = $isOver ? \count($clues) : min($attemptsUsed + 1, \count($clues));
 
+        // The poster game hands out its opening rung the same way, and sharpens it by one
+        // with every guess spent — which is simply the count of guesses so far.
+        $poster = GameKind::POSTER === $session->getGame()
+            ? $this->pixelator->pixelate($session->getMovie(), $attemptsUsed)
+            : null;
+
         return new GameStateDto(
             game: $session->getGame(),
             mode: $session->getMode(),
@@ -123,6 +130,7 @@ final class FilmGuessGame
             guesses: $this->guessesOf($session),
             answer: $isOver ? $this->movieMapper->toSummaryDto($session->getMovie(), $session->getUser()) : null,
             puzzleDate: $session->getPuzzleDate()?->format('Y-m-d'),
+            poster: $poster,
         );
     }
 
@@ -140,8 +148,8 @@ final class FilmGuessGame
             $user,
             $game,
             GameMode::DAILY,
-            // The two games get different answers on the same day: the seed carries the kind.
-            $this->pick($user, sprintf('daily-%s-%d-%s', $game->value, $user->getId(), $today->format('Y-m-d'))),
+            // Each game gets its own answer on the same day: the seed carries the kind.
+            $this->pick($user, $game, sprintf('daily-%s-%d-%s', $game->value, $user->getId(), $today->format('Y-m-d'))),
             $today
         );
 
@@ -165,6 +173,7 @@ final class FilmGuessGame
             GameMode::INFINITE,
             $this->pick(
                 $user,
+                $game,
                 // Nothing to reproduce here, unlike the daily puzzle.
                 bin2hex(random_bytes(8)),
                 $this->sessions->recentAnswerIds($user, $game, GameMode::INFINITE, self::RECENT_ANSWERS)
@@ -177,20 +186,20 @@ final class FilmGuessGame
     /**
      * @param list<int> $excludeIds
      */
-    private function pick(User $user, string $seed, array $excludeIds = []): Movie
+    private function pick(User $user, GameKind $game, string $seed, array $excludeIds = []): Movie
     {
-        $movie = $this->movies->findGuessable($user, $seed, $excludeIds);
+        $movie = $this->movies->findGuessable($user, $game, $seed, $excludeIds);
 
         // A small library runs out of unseen answers long before it runs out of films.
         if (null === $movie && [] !== $excludeIds) {
-            $movie = $this->movies->findGuessable($user, $seed);
+            $movie = $this->movies->findGuessable($user, $game, $seed);
         }
 
         if (null === $movie) {
-            throw new GameException(
-                'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
-                .'le pays, la réalisation et au moins trois acteur·rice·s.'
-            );
+            throw new GameException(GameKind::POSTER === $game
+                ? 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'affiche.'
+                : 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
+                    .'le pays, la réalisation et au moins trois acteur·rice·s.');
         }
 
         return $movie;
@@ -205,14 +214,17 @@ final class FilmGuessGame
     }
 
     /**
-     * The clue game is exactly as long as its ladder — running out of facts to reveal is
-     * what ends it. The comparison game has no such natural stop, so it gets a number.
+     * Two of the games are exactly as long as their ladder — running out of facts to reveal,
+     * or of sharpness to add, is what ends them. The comparison game has no such natural
+     * stop, so it gets a number.
      */
     private function maxAttempts(GameSession $session): int
     {
-        return GameKind::CLUE === $session->getGame()
-            ? \count($this->clueBuilder->build($session->getMovie()))
-            : self::COMPARISON_ATTEMPTS;
+        return match ($session->getGame()) {
+            GameKind::CLUE => \count($this->clueBuilder->build($session->getMovie())),
+            GameKind::POSTER => $this->pixelator->steps(),
+            GameKind::COMPARE => self::COMPARISON_ATTEMPTS,
+        };
     }
 
     /**

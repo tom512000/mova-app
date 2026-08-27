@@ -17,7 +17,9 @@ use App\Entity\Studio;
 use App\Entity\User;
 use App\Entity\Watch;
 use App\Repository\GameSessionRepository;
+use App\Service\Game\PosterPixelator;
 use Doctrine\ORM\EntityManagerInterface;
+use Psr\Cache\CacheItemPoolInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
 use Symfony\Component\HttpFoundation\Response;
@@ -34,6 +36,13 @@ final class GameControllerTest extends WebTestCase
 
     /** Enough films to lose a full run and still have one left to win with. */
     private const LIBRARY_SIZE = 10;
+
+    /**
+     * How many of them TMDB has artwork for. Deliberately a minority: the poster game may
+     * only ever draw from these, and a fixture where every film qualifies could not tell
+     * the difference.
+     */
+    private const WITH_POSTER = 4;
 
     /**
      * The reveal order, from the fact that fits hundreds of films to the one that fits two.
@@ -64,6 +73,7 @@ final class GameControllerTest extends WebTestCase
         $this->entityManager->getConnection()->beginTransaction();
 
         $this->seedLibrary();
+        $this->seedPosterPixels();
         $this->login();
     }
 
@@ -73,6 +83,11 @@ final class GameControllerTest extends WebTestCase
         if ($connection->isTransactionActive()) {
             $connection->rollBack();
         }
+
+        foreach ($this->posterCacheKeys() as $key) {
+            $this->posterCache()->deleteItem($key);
+        }
+
         parent::tearDown();
     }
 
@@ -233,16 +248,93 @@ final class GameControllerTest extends WebTestCase
         self::assertNull($state['answer'], 'a comparison must never carry the answer with it');
     }
 
-    public function testTheTwoGamesHaveTheirOwnDailyPuzzle(): void
+    public function testEachGameHasItsOwnDailyPuzzle(): void
     {
         $this->start('daily', 'clue');
         $this->start('daily', 'compare');
+        $this->start('daily', 'poster');
 
-        // Playing one must not spend the other's single run for the day.
+        // Playing one must not spend another's single run for the day.
         $this->guess('daily', $this->aWrongMovieId(GameMode::DAILY, GameKind::CLUE), 'clue');
 
-        $this->client->request('GET', '/api/games/compare/daily');
-        self::assertSame(0, $this->json()['session']['attemptsUsed']);
+        foreach (['compare', 'poster'] as $game) {
+            $this->client->request('GET', "/api/games/{$game}/daily");
+            self::assertSame(0, $this->json()['session']['attemptsUsed'], $game);
+        }
+    }
+
+    public function testThePosterGameDealsPixelsInsteadOfClues(): void
+    {
+        $state = $this->start('daily', 'poster');
+
+        self::assertSame('poster', $state['game']);
+        self::assertSame([], $state['clues'], 'the artwork is the only thing this game hands out');
+        self::assertSame(5, $state['maxAttempts'], 'three to five tries is the balance this game was tuned for');
+
+        $poster = $state['poster'];
+        self::assertNotNull($poster);
+        self::assertSame(1, $poster['step']);
+        self::assertSame($state['maxAttempts'], $poster['steps'], 'the rungs are the tries');
+        self::assertCount($poster['width'] * $poster['height'], $poster['colors']);
+        // What crosses the wire is the pixels themselves — no URL, no path, nothing to open
+        // in another tab.
+        self::assertSame(['width', 'height', 'step', 'steps', 'colors'], array_keys($poster));
+    }
+
+    public function testEveryGuessSharpensTheArtworkByOneRung(): void
+    {
+        $state = $this->start('daily', 'poster');
+        $wrong = $this->wrongMovieIds(GameMode::DAILY, GameKind::POSTER);
+        $width = $state['poster']['width'];
+
+        foreach ([1, 2, 3] as $attempt) {
+            $state = $this->guess('daily', $wrong[$attempt - 1], 'poster');
+
+            self::assertSame($attempt + 1, $state['poster']['step']);
+            self::assertGreaterThan($width, $state['poster']['width'], "guess {$attempt} must buy resolution");
+            self::assertNull($state['answer'], 'the answer must stay hidden while the run is open');
+
+            $width = $state['poster']['width'];
+        }
+    }
+
+    public function testTheAnswerIsOnlyEverAFilmWithArtwork(): void
+    {
+        $this->start('daily', 'poster');
+
+        $answer = $this->entityManager->find(Movie::class, $this->answerId(GameMode::DAILY, GameKind::POSTER));
+
+        self::assertNotNull($answer?->getPosterPath(), 'a film with no poster cannot be the poster game');
+    }
+
+    public function testTheOpenPosterRunNeverCarriesTheFilmItHides(): void
+    {
+        $this->start('daily', 'poster');
+        $this->guess('daily', $this->aWrongMovieId(GameMode::DAILY, GameKind::POSTER), 'poster');
+
+        $answer = $this->entityManager->find(Movie::class, $this->answerId(GameMode::DAILY, GameKind::POSTER));
+        self::assertNotNull($answer);
+        $body = (string) $this->client->getResponse()->getContent();
+
+        foreach ([$answer->getTitle(), (string) $answer->getPosterPath(), (string) $answer->getLetterboxdSlug()] as $secret) {
+            self::assertStringNotContainsString($secret, $body, 'the payload gave the film away');
+        }
+    }
+
+    public function testRunningOutOfSharpnessLosesTheRun(): void
+    {
+        $state = $this->start('daily', 'poster');
+        $wrong = $this->wrongMovieIds(GameMode::DAILY, GameKind::POSTER);
+
+        for ($attempt = 0; $attempt < $state['maxAttempts']; ++$attempt) {
+            $state = $this->guess('daily', $wrong[$attempt], 'poster');
+        }
+
+        self::assertSame('lost', $state['status']);
+        self::assertSame($this->answerId(GameMode::DAILY, GameKind::POSTER), $state['answer']['id']);
+        // The reveal shows the real poster, so the grid stops at its sharpest rung instead
+        // of running off the end of the ladder.
+        self::assertSame($state['maxAttempts'], $state['poster']['step']);
     }
 
     private function start(string $mode, string $game = 'clue'): array
@@ -324,6 +416,9 @@ final class GameControllerTest extends WebTestCase
             $movie->addGenre($genre);
             $movie->addCountry($country);
             $movie->addStudio($studio);
+            if ($index <= self::WITH_POSTER) {
+                $movie->setPosterPath(sprintf('/zz-jeu-%02d.jpg', $index));
+            }
             $this->entityManager->persist($movie);
 
             $this->credit($movie, sprintf('ZZ Real %02d', $index), CreditRole::DIRECTOR, null);
@@ -341,6 +436,55 @@ final class GameControllerTest extends WebTestCase
         }
 
         $this->entityManager->flush();
+    }
+
+    /**
+     * Fills the pixel cache so the poster game never reaches for image.tmdb.org here. The
+     * reduction itself is PosterPixelatorTest's subject; what this file is about is what a
+     * run does with the rungs, which needs rungs to exist and not to depend on a network.
+     *
+     * This does mean knowing the cache key, which is the price of not stubbing the HTTP
+     * client through test-only DI wiring — a worse coupling for the same result.
+     */
+    private function seedPosterPixels(): void
+    {
+        $steps = self::getContainer()->get(PosterPixelator::class)->steps();
+        $cache = $this->posterCache();
+
+        // Widths of our own, unrelated to the real ladder: the assertions below are about
+        // climbing the rungs, not about how coarse any particular one is.
+        $ladder = [];
+        for ($rung = 0; $rung < $steps; ++$rung) {
+            $width = 6 + $rung * 7;
+            $height = (int) round($width * 1.5);
+            $ladder[] = [
+                'width' => $width,
+                'height' => $height,
+                'colors' => array_fill(0, $width * $height, '#c0ffee'),
+            ];
+        }
+
+        foreach ($this->posterCacheKeys() as $key) {
+            $item = $cache->getItem($key);
+            $item->set($ladder);
+            $cache->save($item);
+        }
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function posterCacheKeys(): array
+    {
+        return array_map(
+            static fn (int $index) => 'game.poster.'.md5(sprintf('/zz-jeu-%02d.jpg', $index)),
+            range(1, self::WITH_POSTER)
+        );
+    }
+
+    private function posterCache(): CacheItemPoolInterface
+    {
+        return self::getContainer()->get('cache.app');
     }
 
     private function credit(Movie $movie, string $name, CreditRole $role, ?int $castOrder): void
