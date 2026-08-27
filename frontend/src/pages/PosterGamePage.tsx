@@ -37,7 +37,10 @@ export function PosterGamePage() {
 
       {session && (
         <>
-          <PosterBoard state={session} />
+          {/* Once the run is over the reveal below shows the real poster, full size and in
+              focus. Leaving the pixelated one above it would be showing the same artwork
+              twice, worse first. */}
+          {!isOver && <PosterBoard state={session} />}
 
           {!isOver && (
             <GuessInput
