@@ -143,6 +143,10 @@ class MovieRepository extends ServiceEntityRepository
             // The artwork is the entire game, so it is the entire requirement: a film with
             // no year, no credits and no studio is perfectly playable here.
             $playable = 'AND m.poster_path IS NOT NULL';
+        } elseif (GameKind::HANGMAN === $game) {
+            // Enough letters to be worth masking. "Ted" and "Rio" are solved by their own
+            // shape, and a title made only of digits ("1917") would come up already won.
+            $playable = "AND char_length(regexp_replace(m.title, '[^[:alpha:]]', '', 'g')) >= 4";
         } else {
             // The clue ladder and the comparison card walk the same attributes, so an answer
             // missing one of them would leave a rung blank or a tile grey for the wrong

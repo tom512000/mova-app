@@ -20,3 +20,9 @@ export async function submitGuess(game: GameKind, mode: GameMode, movieId: numbe
   const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/guess`, { movieId })
   return data.session as GameState
 }
+
+/** Hangman only: a letter rather than a film, which the API keeps on its own route. */
+export async function submitLetter(game: GameKind, mode: GameMode, letter: string): Promise<GameState> {
+  const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/letter`, { letter })
+  return data.session as GameState
+}

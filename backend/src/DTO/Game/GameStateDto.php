@@ -23,6 +23,8 @@ final readonly class GameStateDto
      *                                     poster game only. It belongs in this DTO rather
      *                                     than behind an image route so that everything the
      *                                     player may see still passes through one gate.
+     * @param HangmanBoardDto|null $hangman the masked title, in the hangman only — same rule,
+     *                                      same gate
      */
     public function __construct(
         public GameKind $game,
@@ -35,6 +37,7 @@ final readonly class GameStateDto
         public ?MovieSummaryDto $answer,
         public ?string $puzzleDate,
         public ?PosterPixelsDto $poster = null,
+        public ?HangmanBoardDto $hangman = null,
     ) {
     }
 }

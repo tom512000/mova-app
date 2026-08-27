@@ -9,6 +9,7 @@ import { ImportPage } from '@/pages/ImportPage'
 import { ClueGamePage } from '@/pages/ClueGamePage'
 import { ComparisonGamePage } from '@/pages/ComparisonGamePage'
 import { PosterGamePage } from '@/pages/PosterGamePage'
+import { HangmanGamePage } from '@/pages/HangmanGamePage'
 import { LoginPage } from '@/pages/LoginPage'
 import { RegisterPage } from '@/pages/RegisterPage'
 import { AccountPage } from '@/pages/AccountPage'
@@ -29,6 +30,7 @@ export function App() {
           <Route path="games/clue/:mode" element={<ClueGamePage />} />
           <Route path="games/compare/:mode" element={<ComparisonGamePage />} />
           <Route path="games/poster/:mode" element={<PosterGamePage />} />
+          <Route path="games/hangman/:mode" element={<HangmanGamePage />} />
           <Route path="import" element={<ImportPage />} />
           <Route path="account" element={<AccountPage />} />
           <Route path="share/:token" element={<SharePage />} />

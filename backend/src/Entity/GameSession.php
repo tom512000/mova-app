@@ -53,6 +53,16 @@ class GameSession
     #[ORM\Column(type: Types::JSON)]
     private array $guesses = [];
 
+    /**
+     * Letters tried, uppercased and unaccented, in the order they were played. Hangman only
+     * — it is the one game whose moves are not films, and giving it a column of its own
+     * keeps the other three's guesses a plain list of movie ids.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON)]
+    private array $letters = [];
+
     #[ORM\Column(length: 20, enumType: GameStatus::class)]
     private GameStatus $status = GameStatus::IN_PROGRESS;
 
@@ -116,6 +126,24 @@ class GameSession
     public function addGuess(int $movieId): static
     {
         $this->guesses[] = $movieId;
+
+        return $this;
+    }
+
+    /** @return list<string> */
+    public function getLetters(): array
+    {
+        return $this->letters;
+    }
+
+    public function hasTriedLetter(string $letter): bool
+    {
+        return \in_array($letter, $this->letters, true);
+    }
+
+    public function addLetter(string $letter): static
+    {
+        $this->letters[] = $letter;
 
         return $this;
     }

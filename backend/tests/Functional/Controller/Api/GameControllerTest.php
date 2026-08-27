@@ -250,17 +250,161 @@ final class GameControllerTest extends WebTestCase
 
     public function testEachGameHasItsOwnDailyPuzzle(): void
     {
-        $this->start('daily', 'clue');
-        $this->start('daily', 'compare');
-        $this->start('daily', 'poster');
+        foreach (['clue', 'compare', 'poster', 'hangman'] as $game) {
+            $this->start('daily', $game);
+        }
 
         // Playing one must not spend another's single run for the day.
         $this->guess('daily', $this->aWrongMovieId(GameMode::DAILY, GameKind::CLUE), 'clue');
 
-        foreach (['compare', 'poster'] as $game) {
+        foreach (['compare', 'poster', 'hangman'] as $game) {
             $this->client->request('GET', "/api/games/{$game}/daily");
             self::assertSame(0, $this->json()['session']['attemptsUsed'], $game);
         }
+    }
+
+    public function testTheHangmanDealsAMaskedTitleAndKeepsTheRealOne(): void
+    {
+        $state = $this->start('daily', 'hangman');
+
+        self::assertSame('hangman', $state['game']);
+        self::assertSame([], $state['clues']);
+        self::assertSame(7, $state['maxAttempts'], 'seven lives, and the board must agree');
+
+        $board = $state['hangman'];
+        self::assertSame(7, $board['livesLeft']);
+        self::assertSame([], $board['tried']);
+        // Word shape and punctuation are the board; the letters are not.
+        self::assertContains(null, $board['chars'], 'nothing was masked');
+        self::assertContains(' ', $board['chars'], 'the spaces belong on the board');
+
+        $answer = $this->entityManager->find(Movie::class, $this->answerId(GameMode::DAILY, GameKind::HANGMAN));
+        self::assertNotNull($answer);
+        self::assertStringNotContainsString(
+            $answer->getTitle(),
+            (string) $this->client->getResponse()->getContent(),
+            'the payload spelled the title out'
+        );
+    }
+
+    public function testALetterInTheTitleRevealsItselfAndCostsNothing(): void
+    {
+        $this->start('daily', 'hangman');
+
+        // Every fixture title is "ZZ Film NN", so its letters are known without knowing
+        // which film was drawn.
+        $state = $this->letter('daily', 'F');
+
+        self::assertSame(0, $state['attemptsUsed'], 'a letter that lands is progress, not an attempt');
+        self::assertSame(7, $state['hangman']['livesLeft']);
+        self::assertSame([], $state['hangman']['wrong']);
+        self::assertContains('F', $state['hangman']['chars']);
+    }
+
+    public function testALetterAbsentFromTheTitleCostsALife(): void
+    {
+        $this->start('daily', 'hangman');
+
+        $state = $this->letter('daily', 'A');
+
+        self::assertSame(1, $state['attemptsUsed']);
+        self::assertSame(6, $state['hangman']['livesLeft']);
+        self::assertSame(['A'], $state['hangman']['wrong']);
+    }
+
+    public function testTheSameLetterCannotBePlayedTwice(): void
+    {
+        $this->start('daily', 'hangman');
+        $this->letter('daily', 'A');
+
+        $this->letter('daily', 'a');
+
+        // Case and accent fold to the same letter, so this is the same move.
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+        self::assertStringContainsString('deja propose', $this->deaccent($this->json()['error']));
+    }
+
+    public function testSomethingThatIsNotALetterIsRefused(): void
+    {
+        $this->start('daily', 'hangman');
+
+        foreach (['4', '!', '', 'ab'] as $input) {
+            $this->letter('daily', $input);
+            self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY, "input: {$input}");
+        }
+    }
+
+    public function testSpellingTheTitleOutWinsTheRun(): void
+    {
+        $this->start('daily', 'hangman');
+
+        $state = [];
+        foreach (['Z', 'F', 'I', 'L', 'M'] as $letter) {
+            $state = $this->letter('daily', $letter);
+        }
+
+        self::assertSame('won', $state['status']);
+        self::assertSame(7, $state['hangman']['livesLeft'], 'not one of those was a miss');
+        self::assertNotContains(null, $state['hangman']['chars']);
+        self::assertSame($this->answerId(GameMode::DAILY, GameKind::HANGMAN), $state['answer']['id']);
+    }
+
+    public function testRunningOutOfLivesLosesAndUncoversTheTitle(): void
+    {
+        $this->start('daily', 'hangman');
+
+        $state = [];
+        foreach (['A', 'B', 'C', 'D', 'E', 'G', 'H'] as $letter) {
+            $state = $this->letter('daily', $letter);
+        }
+
+        self::assertSame('lost', $state['status']);
+        self::assertSame(0, $state['hangman']['livesLeft']);
+        // Losing shows what it was hiding, rather than blanks beside the answer.
+        self::assertNotContains(null, $state['hangman']['chars']);
+        self::assertSame($this->answerId(GameMode::DAILY, GameKind::HANGMAN), $state['answer']['id']);
+
+        $this->letter('daily', 'J');
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    public function testNamingTheFilmSolvesItAndNamingTheWrongOneCostsALife(): void
+    {
+        $this->start('daily', 'hangman');
+
+        $wrong = $this->wrongMovieIds(GameMode::DAILY, GameKind::HANGMAN);
+        $state = $this->guess('daily', $wrong[0], 'hangman');
+        self::assertSame(1, $state['attemptsUsed'], 'a wrong film costs the same as a wrong letter');
+        self::assertSame(6, $state['hangman']['livesLeft']);
+
+        $state = $this->guess('daily', $this->answerId(GameMode::DAILY, GameKind::HANGMAN), 'hangman');
+        self::assertSame('won', $state['status']);
+        // The winning guess is in the list too, and it must not be charged for.
+        self::assertSame(1, $state['attemptsUsed']);
+    }
+
+    public function testOnlyTheHangmanTakesLetters(): void
+    {
+        $this->start('daily', 'clue');
+
+        $this->letter('daily', 'A', 'clue');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND, 'the other games have no such move');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function letter(string $mode, string $value, string $game = 'hangman'): array
+    {
+        $this->client->request(
+            'POST',
+            "/api/games/{$game}/{$mode}/letter",
+            server: ['CONTENT_TYPE' => 'application/json'],
+            content: (string) json_encode(['letter' => $value])
+        );
+
+        return $this->json()['session'] ?? [];
     }
 
     public function testThePosterGameDealsPixelsInsteadOfClues(): void

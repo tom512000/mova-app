@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchGameState, startGame, submitGuess } from '@/services/gamesService'
+import { fetchGameState, startGame, submitGuess, submitLetter } from '@/services/gamesService'
 import type { GameKind, GameMode, GameState } from '@/types/api'
 
 /**
@@ -19,6 +19,8 @@ export function useFilmGame(game: GameKind, mode: GameMode) {
 
   const start = useMutation({ mutationFn: () => startGame(game, mode), onSuccess: cache })
   const guess = useMutation({ mutationFn: (movieId: number) => submitGuess(game, mode, movieId), onSuccess: cache })
+  // Hangman only; the other three have nothing to do with letters.
+  const letter = useMutation({ mutationFn: (value: string) => submitLetter(game, mode, value), onSuccess: cache })
 
   return {
     session: data,
@@ -27,6 +29,7 @@ export function useFilmGame(game: GameKind, mode: GameMode) {
     error,
     start,
     guess,
+    letter,
     isOver: data != null && data.status !== 'in_progress',
   }
 }

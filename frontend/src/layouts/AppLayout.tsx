@@ -38,6 +38,7 @@ const NAV_ITEMS: NavItem[] = [
       { to: '/games/clue/daily', label: 'Le film mystère', hint: 'Un indice de plus à chaque erreur' },
       { to: '/games/compare/daily', label: 'Le film comparé', hint: 'Chaque proposition se compare à la cible' },
       { to: '/games/poster/daily', label: 'Le film pixelisé', hint: 'Une affiche qui se précise à chaque essai' },
+      { to: '/games/hangman/daily', label: 'Le film pendu', hint: 'Un titre à deviner lettre par lettre' },
     ],
   },
   // Import writes, and writing only ever targets the logged-in account — so it disappears

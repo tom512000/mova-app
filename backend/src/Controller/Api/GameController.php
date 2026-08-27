@@ -20,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * cannot start or advance a game on somebody else's library, the same rule that keeps
  * import owner-only.
  */
-#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare|poster', 'mode' => 'daily|infinite'])]
+#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare|poster|hangman', 'mode' => 'daily|infinite'])]
 final class GameController
 {
     public function __construct(
@@ -72,6 +72,32 @@ final class GameController
 
         try {
             $session = $this->game->guess($user, $session, $movieId);
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)]);
+    }
+
+    /**
+     * A letter rather than a film — a route of its own instead of a second shape squeezed
+     * into /guess, since only the hangman has anything to do with it.
+     */
+    #[Route('/letter', methods: ['POST'], requirements: ['game' => 'hangman'])]
+    public function letter(string $game, string $mode, Request $request): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
+        if (null === $session) {
+            return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode((string) $request->getContent(), true);
+        $letter = \is_array($payload) ? (string) ($payload['letter'] ?? '') : '';
+
+        try {
+            $session = $this->game->guessLetter($session, $letter);
         } catch (GameException $exception) {
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }

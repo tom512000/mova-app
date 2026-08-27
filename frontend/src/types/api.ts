@@ -22,7 +22,7 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
-export type GameKind = 'clue' | 'compare' | 'poster'
+export type GameKind = 'clue' | 'compare' | 'poster' | 'hangman'
 export type GameMode = 'daily' | 'infinite'
 export type GameStatus = 'in_progress' | 'won' | 'lost'
 export type FacetMatch = 'exact' | 'close' | 'none' | 'unknown'
@@ -77,6 +77,21 @@ export interface PosterPixels {
 }
 
 /**
+ * The masked title. The title itself is never sent — `chars` holds one slot per character,
+ * null while that letter is still to be found, so there is nothing to read off the wire.
+ */
+export interface HangmanBoard {
+  /** null = hidden. Spaces, digits and punctuation are present from the start. */
+  chars: (string | null)[]
+  /** Every letter played, in order. */
+  tried: string[]
+  /** The ones the title does not contain. */
+  wrong: string[]
+  livesLeft: number
+  lives: number
+}
+
+/**
  * The board as the player is allowed to see it: `clues` holds only what has been unlocked,
  * and `answer` stays null until the run is over.
  */
@@ -92,6 +107,8 @@ export interface GameState {
   puzzleDate: string | null
   /** Populated in the poster game only. Null when TMDB's artwork could not be read. */
   poster: PosterPixels | null
+  /** Populated in the hangman only. */
+  hangman: HangmanBoard | null
 }
 
 export type CreditRole = 'director' | 'writer' | 'actor'

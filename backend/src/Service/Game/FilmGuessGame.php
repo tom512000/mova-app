@@ -51,6 +51,7 @@ final class FilmGuessGame
         private readonly FilmClueBuilder $clueBuilder,
         private readonly FilmComparisonBuilder $comparisonBuilder,
         private readonly PosterPixelator $pixelator,
+        private readonly FilmTitleHangman $hangman,
     ) {
     }
 
@@ -73,9 +74,7 @@ final class FilmGuessGame
 
     public function guess(User $user, GameSession $session, int $movieId): GameSession
     {
-        if ($session->getStatus()->isOver()) {
-            throw new GameException('Cette partie est déjà terminée.');
-        }
+        $this->assertOpen($session);
 
         if ($session->hasGuessed($movieId)) {
             throw new GameException('Tu as déjà proposé ce film.');
@@ -89,22 +88,64 @@ final class FilmGuessGame
         }
 
         $session->addGuess($movieId);
+        $this->settle($session, $movieId === $session->getMovie()->getId());
 
-        if ($movieId === $session->getMovie()->getId()) {
+        return $session;
+    }
+
+    /**
+     * Hangman only: one letter, which is either on the board or costs a life. Naming the
+     * film outright still works — that is the classic "solve the word" move, and it is the
+     * shortcut a player reaches for the moment the title becomes readable.
+     */
+    public function guessLetter(GameSession $session, string $input): GameSession
+    {
+        if (GameKind::HANGMAN !== $session->getGame()) {
+            throw new GameException('Ce jeu ne se joue pas à la lettre.');
+        }
+
+        $this->assertOpen($session);
+
+        $letter = $this->hangman->normaliseLetter($input);
+        if (null === $letter) {
+            throw new GameException('Propose une seule lettre.');
+        }
+
+        if ($session->hasTriedLetter($letter)) {
+            throw new GameException('Tu as déjà proposé cette lettre.');
+        }
+
+        $session->addLetter($letter);
+        $this->settle($session, $this->hangman->isSolved($session->getMovie(), $session->getLetters()));
+
+        return $session;
+    }
+
+    /**
+     * Records the outcome of a move and closes the run if it ended one.
+     */
+    private function settle(GameSession $session, bool $won): void
+    {
+        if ($won) {
             $session->finish(GameStatus::WON);
-        } elseif (\count($session->getGuesses()) >= $this->maxAttempts($session)) {
+        } elseif ($this->attemptsUsed($session) >= $this->maxAttempts($session)) {
             $session->finish(GameStatus::LOST);
         }
 
         $this->entityManager->flush();
+    }
 
-        return $session;
+    private function assertOpen(GameSession $session): void
+    {
+        if ($session->getStatus()->isOver()) {
+            throw new GameException('Cette partie est déjà terminée.');
+        }
     }
 
     public function toState(GameSession $session): GameStateDto
     {
         $isOver = $session->getStatus()->isOver();
-        $attemptsUsed = \count($session->getGuesses());
+        $attemptsUsed = $this->attemptsUsed($session);
         $isClueGame = GameKind::CLUE === $session->getGame();
 
         $clues = $isClueGame ? $this->clueBuilder->build($session->getMovie()) : [];
@@ -120,6 +161,17 @@ final class FilmGuessGame
             ? $this->pixelator->pixelate($session->getMovie(), $attemptsUsed)
             : null;
 
+        $hangman = GameKind::HANGMAN === $session->getGame()
+            ? $this->hangman->board(
+                $session->getMovie(),
+                $session->getLetters(),
+                $this->wrongFilmCount($session),
+                // Losing shows the title it was hiding, rather than a board still full of
+                // blanks next to the answer spelled out underneath it.
+                $isOver
+            )
+            : null;
+
         return new GameStateDto(
             game: $session->getGame(),
             mode: $session->getMode(),
@@ -131,6 +183,7 @@ final class FilmGuessGame
             answer: $isOver ? $this->movieMapper->toSummaryDto($session->getMovie(), $session->getUser()) : null,
             puzzleDate: $session->getPuzzleDate()?->format('Y-m-d'),
             poster: $poster,
+            hangman: $hangman,
         );
     }
 
@@ -196,10 +249,12 @@ final class FilmGuessGame
         }
 
         if (null === $movie) {
-            throw new GameException(GameKind::POSTER === $game
-                ? 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'affiche.'
-                : 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
-                    .'le pays, la réalisation et au moins trois acteur·rice·s.');
+            throw new GameException(match ($game) {
+                GameKind::POSTER => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'affiche.',
+                GameKind::HANGMAN => 'Aucun film jouable : il en faut au moins un dont le titre compte quatre lettres.',
+                default => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
+                    .'le pays, la réalisation et au moins trois acteur·rice·s.',
+            });
         }
 
         return $movie;
@@ -215,8 +270,8 @@ final class FilmGuessGame
 
     /**
      * Two of the games are exactly as long as their ladder — running out of facts to reveal,
-     * or of sharpness to add, is what ends them. The comparison game has no such natural
-     * stop, so it gets a number.
+     * or of sharpness to add, is what ends them. The other two have no such natural stop, so
+     * they get a number.
      */
     private function maxAttempts(GameSession $session): int
     {
@@ -224,7 +279,36 @@ final class FilmGuessGame
             GameKind::CLUE => \count($this->clueBuilder->build($session->getMovie())),
             GameKind::POSTER => $this->pixelator->steps(),
             GameKind::COMPARE => self::COMPARISON_ATTEMPTS,
+            GameKind::HANGMAN => FilmTitleHangman::LIVES,
         };
+    }
+
+    /**
+     * How much of the run has been spent.
+     *
+     * Everywhere but the hangman that is simply the number of films named. The hangman
+     * charges only for misses — a letter that lands is progress, not an attempt — so it
+     * counts wrong letters and wrong films instead, which is what its lives are.
+     */
+    private function attemptsUsed(GameSession $session): int
+    {
+        if (GameKind::HANGMAN !== $session->getGame()) {
+            return \count($session->getGuesses());
+        }
+
+        return \count($this->hangman->wrongLetters($session->getMovie(), $session->getLetters()))
+            + $this->wrongFilmCount($session);
+    }
+
+    private function wrongFilmCount(GameSession $session): int
+    {
+        $answerId = $session->getMovie()->getId();
+
+        // A winning guess is in the list too, and it never cost a life.
+        return \count(array_filter(
+            $session->getGuesses(),
+            static fn (int $movieId) => $movieId !== $answerId
+        ));
     }
 
     /**
