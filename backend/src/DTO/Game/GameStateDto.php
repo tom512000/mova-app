@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DTO\Game;
 
 use App\DTO\MovieSummaryDto;
+use App\Entity\Enum\GameKind;
 use App\Entity\Enum\GameMode;
 use App\Entity\Enum\GameStatus;
 
@@ -15,10 +16,12 @@ use App\Entity\Enum\GameStatus;
 final readonly class GameStateDto
 {
     /**
-     * @param list<ClueDto>      $clues   only the ones unlocked so far
+     * @param list<ClueDto>      $clues   only the ones unlocked so far, and empty in the
+     *                                    comparison game, which has no ladder
      * @param list<GameGuessDto> $guesses in the order they were played
      */
     public function __construct(
+        public GameKind $game,
         public GameMode $mode,
         public GameStatus $status,
         public int $attemptsUsed,

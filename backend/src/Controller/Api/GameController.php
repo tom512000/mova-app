@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\Entity\Enum\GameKind;
 use App\Entity\Enum\GameMode;
 use App\Exception\GameException;
 use App\Service\Game\FilmGuessGame;
@@ -19,7 +20,7 @@ use Symfony\Component\Routing\Attribute\Route;
  * cannot start or advance a game on somebody else's library, the same rule that keeps
  * import owner-only.
  */
-#[Route('/api/games/film', requirements: ['mode' => 'daily|infinite'])]
+#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare', 'mode' => 'daily|infinite'])]
 final class GameController
 {
     public function __construct(
@@ -28,24 +29,24 @@ final class GameController
     ) {
     }
 
-    #[Route('/{mode}', methods: ['GET'])]
-    public function state(string $mode): JsonResponse
+    #[Route('', methods: ['GET'])]
+    public function state(string $game, string $mode): JsonResponse
     {
         $user = $this->profileResolver->getAuthenticatedUser();
-        $session = $this->game->current($user, GameMode::from($mode));
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
 
         // Null rather than an empty board: the client decides whether to offer "Jouer" or
         // "Nouvelle partie", and starting a run is an explicit act.
         return new JsonResponse(['session' => null === $session ? null : $this->game->toState($session)]);
     }
 
-    #[Route('/{mode}/start', methods: ['POST'])]
-    public function start(string $mode): JsonResponse
+    #[Route('/start', methods: ['POST'])]
+    public function start(string $game, string $mode): JsonResponse
     {
         $user = $this->profileResolver->getAuthenticatedUser();
 
         try {
-            $session = $this->game->start($user, GameMode::from($mode));
+            $session = $this->game->start($user, GameKind::from($game), GameMode::from($mode));
         } catch (GameException $exception) {
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
@@ -53,12 +54,12 @@ final class GameController
         return new JsonResponse(['session' => $this->game->toState($session)], Response::HTTP_CREATED);
     }
 
-    #[Route('/{mode}/guess', methods: ['POST'])]
-    public function guess(string $mode, Request $request): JsonResponse
+    #[Route('/guess', methods: ['POST'])]
+    public function guess(string $game, string $mode, Request $request): JsonResponse
     {
         $user = $this->profileResolver->getAuthenticatedUser();
 
-        $session = $this->game->current($user, GameMode::from($mode));
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
         if (null === $session) {
             return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
         }

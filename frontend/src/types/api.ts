@@ -22,12 +22,34 @@ export interface MovieSummary {
   enrichmentStatus: EnrichmentStatus
 }
 
+export type GameKind = 'clue' | 'compare'
 export type GameMode = 'daily' | 'infinite'
 export type GameStatus = 'in_progress' | 'won' | 'lost'
+export type FacetMatch = 'exact' | 'close' | 'none' | 'unknown'
 
 export interface GameClue {
   label: string
   value: string
+}
+
+/** One value of a list-shaped attribute, judged on its own. Only ever exact or none. */
+export interface FacetPart {
+  value: string
+  match: FacetMatch
+}
+
+/**
+ * One attribute of a guessed film, already judged server-side. The target's own values are
+ * never sent — only this verdict — so the answer cannot be read off the wire.
+ */
+export interface ComparisonFacet {
+  label: string
+  value: string
+  match: FacetMatch
+  /** 'up' when the answer's number is higher than the guess's, 'down' when lower. */
+  direction: 'up' | 'down' | null
+  /** Present on list-shaped attributes: genres, countries, studios, names. */
+  parts: FacetPart[] | null
 }
 
 export interface GameGuess {
@@ -36,6 +58,8 @@ export interface GameGuess {
   releaseYear: number | null
   posterUrl: string | null
   correct: boolean
+  /** Populated in the comparison game only. */
+  facets: ComparisonFacet[] | null
 }
 
 /**
@@ -43,6 +67,7 @@ export interface GameGuess {
  * and `answer` stays null until the run is over.
  */
 export interface GameState {
+  game: GameKind
   mode: GameMode
   status: GameStatus
   attemptsUsed: number

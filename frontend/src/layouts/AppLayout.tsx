@@ -35,8 +35,8 @@ const NAV_ITEMS: NavItem[] = [
     matchPrefix: '/games',
     ownerOnly: true,
     items: [
-      { to: '/games/film/daily', label: 'Film mystère', hint: 'Quotidien · une partie par jour' },
-      { to: '/games/film/infinite', label: 'Film mystère', hint: 'Infini · autant que tu veux' },
+      { to: '/games/clue/daily', label: 'Le film mystère', hint: 'Un indice de plus à chaque erreur' },
+      { to: '/games/compare/daily', label: 'Le film comparé', hint: 'Chaque proposition se compare à la cible' },
     ],
   },
   // Import writes, and writing only ever targets the logged-in account — so it disappears

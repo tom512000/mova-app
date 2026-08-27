@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Controller\Api;
 use App\Entity\Country;
 use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
+use App\Entity\Enum\GameKind;
 use App\Entity\Enum\GameMode;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
@@ -77,7 +78,7 @@ final class GameControllerTest extends WebTestCase
 
     public function testNoRunUntilOneIsStarted(): void
     {
-        $this->client->request('GET', '/api/games/film/daily');
+        $this->client->request('GET', '/api/games/clue/daily');
 
         self::assertResponseIsSuccessful();
         self::assertNull($this->json()['session']);
@@ -88,6 +89,7 @@ final class GameControllerTest extends WebTestCase
         $state = $this->start('daily');
 
         self::assertResponseStatusCodeSame(Response::HTTP_CREATED);
+        self::assertSame('clue', $state['game']);
         self::assertSame('in_progress', $state['status']);
         self::assertSame(0, $state['attemptsUsed']);
         self::assertCount(1, $state['clues'], 'the opening move must not be blind, but only just');
@@ -206,16 +208,46 @@ final class GameControllerTest extends WebTestCase
         $this->guess('daily', $this->aWrongMovieId());
         $this->start('infinite');
 
-        $this->client->request('GET', '/api/games/film/daily');
+        $this->client->request('GET', '/api/games/clue/daily');
         self::assertSame(1, $this->json()['session']['attemptsUsed'], 'the infinite run must not touch the daily one');
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function start(string $mode): array
+    public function testTheComparisonGameAnswersWithVerdictsInsteadOfClues(): void
     {
-        $this->client->request('POST', "/api/games/film/{$mode}/start");
+        $state = $this->start('daily', 'compare');
+
+        self::assertSame('compare', $state['game']);
+        self::assertSame([], $state['clues'], 'the comparison game hands nothing out up front');
+        self::assertSame(8, $state['maxAttempts']);
+
+        $state = $this->guess('daily', $this->aWrongMovieId(GameMode::DAILY, GameKind::COMPARE), 'compare');
+
+        self::assertCount(1, $state['guesses']);
+        self::assertSame(
+            ['Année', 'Durée', 'Genres', 'Pays', 'Studios', 'Réalisateur·rice', 'Casting'],
+            array_map(static fn (array $facet) => $facet['label'], $state['guesses'][0]['facets'])
+        );
+        self::assertNull($state['answer'], 'a comparison must never carry the answer with it');
+    }
+
+    public function testTheTwoGamesHaveTheirOwnDailyPuzzle(): void
+    {
+        $this->start('daily', 'clue');
+        $this->start('daily', 'compare');
+
+        // Playing one must not spend the other's single run for the day.
+        $this->guess('daily', $this->aWrongMovieId(GameMode::DAILY, GameKind::CLUE), 'clue');
+
+        $this->client->request('GET', '/api/games/compare/daily');
+        self::assertSame(0, $this->json()['session']['attemptsUsed']);
+    }
+
+    private function start(string $mode, string $game = 'clue'): array
+    {
+        $this->client->request('POST', "/api/games/{$game}/{$mode}/start");
         self::assertResponseIsSuccessful();
 
         return $this->json()['session'];
@@ -224,11 +256,11 @@ final class GameControllerTest extends WebTestCase
     /**
      * @return array<string, mixed>
      */
-    private function guess(string $mode, int $movieId): array
+    private function guess(string $mode, int $movieId, string $game = 'clue'): array
     {
         $this->client->request(
             'POST',
-            "/api/games/film/{$mode}/guess",
+            "/api/games/{$game}/{$mode}/guess",
             server: ['CONTENT_TYPE' => 'application/json'],
             content: (string) json_encode(['movieId' => $movieId])
         );
@@ -236,11 +268,11 @@ final class GameControllerTest extends WebTestCase
         return $this->json()['session'] ?? [];
     }
 
-    private function answerId(GameMode $mode): int
+    private function answerId(GameMode $mode, GameKind $game = GameKind::CLUE): int
     {
         $session = GameMode::DAILY === $mode
-            ? $this->sessions->findDaily($this->player, new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))
-            : $this->sessions->findLatestInfinite($this->player);
+            ? $this->sessions->findDaily($this->player, $game, new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))
+            : $this->sessions->findLatestInfinite($this->player, $game);
 
         self::assertNotNull($session);
 
@@ -250,9 +282,9 @@ final class GameControllerTest extends WebTestCase
     /**
      * @return list<int>
      */
-    private function wrongMovieIds(GameMode $mode = GameMode::DAILY): array
+    private function wrongMovieIds(GameMode $mode = GameMode::DAILY, GameKind $game = GameKind::CLUE): array
     {
-        $answerId = $this->answerId($mode);
+        $answerId = $this->answerId($mode, $game);
 
         return array_values(array_filter(
             array_map(static fn (Movie $movie) => (int) $movie->getId(), $this->library),
@@ -260,9 +292,9 @@ final class GameControllerTest extends WebTestCase
         ));
     }
 
-    private function aWrongMovieId(GameMode $mode = GameMode::DAILY): int
+    private function aWrongMovieId(GameMode $mode = GameMode::DAILY, GameKind $game = GameKind::CLUE): int
     {
-        return $this->wrongMovieIds($mode)[0];
+        return $this->wrongMovieIds($mode, $game)[0];
     }
 
     /** @var list<Movie> */

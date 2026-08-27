@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Enum\GameKind;
 use App\Entity\Enum\GameMode;
 use App\Entity\Enum\GameStatus;
 use App\Repository\GameSessionRepository;
@@ -22,8 +23,8 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'game_session')]
 // puzzleDate is null for infinite runs, and Postgres lets nulls repeat in a unique index,
 // so this constrains the daily mode to one run per day without touching the other.
-#[ORM\UniqueConstraint(name: 'uniq_game_session_daily', fields: ['user', 'mode', 'puzzleDate'])]
-#[ORM\Index(name: 'idx_game_session_user_mode_status', fields: ['user', 'mode', 'status'])]
+#[ORM\UniqueConstraint(name: 'uniq_game_session_daily', fields: ['user', 'game', 'mode', 'puzzleDate'])]
+#[ORM\Index(name: 'idx_game_session_user_game_mode_status', fields: ['user', 'game', 'mode', 'status'])]
 class GameSession
 {
     #[ORM\Id]
@@ -34,6 +35,9 @@ class GameSession
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
     private User $user;
+
+    #[ORM\Column(length: 20, enumType: GameKind::class)]
+    private GameKind $game;
 
     #[ORM\Column(length: 20, enumType: GameMode::class)]
     private GameMode $mode;
@@ -58,9 +62,10 @@ class GameSession
     #[ORM\Column(nullable: true)]
     private ?\DateTimeImmutable $completedAt = null;
 
-    public function __construct(User $user, GameMode $mode, Movie $movie, ?\DateTimeImmutable $puzzleDate = null)
+    public function __construct(User $user, GameKind $game, GameMode $mode, Movie $movie, ?\DateTimeImmutable $puzzleDate = null)
     {
         $this->user = $user;
+        $this->game = $game;
         $this->mode = $mode;
         $this->movie = $movie;
         $this->puzzleDate = $puzzleDate;
@@ -75,6 +80,11 @@ class GameSession
     public function getUser(): User
     {
         return $this->user;
+    }
+
+    public function getGame(): GameKind
+    {
+        return $this->game;
     }
 
     public function getMode(): GameMode

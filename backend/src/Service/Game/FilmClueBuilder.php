@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Service\Game;
 
 use App\DTO\Game\ClueDto;
-use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Movie;
 
@@ -29,21 +28,26 @@ final class FilmClueBuilder
      */
     private const MAX_STUDIOS = 3;
 
+    public function __construct(
+        private readonly MovieCredits $credits,
+    ) {
+    }
+
     /**
      * @return list<ClueDto> in reveal order, minus any the film cannot answer
      */
     public function build(Movie $movie): array
     {
-        $cast = $this->credits($movie, CreditRole::ACTOR);
+        $cast = $this->credits->namesByRole($movie, CreditRole::ACTOR);
 
         $candidates = [
-            new ClueDto('Genres', $this->names($movie->getGenres()->toArray())),
+            new ClueDto('Genres', $this->join($this->names($movie->getGenres()->toArray()))),
             new ClueDto('Année de sortie', (string) ($movie->getReleaseYear() ?? '')),
-            new ClueDto('Pays de production', $this->names($movie->getCountries()->toArray())),
-            new ClueDto('Studios', $this->names(\array_slice($movie->getStudios()->toArray(), 0, self::MAX_STUDIOS))),
-            new ClueDto('Réalisateur·rice', $this->nameList($this->credits($movie, CreditRole::DIRECTOR))),
-            new ClueDto('Acteur·rice·s secondaires', $this->nameList(\array_slice($cast, 1, self::SUPPORTING_CAST))),
-            new ClueDto('Acteur·rice principal·e', $this->nameList(\array_slice($cast, 0, 1))),
+            new ClueDto('Pays de production', $this->join($this->names($movie->getCountries()->toArray()))),
+            new ClueDto('Studios', $this->join(\array_slice($this->names($movie->getStudios()->toArray()), 0, self::MAX_STUDIOS))),
+            new ClueDto('Réalisateur·rice', $this->join($this->credits->namesByRole($movie, CreditRole::DIRECTOR), ', ')),
+            new ClueDto('Acteur·rice·s secondaires', $this->join(\array_slice($cast, 1, self::SUPPORTING_CAST), ', ')),
+            new ClueDto('Acteur·rice principal·e', $this->join(\array_slice($cast, 0, 1), ', ')),
         ];
 
         // A film missing one of these would otherwise burn a guess on a blank card. Only
@@ -54,34 +58,19 @@ final class FilmClueBuilder
 
     /**
      * @param array<object> $items entities exposing getName()
+     *
+     * @return list<string>
      */
-    private function names(array $items): string
+    private function names(array $items): array
     {
-        return implode(' · ', array_map(static fn (object $item) => $item->getName(), $items));
+        return array_values(array_map(static fn (object $item) => $item->getName(), $items));
     }
 
     /**
-     * @param list<Credit> $credits
+     * @param list<string> $values
      */
-    private function nameList(array $credits): string
+    private function join(array $values, string $separator = ' · '): string
     {
-        return implode(', ', array_map(static fn (Credit $credit) => $credit->getPerson()->getName(), $credits));
-    }
-
-    /**
-     * @return list<Credit> in billing order, since "lead" and "supporting" only mean
-     *                      something once the cast is sorted
-     */
-    private function credits(Movie $movie, CreditRole $role): array
-    {
-        $credits = array_values(array_filter(
-            $movie->getCredits()->toArray(),
-            static fn (Credit $credit) => $credit->getRole() === $role
-        ));
-
-        // TMDB leaves the billing order null on some rows; those belong at the back.
-        usort($credits, static fn (Credit $a, Credit $b) => ($a->getCastOrder() ?? \PHP_INT_MAX) <=> ($b->getCastOrder() ?? \PHP_INT_MAX));
-
-        return $credits;
+        return implode($separator, $values);
     }
 }
