@@ -8,7 +8,29 @@ import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 import { formatDate, formatMinutesAsDuration } from '@/utils/format'
-import type { Credit, CreditRole, Watch } from '@/types/api'
+import type { Credit, CreditRole, MovieDetail, Watch } from '@/types/api'
+
+/**
+ * A film has one release year; a series has a span. Collapses to a single year when the
+ * whole run aired inside one — a mini-series, which most of the ones in this library are.
+ */
+function airedYears(movie: MovieDetail): string {
+  const lastYear = movie.lastAirDate ? Number(movie.lastAirDate.slice(0, 4)) : null
+  if (movie.mediaType !== 'series' || lastYear === null || lastYear === movie.releaseYear) {
+    return String(movie.releaseYear)
+  }
+  // An en dash, not a hyphen: this is a range, not a compound word.
+  return `${movie.releaseYear}–${lastYear}`
+}
+
+function episodeCountLabel(movie: MovieDetail): string | null {
+  if (movie.episodeCount === null) return null
+
+  const episodes = `${movie.episodeCount} épisode${movie.episodeCount > 1 ? 's' : ''}`
+  if (movie.seasonCount === null) return episodes
+
+  return `${movie.seasonCount} saison${movie.seasonCount > 1 ? 's' : ''} · ${episodes}`
+}
 
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -30,6 +52,8 @@ export function MovieDetailPage() {
   }
 
   if (isError || !movie) return <ErrorState message={(error as Error)?.message} />
+
+  const isSeries = movie.mediaType === 'series'
 
   return (
     <div className="flex flex-col gap-8">
@@ -63,14 +87,24 @@ export function MovieDetailPage() {
 
         <div className="lg:col-span-8">
           <h1 className="font-serif text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl">
-            {movie.title} {movie.releaseYear && <span className="font-normal text-subtle">({movie.releaseYear})</span>}
+            {movie.title} {movie.releaseYear && <span className="font-normal text-subtle">({airedYears(movie)})</span>}
           </h1>
           {movie.originalTitle && movie.originalTitle !== movie.title && (
             <p className="mt-1 font-body text-sm italic text-subtle">{movie.originalTitle}</p>
           )}
 
           <div className="mt-4 flex flex-wrap gap-2">
-            {movie.runtimeMinutes && <Badge>{formatMinutesAsDuration(movie.runtimeMinutes)}</Badge>}
+            {/* Leading and solid: what kind of work this is frames everything after it. */}
+            {isSeries && <Badge variant="solid">Série</Badge>}
+            {isSeries && episodeCountLabel(movie) && <Badge>{episodeCountLabel(movie)}</Badge>}
+            {movie.runtimeMinutes && (
+              <Badge>
+                {formatMinutesAsDuration(movie.runtimeMinutes)}
+                {/* Spelled out, because on a series this is the whole run and "10 h 15"
+                    alone would read as the length of one episode. */}
+                {isSeries && ' au total'}
+              </Badge>
+            )}
             {movie.genres.map((g) => (
               <Badge key={g}>{g}</Badge>
             ))}
@@ -87,7 +121,11 @@ export function MovieDetailPage() {
 
           {movie.directors.length > 0 && (
             <p className="mt-6 text-sm">
-              <span className="font-mono text-xs uppercase tracking-widest text-subtle">Réalisé par </span>
+              {/* A series has no director of record; TMDB's created_by is stored in the same
+                  slot, so only the label changes. */}
+              <span className="font-mono text-xs uppercase tracking-widest text-subtle">
+                {isSeries ? 'Créé par ' : 'Réalisé par '}
+              </span>
               <CreditLinks credits={movie.directors} role="director" className="font-serif font-bold" />
             </p>
           )}

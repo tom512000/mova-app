@@ -16,6 +16,11 @@ use Doctrine\ORM\EntityManagerInterface;
  * Measured from TMDB's release_date, which is the film's primary release and not always the
  * French one; on a film that opened weeks apart either side of the Atlantic the gap here is
  * the distance from *that* date, not from the day it reached a French screen.
+ *
+ * Films only, deliberately. A series' release_date is its *first* air date, and finishing a
+ * ten-episode run three weeks after the première says nothing about having caught it as it
+ * came out — the whole question this stat asks only makes sense for a work that arrives on
+ * a single day.
  */
 final class ReleaseWindowStatsService
 {
@@ -41,6 +46,7 @@ final class ReleaseWindowStatsService
             FROM watch w
             JOIN movie m ON m.id = w.movie_id
             WHERE w.user_id = :userId
+                AND m.media_type = \'movie\'
                 AND m.release_date IS NOT NULL
                 AND w.watched_date IS NOT NULL
             GROUP BY m.id, m.title, m.release_year, m.release_date';

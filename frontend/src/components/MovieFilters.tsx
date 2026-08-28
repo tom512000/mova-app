@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, ChevronDown, Shuffle, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import type { CreditRole, MovieFacets, MovieSortField } from '@/types/api'
-import { ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
+import { MEDIA_TYPE_OPTIONS, ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
 import { ratingToStars } from '@/utils/format'
 import { Button } from '@/components/ui/Button'
 
@@ -37,6 +37,19 @@ export function MovieFilters({
       {person && <PersonChip person={person} onClear={onClearPerson} />}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
+        <FilterSelect
+          label="Type"
+          value={state.mediaType}
+          onChange={(mediaType) => onChange({ mediaType })}
+          className="sm:w-32"
+        >
+          {MEDIA_TYPE_OPTIONS.map((option) => (
+            <Option key={option.value} value={option.value}>
+              {option.label}
+            </Option>
+          ))}
+        </FilterSelect>
+
         <FilterSelect
           label="Genre"
           value={state.genre}

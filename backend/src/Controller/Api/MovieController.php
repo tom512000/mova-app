@@ -7,6 +7,7 @@ namespace App\Controller\Api;
 use App\DTO\MovieSearchCriteria;
 use App\DTO\PersonFilterDto;
 use App\Entity\Enum\CreditRole;
+use App\Entity\Enum\MediaType;
 use App\Entity\Enum\MovieSortField;
 use App\Mapper\MovieMapper;
 use App\Repository\MovieRepository;
@@ -119,6 +120,9 @@ final class MovieController
             unratedOnly: $unratedOnly,
             personId: $query->has('personId') ? max(1, (int) $query->get('personId')) : null,
             personRole: CreditRole::tryFrom((string) $query->get('personRole', '')),
+            // Absent or unrecognised means the whole library, films and series together —
+            // the same forgiving reading as every other filter here.
+            mediaType: MediaType::tryFrom((string) $query->get('mediaType', '')),
             sort: $sort,
             descending: $descending,
             // Only alphanumerics reach the SQL, though it is a bound parameter either way.

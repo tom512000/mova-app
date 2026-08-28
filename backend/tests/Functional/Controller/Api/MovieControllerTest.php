@@ -6,6 +6,7 @@ namespace App\Tests\Functional\Controller\Api;
 
 use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
+use App\Entity\Enum\MediaType;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
 use App\Entity\Movie;
@@ -60,7 +61,7 @@ final class MovieControllerTest extends WebTestCase
     public function testDefaultsToTitleAscending(): void
     {
         self::assertSame(
-            ['100% Wolf', 'Amélie', 'Brazil', 'Casablanca', 'Dune'],
+            ['100% Wolf', 'Amélie', 'Brazil', 'Casablanca', 'Dune', 'Zone Blanche'],
             $this->titlesFor('')
         );
     }
@@ -68,7 +69,7 @@ final class MovieControllerTest extends WebTestCase
     public function testTitleDescending(): void
     {
         self::assertSame(
-            ['Dune', 'Casablanca', 'Brazil', 'Amélie', '100% Wolf'],
+            ['Zone Blanche', 'Dune', 'Casablanca', 'Brazil', 'Amélie', '100% Wolf'],
             $this->titlesFor('sort=title&direction=desc')
         );
     }
@@ -77,14 +78,14 @@ final class MovieControllerTest extends WebTestCase
     {
         // Dune lands on 3.5: it was rewatched, scored 2 then 5.
         self::assertSame(
-            ['Amélie', 'Dune', 'Brazil', '100% Wolf', 'Casablanca'],
+            ['Amélie', 'Zone Blanche', 'Dune', 'Brazil', '100% Wolf', 'Casablanca'],
             $this->titlesFor('sort=rating')
         );
 
         // The unrated film stays at the bottom even when the sort points the other way —
         // it has nothing to rank, so it is never the "lowest" note.
         self::assertSame(
-            ['100% Wolf', 'Brazil', 'Dune', 'Amélie', 'Casablanca'],
+            ['100% Wolf', 'Brazil', 'Dune', 'Zone Blanche', 'Amélie', 'Casablanca'],
             $this->titlesFor('sort=rating&direction=asc')
         );
     }
@@ -92,17 +93,17 @@ final class MovieControllerTest extends WebTestCase
     public function testYearWatchedDateAndRuntimeSorts(): void
     {
         self::assertSame(
-            ['Casablanca', 'Brazil', 'Amélie', '100% Wolf', 'Dune'],
+            ['Casablanca', 'Brazil', 'Amélie', '100% Wolf', 'Dune', 'Zone Blanche'],
             $this->titlesFor('sort=year')
         );
 
         self::assertSame(
-            ['Dune', 'Brazil', 'Casablanca', 'Amélie', '100% Wolf'],
+            ['Zone Blanche', 'Dune', 'Brazil', 'Casablanca', 'Amélie', '100% Wolf'],
             $this->titlesFor('sort=watched')
         );
 
         self::assertSame(
-            ['Dune', 'Brazil', 'Amélie', 'Casablanca', '100% Wolf'],
+            ['Zone Blanche', 'Dune', 'Brazil', 'Amélie', 'Casablanca', '100% Wolf'],
             $this->titlesFor('sort=runtime')
         );
     }
@@ -125,6 +126,84 @@ final class MovieControllerTest extends WebTestCase
     public function testUnratedFilter(): void
     {
         self::assertSame(['Casablanca'], $this->titlesFor('rating=none'));
+    }
+
+    public function testMediaTypeFilterSeparatesFilmsFromSeries(): void
+    {
+        self::assertSame(
+            ['100% Wolf', 'Amélie', 'Brazil', 'Casablanca', 'Dune'],
+            $this->titlesFor('mediaType=movie')
+        );
+        self::assertSame(['Zone Blanche'], $this->titlesFor('mediaType=series'));
+    }
+
+    public function testAnAbsentOrUnknownMediaTypeBrowsesTheWholeLibrary(): void
+    {
+        // Same forgiving reading as every other filter: a stale bookmark shows everything
+        // rather than an error page.
+        self::assertSame($this->titlesFor(''), $this->titlesFor('mediaType=nonsense'));
+        self::assertContains('Zone Blanche', $this->titlesFor(''));
+    }
+
+    public function testTheMediaTypeFilterCombinesWithTheOtherFilters(): void
+    {
+        // The series carries the comedy genre too, so this proves the two narrow together
+        // rather than one quietly winning.
+        self::assertSame(
+            ['100% Wolf', 'Amélie', 'Casablanca'],
+            $this->titlesFor('genre='.self::COMEDY.'&mediaType=movie')
+        );
+    }
+
+    public function testACardSaysWhichKindItIs(): void
+    {
+        $this->titlesFor('mediaType=series');
+        $card = $this->json()['items'][0];
+
+        self::assertSame('series', $card['mediaType']);
+        self::assertSame('movie', $this->firstCardFor('mediaType=movie')['mediaType']);
+    }
+
+    public function testASeriesDetailCarriesItsSeasonsAndEpisodes(): void
+    {
+        $id = $this->firstCardFor('mediaType=series')['id'];
+
+        $this->client->request('GET', "/api/movies/{$id}");
+        self::assertResponseIsSuccessful();
+
+        $detail = $this->json();
+        self::assertSame('series', $detail['mediaType']);
+        self::assertSame(2, $detail['seasonCount']);
+        self::assertSame(12, $detail['episodeCount']);
+        // The whole run, not one episode — what the detail page turns into "10 h 15".
+        self::assertSame(615, $detail['runtimeMinutes']);
+    }
+
+    public function testAFilmDetailLeavesTheSeriesFieldsEmpty(): void
+    {
+        $id = $this->firstCardFor('mediaType=movie')['id'];
+
+        $this->client->request('GET', "/api/movies/{$id}");
+        self::assertResponseIsSuccessful();
+
+        $detail = $this->json();
+        self::assertSame('movie', $detail['mediaType']);
+        // Null rather than 0 or 1: a film has no seasons, it does not have one season.
+        self::assertNull($detail['seasonCount']);
+        self::assertNull($detail['episodeCount']);
+        self::assertNull($detail['lastAirDate']);
+    }
+
+    public function testTheWallCanBeNarrowedToOneKind(): void
+    {
+        self::assertSame(
+            ['Zone Blanche'],
+            array_column($this->wall('mediaType=series')['items'], 'title')
+        );
+        self::assertSame(
+            ['Amélie', 'Brazil', 'Dune'],
+            array_column($this->wall('sort=title&direction=asc&mediaType=movie')['items'], 'title')
+        );
     }
 
     public function testGenreAndYearFilters(): void
@@ -206,9 +285,9 @@ final class MovieControllerTest extends WebTestCase
 
         $facets = $this->json();
         self::assertSame([self::COMEDY, self::SCIFI], $facets['genres']);
-        self::assertSame([2021, 2020, 2001, 1985, 1942], $facets['years']);
+        self::assertSame([2022, 2021, 2020, 2001, 1985, 1942], $facets['years']);
         // JSON turns 5.0 into 5, so compare on floats rather than on what json_decode chose.
-        self::assertSame([5.0, 4.5, 3.0, 2.0, 1.0], array_map('floatval', $facets['ratings']));
+        self::assertSame([5.0, 4.5, 4.0, 3.0, 2.0, 1.0], array_map('floatval', $facets['ratings']));
         self::assertTrue($facets['hasUnrated']);
     }
 
@@ -220,22 +299,27 @@ final class MovieControllerTest extends WebTestCase
         $payload = $this->wall('sort=title&direction=asc');
 
         // "100% Wolf" and "Casablanca" have no poster: nothing to hang.
-        self::assertSame(['Amélie', 'Brazil', 'Dune'], array_column($payload['items'], 'title'));
-        self::assertSame(3, $payload['total']);
+        self::assertSame(['Amélie', 'Brazil', 'Dune', 'Zone Blanche'], array_column($payload['items'], 'title'));
+        self::assertSame(4, $payload['total']);
     }
 
     public function testTheWallComesBackWhole(): void
     {
         // A page boundary in the middle of a wall would be a wall you cannot walk past, so
         // the paging parameters the listing honours are deliberately ignored here.
-        self::assertCount(3, $this->wall('perPage=1&page=2')['items']);
+        self::assertCount(4, $this->wall('perPage=1&page=2')['items']);
     }
 
     public function testAnExhibitCarriesOnlyWhatItNeedsToHang(): void
     {
         $first = $this->wall('sort=title&direction=asc')['items'][0];
 
-        self::assertSame(['id', 'title', 'releaseYear', 'posterUrl', 'myAverageRating'], array_keys($first));
+        // mediaType earns its place despite the cost: the wall labels a series as one, and
+        // the alternative would be a second request per exhibit to find out.
+        self::assertSame(
+            ['id', 'title', 'releaseYear', 'posterUrl', 'myAverageRating', 'mediaType'],
+            array_keys($first)
+        );
         // A wall holds dozens at once, so it asks TMDB for the thumbnail, not the card size.
         self::assertStringContainsString('/w185/amelie.jpg', $first['posterUrl']);
         self::assertSame(4.5, $first['myAverageRating']);
@@ -244,12 +328,15 @@ final class MovieControllerTest extends WebTestCase
     public function testTheWallIsHungInTheOrderItWasAskedFor(): void
     {
         self::assertSame(
-            ['Dune', 'Amélie', 'Brazil'],
+            ['Zone Blanche', 'Dune', 'Amélie', 'Brazil'],
             array_column($this->wall('sort=year&direction=desc')['items'], 'title')
         );
 
-        // Dune was watched twice, at 2 and at 5: the wall shows the same average the cards do.
-        self::assertSame(3.5, $this->wall('sort=year&direction=desc')['items'][0]['myAverageRating']);
+        // Dune was watched twice, at 2 and at 5: the wall shows the same average the cards
+        // do. Looked up by title rather than by position, so a change of ordering above
+        // cannot quietly turn this into an assertion about a different exhibit.
+        $exhibits = array_column($this->wall('sort=year&direction=desc')['items'], null, 'title');
+        self::assertSame(3.5, $exhibits['Dune']['myAverageRating']);
     }
 
     /**
@@ -269,6 +356,16 @@ final class MovieControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
 
         return array_map(static fn (array $item) => $item['title'], $this->json()['items']);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function firstCardFor(string $queryString): array
+    {
+        $this->titlesFor($queryString);
+
+        return $this->json()['items'][0];
     }
 
     private function seedLibrary(): void
@@ -301,6 +398,17 @@ final class MovieControllerTest extends WebTestCase
         $dune->setPosterPath('/dune.jpg');
         $this->watch($user, $dune, '2023-12-01', 2.0);
         $this->watch($user, $dune, '2024-04-02', 5.0);
+
+        // A series, sitting in the same library as the films because that is exactly how
+        // Letterboxd exports it. Its runtime is the whole run rather than one episode,
+        // which is why it outranks every film on `sort=runtime` below — the ordering is
+        // right, and it is also why OverviewStatsService excludes series from "le plus long".
+        $zone = $this->movie('Zone Blanche', 2022, 615, $comedy);
+        $zone->setMediaType(MediaType::SERIES);
+        $zone->setSeasonCount(2);
+        $zone->setEpisodeCount(12);
+        $zone->setPosterPath('/zone.jpg');
+        $this->watch($user, $zone, '2024-05-01', 4.0);
 
         $person = (new Person())->setName(self::PERSON);
         $this->entityManager->persist($person);

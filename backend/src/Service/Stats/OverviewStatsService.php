@@ -9,6 +9,12 @@ use App\DTO\Stats\OverviewStatsDto;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
+/**
+ * Note on the runtime figures below: `movie.runtime_minutes` holds a film's running time
+ * but a *series'* total across every episode (615 minutes for Loki). That makes the summed
+ * totals more honest — it really is the time spent watching — but it makes the extremes
+ * meaningless unless series are excluded, which is what findExtremeRuntimeMovie does.
+ */
 final class OverviewStatsService
 {
     public function __construct(
@@ -47,11 +53,15 @@ final class OverviewStatsService
             ['userId' => $userId]
         )->fetchOne();
 
+        // Films only, for the same reason as the extremes: this is billed as the average
+        // length of a film, and a handful of ten-hour series would drag it somewhere that
+        // describes nothing.
         $averageRuntime = $conn->executeQuery(
-            'SELECT AVG(m.runtime_minutes) AS avg_runtime
+            "SELECT AVG(m.runtime_minutes) AS avg_runtime
             FROM movie m
             WHERE m.runtime_minutes IS NOT NULL
-              AND EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)',
+              AND m.media_type = 'movie'
+              AND EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)",
             ['userId' => $userId]
         )->fetchOne();
 
@@ -76,10 +86,14 @@ final class OverviewStatsService
     {
         // $direction is interpolated, never $userId: the former is one of two literals
         // chosen in this file, the latter is bound so it can never reach the SQL text.
+        // Films only. A series stores its whole run in this column, so leaving them in
+        // would hand "le plus long" to a ten-hour series permanently and turn a stat about
+        // films into a stat about formats.
         $row = $conn->executeQuery(
             "SELECT m.id, m.title, m.runtime_minutes
             FROM movie m
             WHERE m.runtime_minutes IS NOT NULL
+              AND m.media_type = 'movie'
               AND EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)
             ORDER BY m.runtime_minutes {$direction}
             LIMIT 1",

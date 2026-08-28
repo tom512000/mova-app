@@ -4,54 +4,31 @@ declare(strict_types=1);
 
 namespace App\Mapper;
 
-use App\Entity\Country;
 use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
-use App\Entity\Genre;
+use App\Entity\Enum\MediaType;
 use App\Entity\Movie;
-use App\Entity\Person;
-use App\Entity\Studio;
-use App\Repository\CountryRepository;
-use App\Repository\GenreRepository;
-use App\Repository\PersonRepository;
-use App\Repository\StudioRepository;
-use Doctrine\ORM\EntityManagerInterface;
 
 /**
  * Maps a raw TMDB /movie/{id}?append_to_response=credits,external_ids response
  * (see App\Service\Tmdb\TmdbClient) onto a Movie entity, upserting the related
  * Genre/Country/Person/Credit rows. Only pulls the TMDB fields this app displays.
+ *
+ * The series counterpart is TmdbSeriesMapper; what the two share sits in
+ * AbstractTmdbMapper.
  */
-final class TmdbMovieMapper
+final class TmdbMovieMapper extends AbstractTmdbMapper
 {
     private const MAX_CAST_CREDITS = 15;
-
-    /**
-     * Reset at the start of every map() call. A single movie's credits can reference
-     * the same TMDB person twice (director who's also a writer, duplicate crew entries)
-     * within one flush boundary, so a DB lookup alone would miss the first unflushed
-     * insert and try to create a duplicate — same class of bug as MovieUpserter's cache.
-     *
-     * @var array<int, Person>
-     */
-    private array $personCache = [];
-
-    public function __construct(
-        private readonly GenreRepository $genreRepository,
-        private readonly CountryRepository $countryRepository,
-        private readonly PersonRepository $personRepository,
-        private readonly StudioRepository $studioRepository,
-        private readonly EntityManagerInterface $entityManager,
-    ) {
-    }
 
     /**
      * @param array<string, mixed> $details
      */
     public function map(Movie $movie, array $details): void
     {
-        $this->personCache = [];
+        $this->resetPersonCache();
 
+        $movie->setMediaType(MediaType::MOVIE);
         $movie->setTmdbId($details['id']);
         $movie->setTitle($details['title'] ?? $movie->getTitle());
         $movie->setOriginalTitle($details['original_title'] ?? null);
@@ -71,6 +48,11 @@ final class TmdbMovieMapper
         $movie->setRevenue(isset($details['revenue']) ? (string) $details['revenue'] : null);
         $movie->setImdbId($details['external_ids']['imdb_id'] ?? $details['imdb_id'] ?? null);
 
+        // A film has one release day, so the series-only span stays empty.
+        $movie->setSeasonCount(null);
+        $movie->setEpisodeCount(null);
+        $movie->setLastAirDate(null);
+
         if (!empty($details['release_date'])) {
             $releaseDate = \DateTimeImmutable::createFromFormat('!Y-m-d', $details['release_date']);
             if (false !== $releaseDate) {
@@ -85,70 +67,6 @@ final class TmdbMovieMapper
         $this->mapCredits($movie, $details['credits'] ?? []);
 
         $movie->touch();
-    }
-
-    /**
-     * @param array<int, array{id: int, name: string}> $genres
-     */
-    private function mapGenres(Movie $movie, array $genres): void
-    {
-        $movie->clearGenres();
-        foreach ($genres as $genreData) {
-            $genre = $this->genreRepository->findOneByTmdbId($genreData['id']);
-            if (null === $genre) {
-                $genre = new Genre();
-                $genre->setTmdbId($genreData['id']);
-                $genre->setName($genreData['name']);
-                $this->entityManager->persist($genre);
-            }
-            $movie->addGenre($genre);
-        }
-    }
-
-    /**
-     * @param array<int, array{iso_3166_1: string, name: string}> $countries
-     */
-    private function mapCountries(Movie $movie, array $countries): void
-    {
-        $movie->clearCountries();
-        foreach ($countries as $countryData) {
-            $country = $this->countryRepository->findOneByIsoCode($countryData['iso_3166_1']);
-            if (null === $country) {
-                $country = new Country();
-                $country->setIsoCode($countryData['iso_3166_1']);
-                $country->setName($countryData['name']);
-                $this->entityManager->persist($country);
-            }
-            $movie->addCountry($country);
-        }
-    }
-
-    /**
-     * @param array<int, array{id: int, name: string}> $companies
-     */
-    public function mapStudios(Movie $movie, array $companies): void
-    {
-        $movie->clearStudios();
-
-        // Same guard as $personCache, scoped to one call: the repository lookup below only
-        // sees flushed rows, so listing a company twice would create it twice.
-        $seen = [];
-
-        foreach ($companies as $companyData) {
-            if ('' === ($companyData['name'] ?? '') || isset($seen[$companyData['id']])) {
-                continue;
-            }
-            $seen[$companyData['id']] = true;
-
-            $studio = $this->studioRepository->findOneByTmdbId($companyData['id']);
-            if (null === $studio) {
-                $studio = new Studio();
-                $studio->setTmdbId($companyData['id']);
-                $studio->setName($companyData['name']);
-                $this->entityManager->persist($studio);
-            }
-            $movie->addStudio($studio);
-        }
     }
 
     /**
@@ -183,28 +101,5 @@ final class TmdbMovieMapper
             $credit->setCastOrder($castMember['order'] ?? null);
             $movie->addCredit($credit);
         }
-    }
-
-    /**
-     * @param array{id: int, name: string, profile_path?: string|null} $personData
-     */
-    private function findOrCreatePerson(array $personData): Person
-    {
-        $tmdbId = $personData['id'];
-
-        if (isset($this->personCache[$tmdbId])) {
-            return $this->personCache[$tmdbId];
-        }
-
-        $person = $this->personRepository->findOneByTmdbId($tmdbId);
-        if (null === $person) {
-            $person = new Person();
-            $person->setTmdbId($tmdbId);
-            $person->setName($personData['name']);
-            $this->entityManager->persist($person);
-        }
-        $person->setProfilePath($personData['profile_path'] ?? null);
-
-        return $this->personCache[$tmdbId] = $person;
     }
 }

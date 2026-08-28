@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Service\Tmdb;
 
+use App\Entity\Enum\MediaType;
 use App\Entity\Movie;
 use App\Exception\AmbiguousMatchException;
 use App\Service\Letterboxd\LetterboxdFilmPageResolverInterface;
@@ -15,9 +16,13 @@ use App\Service\Letterboxd\LetterboxdFilmPageResolverInterface;
  *   1. Read the TMDB/IMDb links Letterboxd itself publishes on the film's public page
  *      (letterboxd.com/film/<slug>/). The slug comes straight from the export, so this
  *      is an exact mapping rather than a guess — one request per unique film, cached
- *      permanently by LetterboxdFilmPageResolver.
+ *      permanently by LetterboxdFilmPageResolver. The link tells us which of TMDB's two
+ *      catalogues the entry belongs to, hence the `kind` in the return value: Letterboxd
+ *      lists a handful of series (mini-series, anthologies) alongside its films.
  *   2. Only if that page yields nothing, fall back to TMDB /search/movie by title+year,
- *      scored by title similarity + year match.
+ *      scored by title similarity + year match. There is deliberately no /search/tv
+ *      fallback: a series that Letterboxd doesn't link is not a series we can identify
+ *      with any confidence, and guessing is what this class exists to avoid.
  *   3. If neither works, throw AmbiguousMatchException — never guess silently.
  *
  * The search used to come first, which produced *confidently wrong* matches: TmdbClient
@@ -43,7 +48,10 @@ final class TmdbResolver
     }
 
     /**
-     * @return array{tmdbId: int, imdbId: string|null}
+     * @return array{kind: MediaType, tmdbId: int, imdbId: string|null} $tmdbId is an id in
+     *                                                                 the catalogue named by
+     *                                                                 $kind, the two being
+     *                                                                 numbered independently
      *
      * @throws AmbiguousMatchException
      */
@@ -54,22 +62,20 @@ final class TmdbResolver
 
         $page = $this->letterboxdFilmPageResolver->resolve($movie->getLetterboxdSlug());
         if (null !== $page['tmdbId']) {
-            return ['tmdbId' => $page['tmdbId'], 'imdbId' => $page['imdbId']];
+            return ['kind' => MediaType::MOVIE, 'tmdbId' => $page['tmdbId'], 'imdbId' => $page['imdbId']];
         }
 
-        // Letterboxd links this entry to a TMDB *series*: no movie can be correct here, and
-        // searching /search/movie anyway is exactly what used to attach a random film to it.
+        // Letterboxd links this entry to a TMDB *series*. That used to be a dead end, and
+        // /search/movie was never allowed to run on it: it cannot return a series, so it
+        // would only ever have attached a random film. The link itself is exact, though —
+        // the id needs the /tv catalogue, not a different search.
         if (null !== $page['tmdbTvId']) {
-            throw new AmbiguousMatchException(sprintf(
-                '"%s" est une série TMDB (tv/%d) côté Letterboxd, aucun film correspondant.',
-                $title,
-                $page['tmdbTvId']
-            ));
+            return ['kind' => MediaType::SERIES, 'tmdbId' => $page['tmdbTvId'], 'imdbId' => $page['imdbId']];
         }
 
         $best = $this->findBestSearchCandidate($title, $year);
         if (null !== $best) {
-            return ['tmdbId' => $best, 'imdbId' => null];
+            return ['kind' => MediaType::MOVIE, 'tmdbId' => $best, 'imdbId' => null];
         }
 
         throw new AmbiguousMatchException(sprintf(

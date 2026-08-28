@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DTO;
 
 use App\Entity\Enum\EnrichmentStatus;
+use App\Entity\Enum\MediaType;
 
 final readonly class MovieSummaryDto
 {
@@ -16,6 +17,7 @@ final readonly class MovieSummaryDto
         public ?float $myAverageRating,
         public int $watchCount,
         public EnrichmentStatus $enrichmentStatus,
+        public MediaType $mediaType = MediaType::MOVIE,
     ) {
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Entity\Enum\EnrichmentStatus;
+use App\Entity\Enum\MediaType;
 use App\Repository\MovieRepository;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
@@ -14,7 +15,10 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Entity(repositoryClass: MovieRepository::class)]
 #[ORM\Table(name: 'movie')]
 #[ORM\UniqueConstraint(name: 'uniq_movie_letterboxd_slug', fields: ['letterboxdSlug'])]
-#[ORM\UniqueConstraint(name: 'uniq_movie_tmdb_id', fields: ['tmdbId'])]
+// Over the pair, never tmdbId alone: TMDB numbers films and series independently, so
+// movie/84958 (a film) and tv/84958 (Loki) are different works that both legitimately
+// carry the id 84958. See MediaType.
+#[ORM\UniqueConstraint(name: 'uniq_movie_media_type_tmdb_id', fields: ['mediaType', 'tmdbId'])]
 #[ORM\Index(name: 'idx_movie_enrichment_status', fields: ['enrichmentStatus'])]
 class Movie
 {
@@ -22,6 +26,9 @@ class Movie
     #[ORM\GeneratedValue]
     #[ORM\Column]
     private ?int $id = null;
+
+    #[ORM\Column(length: 20, enumType: MediaType::class, options: ['default' => 'movie'])]
+    private MediaType $mediaType = MediaType::MOVIE;
 
     #[ORM\Column(nullable: true)]
     private ?int $tmdbId = null;
@@ -53,8 +60,32 @@ class Movie
     #[ORM\Column(nullable: true)]
     private ?int $releaseYear = null;
 
+    /**
+     * For a film, its running time. For a series, the sum of every episode's runtime —
+     * 615 minutes for Loki's twelve episodes — so that the watch-time totals in
+     * OverviewStatsService, GenreStatsService and TimelineStatsService keep summing one
+     * column and stay honest about the hours actually spent watching.
+     *
+     * The corollary is that "longest"/"shortest" rankings over this column have to
+     * exclude series explicitly, which OverviewStatsService does.
+     */
     #[ORM\Column(nullable: true)]
     private ?int $runtimeMinutes = null;
+
+    /** Series only; null on films. */
+    #[ORM\Column(nullable: true)]
+    private ?int $seasonCount = null;
+
+    /** Series only; null on films. */
+    #[ORM\Column(nullable: true)]
+    private ?int $episodeCount = null;
+
+    /**
+     * Series only: when the last episode aired. The counterpart to releaseDate, which
+     * holds first_air_date for a series — a range rather than a single day.
+     */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $lastAirDate = null;
 
     #[ORM\Column(type: Types::TEXT, nullable: true)]
     private ?string $synopsis = null;
@@ -142,6 +173,23 @@ class Movie
         return $this->id;
     }
 
+    public function getMediaType(): MediaType
+    {
+        return $this->mediaType;
+    }
+
+    public function setMediaType(MediaType $mediaType): static
+    {
+        $this->mediaType = $mediaType;
+
+        return $this;
+    }
+
+    public function isSeries(): bool
+    {
+        return MediaType::SERIES === $this->mediaType;
+    }
+
     public function getTmdbId(): ?int
     {
         return $this->tmdbId;
@@ -227,6 +275,42 @@ class Movie
     public function setRuntimeMinutes(?int $runtimeMinutes): static
     {
         $this->runtimeMinutes = $runtimeMinutes;
+
+        return $this;
+    }
+
+    public function getSeasonCount(): ?int
+    {
+        return $this->seasonCount;
+    }
+
+    public function setSeasonCount(?int $seasonCount): static
+    {
+        $this->seasonCount = $seasonCount;
+
+        return $this;
+    }
+
+    public function getEpisodeCount(): ?int
+    {
+        return $this->episodeCount;
+    }
+
+    public function setEpisodeCount(?int $episodeCount): static
+    {
+        $this->episodeCount = $episodeCount;
+
+        return $this;
+    }
+
+    public function getLastAirDate(): ?\DateTimeImmutable
+    {
+        return $this->lastAirDate;
+    }
+
+    public function setLastAirDate(?\DateTimeImmutable $lastAirDate): static
+    {
+        $this->lastAirDate = $lastAirDate;
 
         return $this;
     }
@@ -412,11 +496,19 @@ class Movie
      */
     public function clearTmdbData(): static
     {
+        // The kind is itself a TMDB verdict (the Letterboxd page linked to /tv/ rather
+        // than /movie/), so a discarded match takes it down with the rest — otherwise a
+        // row wrongly typed as a series would stay excluded from the movie-only stats
+        // even after being re-matched to a film.
+        $this->mediaType = MediaType::MOVIE;
         $this->tmdbId = null;
         $this->imdbId = null;
         $this->originalTitle = null;
         $this->releaseDate = null;
         $this->runtimeMinutes = null;
+        $this->seasonCount = null;
+        $this->episodeCount = null;
+        $this->lastAirDate = null;
         $this->synopsis = null;
         $this->tagline = null;
         $this->originalLanguage = null;

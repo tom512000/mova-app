@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\DTO;
 
+use App\Entity\Enum\MediaType;
+
 /**
  * One exhibit on the museum wall — only what a poster needs to hang there and be named.
  *
@@ -18,6 +20,7 @@ final readonly class MoviePosterDto
         public ?int $releaseYear,
         public string $posterUrl,
         public ?float $myAverageRating,
+        public MediaType $mediaType = MediaType::MOVIE,
     ) {
     }
 }

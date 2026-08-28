@@ -33,6 +33,13 @@ export function MovieCard({ movie }: { movie: MovieSummary }) {
             {statusLabel}
           </Badge>
         )}
+        {/* Opposite corner from the enrichment badge, which the same card can carry at
+            the same time. Solid rather than outline so it holds up over artwork. */}
+        {movie.mediaType === 'series' && (
+          <Badge variant="solid" className="absolute right-2 top-2">
+            Série
+          </Badge>
+        )}
       </div>
       <div className="border-t border-ink p-3">
         <p className="truncate font-serif text-sm font-bold leading-tight group-hover:text-accent">{movie.title}</p>

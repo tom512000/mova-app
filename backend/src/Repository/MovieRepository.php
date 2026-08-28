@@ -78,6 +78,11 @@ class MovieRepository extends ServiceEntityRepository
             $params['rating'] = number_format($criteria->rating, 1, '.', '');
         }
 
+        if (null !== $criteria->mediaType) {
+            $conditions[] = 'm.media_type = :mediaType';
+            $params['mediaType'] = $criteria->mediaType->value;
+        }
+
         if (null !== $criteria->personId) {
             $credit = 'EXISTS (SELECT 1 FROM credit c WHERE c.movie_id = m.id AND c.person_id = :personId';
             $params['personId'] = $criteria->personId;
@@ -236,10 +241,17 @@ class MovieRepository extends ServiceEntityRepository
             $params['seed'] = $criteria->seed ?? '';
         }
 
+        $kind = '';
+        if (null !== $criteria->mediaType) {
+            $kind = ' AND m.media_type = :mediaType';
+            $params['mediaType'] = $criteria->mediaType->value;
+        }
+
         return $this->getEntityManager()->getConnection()->executeQuery(
-            'SELECT m.id, m.title, m.release_year, m.poster_path, agg.average_rating '
+            'SELECT m.id, m.title, m.release_year, m.poster_path, m.media_type, agg.average_rating '
             .$this->watchedByProfile()
             .' WHERE m.poster_path IS NOT NULL'
+            .$kind
             ." ORDER BY {$this->orderBy($criteria)}",
             $params
         )->fetchAllAssociative();

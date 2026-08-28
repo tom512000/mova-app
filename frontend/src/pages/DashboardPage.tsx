@@ -72,7 +72,7 @@ export function DashboardPage() {
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <Link to="/movies" className="block">
           <StatCard
-            label="Films vus"
+            label="Films & séries"
             value={stats.totalMovies}
             hint={stats.totalRewatches > 0 ? `${stats.totalWatches} visionnages · ${stats.totalRewatches} rewatch${stats.totalRewatches > 1 ? 'es' : ''}` : undefined}
           />
@@ -88,7 +88,7 @@ export function DashboardPage() {
           hint={formatMinutesAsDays(stats.totalWatchTimeMinutes)}
         />
         <StatCard
-          label="Durée moyenne"
+          label="Durée moyenne d'un film"
           value={stats.averageMovieRuntimeMinutes ? formatMinutesAsDuration(Math.round(stats.averageMovieRuntimeMinutes)) : '—'}
           hint={stats.averageMovieRuntimeMinutes ? `${Math.round(stats.averageMovieRuntimeMinutes)} minutes` : '—'}
         />
@@ -106,7 +106,7 @@ export function DashboardPage() {
 
       <section className="newsprint-texture border border-ink p-5 sm:p-6">
         <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-          <h2 className="font-serif text-2xl font-bold">Films vus au fil du temps</h2>
+          <h2 className="font-serif text-2xl font-bold">Vus au fil du temps</h2>
           <div className="flex border border-ink">
             {(['year', 'month'] as const).map((g) => (
               <button

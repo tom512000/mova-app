@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/apiClient'
 import type {
   CreditRole,
+  MediaType,
   MovieDetail,
   MovieFacets,
   MovieListResponse,
@@ -18,6 +19,8 @@ export interface MovieSearchParams {
   /** Keeps films this person is credited on, optionally narrowed to one role. */
   personId?: number
   personRole?: CreditRole
+  /** Films only, or series only. Absent means the whole library. */
+  mediaType?: MediaType
   sort?: MovieSortField
   direction?: SortDirection
   /** Keeps a random sort stable from one page to the next. */
@@ -45,9 +48,14 @@ export async function fetchMovie(id: number): Promise<MovieDetail> {
  * Every poster the profile owns, unpaged: the museum wall is one continuous surface, so a
  * page boundary in the middle of it would be a wall you cannot walk past.
  */
-export async function fetchPosterWall(sort: MovieSortField, direction: SortDirection, seed?: string) {
+export async function fetchPosterWall(
+  sort: MovieSortField,
+  direction: SortDirection,
+  seed?: string,
+  mediaType?: MediaType
+) {
   const { data } = await apiClient.get<{ items: MoviePoster[]; total: number }>('/movies/posters', {
-    params: { sort, direction, seed },
+    params: { sort, direction, seed, mediaType },
   })
   return data.items
 }

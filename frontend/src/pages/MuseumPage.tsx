@@ -6,12 +6,13 @@ import { StarRating } from '@/components/ui/StarRating'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
-import { SORT_OPTIONS, defaultDirectionFor } from '@/utils/movieSort'
+import { MEDIA_TYPE_OPTIONS, SORT_OPTIONS, defaultDirectionFor } from '@/utils/movieSort'
 import { cn } from '@/utils/cn'
-import type { MoviePoster, MovieSortField } from '@/types/api'
+import type { MediaType, MoviePoster, MovieSortField } from '@/types/api'
 
 export function MuseumPage() {
   const [sort, setSort] = useState<MovieSortField>('added')
+  const [kind, setKind] = useState<string>('')
   const [focused, setFocused] = useState<MoviePoster | null>(null)
 
   // A shuffle needs a seed that holds still, so it is drawn on the click that asks for one
@@ -22,8 +23,14 @@ export function MuseumPage() {
   const direction = defaultDirectionFor(sort)
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['movies', 'posters', sort, direction, sort === 'random' ? seed : null],
-    queryFn: () => fetchPosterWall(sort, direction, sort === 'random' ? seed : undefined),
+    queryKey: ['movies', 'posters', sort, direction, kind, sort === 'random' ? seed : null],
+    queryFn: () =>
+      fetchPosterWall(
+        sort,
+        direction,
+        sort === 'random' ? seed : undefined,
+        (kind || undefined) as MediaType | undefined
+      ),
   })
 
   return (
@@ -38,7 +45,22 @@ export function MuseumPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <label className="flex items-center gap-2">
+            <span className="font-mono text-[10px] uppercase tracking-widest text-subtle">Salle</span>
+            <select
+              value={kind}
+              onChange={(event) => setKind(event.target.value)}
+              className="border border-ink bg-paper px-3 py-2 font-mono text-xs uppercase tracking-widest text-ink"
+            >
+              {MEDIA_TYPE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <label className="flex items-center gap-2">
             <span className="font-mono text-[10px] uppercase tracking-widest text-subtle">Accrochage</span>
             <select
@@ -102,7 +124,11 @@ function Cartouche({ poster }: { poster: MoviePoster | null }) {
       <div className={cn('min-w-0 transition-opacity duration-200', poster ? 'opacity-100' : 'opacity-40')}>
         <p className="truncate font-serif text-2xl font-bold">{poster?.title ?? 'Aucune affiche visée'}</p>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
-          {poster ? (poster.releaseYear ?? 'Année inconnue') : 'Passe le curseur sur le mur'}
+          {poster
+            ? [poster.mediaType === 'series' ? 'Série' : null, poster.releaseYear ?? 'Année inconnue']
+                .filter(Boolean)
+                .join(' · ')
+            : 'Passe le curseur sur le mur'}
         </p>
       </div>
       {poster && <StarRating rating={poster.myAverageRating} size="md" />}

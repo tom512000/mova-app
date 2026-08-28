@@ -51,6 +51,22 @@ final class TmdbClient implements TmdbClientInterface
     }
 
     /**
+     * @return array<string, mixed> series details with aggregate_credits and external_ids appended
+     */
+    public function getTvDetails(int $tvId): array
+    {
+        return $this->request('GET', "/tv/{$tvId}", ['append_to_response' => 'aggregate_credits,external_ids']);
+    }
+
+    /**
+     * @return array<string, mixed> season details, including an `episodes` list
+     */
+    public function getTvSeason(int $tvId, int $seasonNumber): array
+    {
+        return $this->request('GET', "/tv/{$tvId}/season/{$seasonNumber}");
+    }
+
+    /**
      * @param array<string, scalar> $query
      *
      * @return array<string, mixed>

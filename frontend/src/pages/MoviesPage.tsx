@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { ratingToStars } from '@/utils/format'
 import { SORT_OPTIONS, defaultDirectionFor, type MovieFilterState } from '@/utils/movieSort'
-import type { CreditRole, MovieSortField, SortDirection } from '@/types/api'
+import type { CreditRole, MediaType, MovieSortField, SortDirection } from '@/types/api'
 
 const PER_PAGE = 24
 
@@ -30,6 +30,7 @@ export function MoviesPage() {
     SORT_OPTIONS.find((option) => option.value === params.get('sort'))?.value ?? 'title'
   const filters: MovieFilterState = {
     genre: params.get('genre') ?? '',
+    mediaType: params.get('mediaType') ?? '',
     rating: params.get('rating') ?? '',
     year: params.get('year') ?? '',
     sort,
@@ -77,6 +78,7 @@ export function MoviesPage() {
       fetchMovies({
         q: q || undefined,
         genre: filters.genre || undefined,
+        mediaType: (filters.mediaType || undefined) as MediaType | undefined,
         rating: filters.rating || undefined,
         year: filters.year ? Number(filters.year) : undefined,
         sort: filters.sort,
@@ -116,7 +118,12 @@ export function MoviesPage() {
     : null
 
   const hasFilters =
-    filters.genre !== '' || filters.rating !== '' || filters.year !== '' || q !== '' || personId > 0
+    filters.genre !== '' ||
+    filters.mediaType !== '' ||
+    filters.rating !== '' ||
+    filters.year !== '' ||
+    q !== '' ||
+    personId > 0
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
 

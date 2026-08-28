@@ -1,4 +1,10 @@
 export type EnrichmentStatus = 'pending' | 'enriched' | 'failed' | 'ambiguous' | 'excluded'
+
+/**
+ * Films and the handful of series Letterboxd accepts share one catalogue, one card and one
+ * detail page — this is what tells them apart where it matters.
+ */
+export type MediaType = 'movie' | 'series'
 export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'list'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 
@@ -20,6 +26,7 @@ export interface MovieSummary {
   myAverageRating: number | null
   watchCount: number
   enrichmentStatus: EnrichmentStatus
+  mediaType: MediaType
 }
 
 export type GameKind = 'clue' | 'compare' | 'poster' | 'hangman'
@@ -128,6 +135,7 @@ export interface MoviePoster {
   /** Always present: the wall only ever holds films that have artwork. */
   posterUrl: string
   myAverageRating: number | null
+  mediaType: MediaType
 }
 
 export type MovieSortField = 'title' | 'rating' | 'year' | 'watched' | 'added' | 'runtime' | 'random'
@@ -171,6 +179,7 @@ export interface MovieDetail {
   title: string
   originalTitle: string | null
   releaseYear: number | null
+  /** A film's running time; a series' total across every episode. */
   runtimeMinutes: number | null
   synopsis: string | null
   posterUrl: string | null
@@ -183,6 +192,11 @@ export interface MovieDetail {
   directors: Credit[]
   cast: Credit[]
   watches: Watch[]
+  mediaType: MediaType
+  /** Series only; null on a film. */
+  seasonCount: number | null
+  episodeCount: number | null
+  lastAirDate: string | null
 }
 
 export interface MovieRuntime {

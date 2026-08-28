@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\DTO;
 
 use App\Entity\Enum\EnrichmentStatus;
+use App\Entity\Enum\MediaType;
 
 final readonly class MovieDetailDto
 {
@@ -20,6 +21,7 @@ final readonly class MovieDetailDto
         public string $title,
         public ?string $originalTitle,
         public ?int $releaseYear,
+        /** A film's running time; a series' total across every episode. */
         public ?int $runtimeMinutes,
         public ?string $synopsis,
         public ?string $posterUrl,
@@ -32,6 +34,11 @@ final readonly class MovieDetailDto
         public array $directors,
         public array $cast,
         public array $watches,
+        public MediaType $mediaType = MediaType::MOVIE,
+        /** Series only. Null on a film, which is how the client tells the two apart. */
+        public ?int $seasonCount = null,
+        public ?int $episodeCount = null,
+        public ?string $lastAirDate = null,
     ) {
     }
 }

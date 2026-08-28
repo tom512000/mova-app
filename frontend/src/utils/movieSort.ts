@@ -1,5 +1,15 @@
 import type { CreditRole, MovieSortField, SortDirection } from '@/types/api'
 
+/**
+ * '' is the whole library. Films and series live in one catalogue and are browsed together
+ * by default — narrowing to one kind is a choice, not the starting point.
+ */
+export const MEDIA_TYPE_OPTIONS = [
+  { value: '', label: 'Tout' },
+  { value: 'movie', label: 'Films' },
+  { value: 'series', label: 'Séries' },
+] as const
+
 interface SortOption {
   value: MovieSortField
   label: string
@@ -30,6 +40,8 @@ export const ROLE_PREFIX: Record<CreditRole, string> = {
 
 export interface MovieFilterState {
   genre: string
+  /** '' for the whole library, otherwise a MediaType. */
+  mediaType: string
   /** '' for every note, 'none' for the unrated, otherwise an exact half-star value. */
   rating: string
   year: string

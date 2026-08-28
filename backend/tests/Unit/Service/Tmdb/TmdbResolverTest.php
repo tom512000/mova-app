@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Tmdb;
 
+use App\Entity\Enum\MediaType;
 use App\Entity\Movie;
 use App\Exception\AmbiguousMatchException;
 use App\Service\Letterboxd\LetterboxdFilmPageResolverInterface;
@@ -59,22 +60,42 @@ final class TmdbResolverTest extends TestCase
         self::assertSame(693134, $result['tmdbId']);
     }
 
-    public function testRefusesToSearchForAMovieWhenLetterboxdPointsAtASeries(): void
+    public function testResolvesToTheSeriesCatalogueWhenLetterboxdPointsAtASeries(): void
     {
         $movie = $this->movie('lupin-2021-1', 'Lupin', 2021);
 
-        // /search/movie can never return a series, so letting it run would guarantee a
-        // wrong film rather than no film.
+        // The Letterboxd link is exact, it just names TMDB's other catalogue. Searching
+        // /search/movie would be worse than useless here — it cannot return a series, so
+        // it could only ever attach an unrelated film.
         $tmdbClient = $this->createMock(TmdbClientInterface::class);
         $tmdbClient->expects(self::never())->method('searchMovie');
 
         $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
-        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'tmdbTvId' => 96677, 'imdbId' => null]);
+        $pageResolver->method('resolve')->willReturn(['tmdbId' => null, 'tmdbTvId' => 96677, 'imdbId' => 'tt10373922']);
 
         $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
 
-        $this->expectException(AmbiguousMatchException::class);
-        $resolver->resolve($movie);
+        $result = $resolver->resolve($movie);
+
+        self::assertSame(MediaType::SERIES, $result['kind']);
+        self::assertSame(96677, $result['tmdbId']);
+        // Regression: this used to be read off the page and then discarded with the
+        // exception, which is why the series in this library had no IMDb id either.
+        self::assertSame('tt10373922', $result['imdbId']);
+    }
+
+    public function testReportsAFilmAsBelongingToTheMovieCatalogue(): void
+    {
+        $movie = $this->movie('dune-part-two', 'Dune: Part Two', 2024);
+
+        $tmdbClient = $this->createMock(TmdbClientInterface::class);
+
+        $pageResolver = $this->createMock(LetterboxdFilmPageResolverInterface::class);
+        $pageResolver->method('resolve')->willReturn(['tmdbId' => 693134, 'tmdbTvId' => null, 'imdbId' => null]);
+
+        $resolver = new TmdbResolver($tmdbClient, new TitleNormalizer(), $pageResolver);
+
+        self::assertSame(MediaType::MOVIE, $resolver->resolve($movie)['kind']);
     }
 
     public function testThrowsWhenNothingResolves(): void

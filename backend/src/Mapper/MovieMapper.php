@@ -10,6 +10,7 @@ use App\DTO\MoviePosterDto;
 use App\DTO\MovieSummaryDto;
 use App\DTO\WatchDto;
 use App\Entity\Enum\CreditRole;
+use App\Entity\Enum\MediaType;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
@@ -41,6 +42,7 @@ final class MovieMapper
             // are never shown much wider than a thumbnail.
             posterUrl: "{$this->imageBaseUrl}/w185{$row['poster_path']}",
             myAverageRating: null !== $row['average_rating'] ? round((float) $row['average_rating'], 2) : null,
+            mediaType: MediaType::from((string) $row['media_type']),
         );
     }
 
@@ -64,6 +66,7 @@ final class MovieMapper
             myAverageRating: StatsMath::mean($ratings),
             watchCount: \count($watches),
             enrichmentStatus: $movie->getEnrichmentStatus(),
+            mediaType: $movie->getMediaType(),
         );
     }
 
@@ -128,6 +131,10 @@ final class MovieMapper
             directors: $directors,
             cast: $cast,
             watches: $watches,
+            mediaType: $movie->getMediaType(),
+            seasonCount: $movie->getSeasonCount(),
+            episodeCount: $movie->getEpisodeCount(),
+            lastAirDate: $movie->getLastAirDate()?->format('Y-m-d'),
         );
     }
 
