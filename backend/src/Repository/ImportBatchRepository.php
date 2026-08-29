@@ -23,7 +23,7 @@ class ImportBatchRepository extends ServiceEntityRepository
      * Scoped find: returns null for a batch that exists but belongs to someone else, so the
      * controller answers 404 rather than leaking another account's import history.
      */
-    public function findOneOwnedBy(User $user, int $id): ?ImportBatch
+    public function findOneOwnedBy(User $user, string $id): ?ImportBatch
     {
         return $this->findOneBy(['id' => $id, 'user' => $user]);
     }

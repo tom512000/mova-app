@@ -23,7 +23,7 @@ abstract class AbstractCsvImporter implements ImporterInterface
     }
 
     /**
-     * @return int[]
+     * @return list<string>
      */
     public function import(string $filepath, ImportBatch $batch): array
     {

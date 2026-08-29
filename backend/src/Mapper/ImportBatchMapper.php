@@ -25,7 +25,7 @@ final class ImportBatchMapper
             : 0.0;
 
         return new ImportBatchDto(
-            id: $batch->getId(),
+            id: (string) $batch->getId(),
             filename: $batch->getFilename(),
             fileType: $batch->getFileType(),
             status: $batch->getStatus(),
