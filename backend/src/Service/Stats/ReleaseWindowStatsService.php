@@ -13,9 +13,13 @@ use Doctrine\ORM\EntityManagerInterface;
 /**
  * Films seen while they were still in cinemas — "j'y étais à la sortie".
  *
- * Measured from TMDB's release_date, which is the film's primary release and not always the
- * French one; on a film that opened weeks apart either side of the Atlantic the gap here is
- * the distance from *that* date, not from the day it reached a French screen.
+ * Measured from the day the film opened in French cinemas, falling back to TMDB's primary
+ * release_date when there is no French theatrical date to be had.
+ *
+ * The fallback is the whole design, not a shortcut. A film released straight to streaming
+ * never opened in a cinema here, so requiring a French date would silently drop it — and on
+ * the library in hand that would have cost three films to gain one. Falling back keeps every
+ * film in the count and makes the gap right wherever TMDB knows better.
  *
  * Films only, deliberately. A series' release_date is its *first* air date, and finishing a
  * ten-episode run three weeks after the première says nothing about having caught it as it
@@ -40,16 +44,21 @@ final class ReleaseWindowStatsService
         $connection = $this->entityManager->getConnection();
         $params = ['userId' => (string) $user->getId()];
 
-        // The first viewing, not any viewing: rewatching a film ten years on says nothing
-        // about having been there when it came out.
-        $firstWatch = 'SELECT m.id, m.title, m.release_year, m.release_date, MIN(w.watched_date) AS first_watched
+        // Two rules in one query. The first viewing, not any viewing: rewatching a film ten
+        // years on says nothing about having been there when it came out. And the coalesced
+        // date, not the French one alone (see the class docblock) — named release_date so
+        // that everything downstream reads "the day this film came out, as far as a viewer
+        // here is concerned" and nothing has to make the choice a second time.
+        $firstWatch = 'SELECT m.id, m.title, m.release_year,
+                COALESCE(m.french_release_date, m.release_date) AS release_date,
+                MIN(w.watched_date) AS first_watched
             FROM watch w
             JOIN movie m ON m.id = w.movie_id
             WHERE w.user_id = :userId
                 AND m.media_type = \'movie\'
                 AND m.release_date IS NOT NULL
                 AND w.watched_date IS NOT NULL
-            GROUP BY m.id, m.title, m.release_year, m.release_date';
+            GROUP BY m.id, m.title, m.release_year, m.french_release_date, m.release_date';
 
         $rows = $connection->executeQuery(
             "WITH firsts AS ({$firstWatch})

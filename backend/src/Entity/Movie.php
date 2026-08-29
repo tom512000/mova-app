@@ -52,6 +52,21 @@ class Movie
     private ?\DateTimeImmutable $releaseDate = null;
 
     /**
+     * The day the film reached a French cinema, when TMDB knows of one.
+     *
+     * Kept apart from releaseDate rather than replacing it, because the two answer different
+     * questions. releaseDate is the film's primary release and is what releaseYear, the sort
+     * orders and the timeline game are built on — moving a December film into January because
+     * France saw it late would be wrong in all three. This one exists for "vus à leur sortie",
+     * where the honest reference is the day the film could actually be seen here.
+     *
+     * Null is common and not a defect: a film that went straight to streaming never had a
+     * French cinema date at all. Readers must fall back to releaseDate rather than skip it.
+     */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $frenchReleaseDate = null;
+
+    /**
      * Kept even when releaseDate is unknown: the CSV export always gives a year,
      * TMDB search matching is scored against it before a full releaseDate exists.
      */
@@ -245,6 +260,18 @@ class Movie
     public function setReleaseDate(?\DateTimeImmutable $releaseDate): static
     {
         $this->releaseDate = $releaseDate;
+
+        return $this;
+    }
+
+    public function getFrenchReleaseDate(): ?\DateTimeImmutable
+    {
+        return $this->frenchReleaseDate;
+    }
+
+    public function setFrenchReleaseDate(?\DateTimeImmutable $frenchReleaseDate): static
+    {
+        $this->frenchReleaseDate = $frenchReleaseDate;
 
         return $this;
     }
@@ -499,6 +526,7 @@ class Movie
         $this->imdbId = null;
         $this->originalTitle = null;
         $this->releaseDate = null;
+        $this->frenchReleaseDate = null;
         $this->runtimeMinutes = null;
         $this->seasonCount = null;
         $this->episodeCount = null;

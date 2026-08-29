@@ -47,7 +47,10 @@ final class TmdbClient implements TmdbClientInterface
      */
     public function getMovieDetails(int $tmdbId): array
     {
-        return $this->request('GET', "/movie/{$tmdbId}", ['append_to_response' => 'credits,external_ids']);
+        // release_dates rides along on the same request rather than costing another: the
+        // primary release_date field is not always the French one, and "vus à leur sortie"
+        // is answered from the day the film reached a French screen.
+        return $this->request('GET', "/movie/{$tmdbId}", ['append_to_response' => 'credits,external_ids,release_dates']);
     }
 
     /**

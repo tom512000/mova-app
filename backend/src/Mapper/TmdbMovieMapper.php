@@ -21,6 +21,10 @@ final class TmdbMovieMapper extends AbstractTmdbMapper
 {
     private const MAX_CAST_CREDITS = 15;
 
+    /** TMDB release types. The two that mean "in a cinema, open to the public". */
+    private const THEATRICAL_LIMITED = 2;
+    private const THEATRICAL = 3;
+
     /**
      * @param array<string, mixed> $details
      */
@@ -61,12 +65,61 @@ final class TmdbMovieMapper extends AbstractTmdbMapper
             }
         }
 
+        $movie->setFrenchReleaseDate($this->frenchTheatricalRelease($details['release_dates']['results'] ?? []));
+
         $this->mapGenres($movie, $details['genres'] ?? []);
         $this->mapCountries($movie, $details['production_countries'] ?? []);
         $this->mapStudios($movie, $details['production_companies'] ?? []);
         $this->mapCredits($movie, $details['credits'] ?? []);
 
         $movie->touch();
+    }
+
+    /**
+     * The day the film opened in French cinemas, out of TMDB's per-country release list.
+     *
+     * Types 3 and 2 are the theatrical ones — wide and limited. The others are a different
+     * event entirely and must not be mistaken for a release: 1 is a festival premiere, which
+     * a member of the public could not attend, and 4/5/6 are digital, physical and TV, which
+     * come months later and would make a film look seen impossibly late.
+     *
+     * The earliest of the theatrical dates wins, because a limited run that precedes the wide
+     * one is still the first day the film could be seen here.
+     *
+     * Null whenever France has no theatrical entry at all, which is the ordinary case for a
+     * film released straight to streaming — the caller falls back to the primary date rather
+     * than dropping the film.
+     *
+     * Public for the same reason mapStudios is: app:tmdb:backfill-french-releases reads the
+     * same TMDB payload for the films enriched before this column existed, and must arrive at
+     * the date by the identical rule rather than a second implementation of it.
+     *
+     * @param array<int, array{iso_3166_1?: string, release_dates?: array<int, array{type?: int, release_date?: string}>}> $countries
+     */
+    public function frenchTheatricalRelease(array $countries): ?\DateTimeImmutable
+    {
+        $earliest = null;
+
+        foreach ($countries as $country) {
+            if ('FR' !== ($country['iso_3166_1'] ?? null)) {
+                continue;
+            }
+
+            foreach ($country['release_dates'] ?? [] as $release) {
+                if (!\in_array($release['type'] ?? null, [self::THEATRICAL, self::THEATRICAL_LIMITED], true)) {
+                    continue;
+                }
+
+                // "2025-05-21T00:00:00.000Z" — only the day matters, and the time is
+                // always midnight UTC rather than anything about a screening.
+                $date = \DateTimeImmutable::createFromFormat('!Y-m-d', substr((string) ($release['release_date'] ?? ''), 0, 10));
+                if (false !== $date && (null === $earliest || $date < $earliest)) {
+                    $earliest = $date;
+                }
+            }
+        }
+
+        return $earliest;
     }
 
     /**

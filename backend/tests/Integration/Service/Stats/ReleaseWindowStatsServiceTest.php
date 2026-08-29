@@ -143,6 +143,61 @@ final class ReleaseWindowStatsServiceTest extends KernelTestCase
         self::assertSame(0, $stats->comparable, 'not even the denominator is shared');
     }
 
+    public function testTheGapIsMeasuredFromTheFrenchReleaseWhenThereIsOne(): void
+    {
+        // Opened in the United States on the 6th and here three weeks later. Seen on the
+        // 25th, that is four days after it could be seen at all — not twenty-five.
+        $film = $this->film('sortie-decalee', '2024-03-06');
+        $film->setFrenchReleaseDate(new \DateTimeImmutable('2024-03-21'));
+        $this->entityManager->flush();
+
+        $this->seen($film, '2024-03-25');
+
+        $stats = $this->service->getReleaseWindowStats($this->user);
+
+        self::assertSame(4, $stats->movies[0]->daysAfterRelease);
+        self::assertSame(1, $stats->firstWeek, 'four days is inside the first week');
+        self::assertSame('2024-03-21', $stats->movies[0]->releaseDate);
+    }
+
+    public function testAFilmOnlyReachesTheWindowThroughItsFrenchDate(): void
+    {
+        // J+40 from the primary release, J+25 from the French one. It belongs in the month.
+        $film = $this->film('entre-par-la-france', '2024-03-06');
+        $film->setFrenchReleaseDate(new \DateTimeImmutable('2024-03-21'));
+        $this->entityManager->flush();
+
+        $this->seen($film, '2024-04-15');
+
+        self::assertSame(1, $this->service->getReleaseWindowStats($this->user)->count);
+    }
+
+    public function testAFilmWithNoFrenchReleaseFallsBackInsteadOfDisappearing(): void
+    {
+        // Straight to streaming here, so TMDB has no French theatrical date. Dropping it
+        // would have cost this library three films to gain one — the fallback is the point.
+        $this->seen($this->film('direct-en-streaming', '2024-03-06'), '2024-03-09');
+
+        $stats = $this->service->getReleaseWindowStats($this->user);
+
+        self::assertSame(1, $stats->count);
+        self::assertSame(3, $stats->movies[0]->daysAfterRelease);
+        self::assertSame('2024-03-06', $stats->movies[0]->releaseDate);
+    }
+
+    public function testAFrenchReleaseAfterTheViewingLeavesTheFilmOut(): void
+    {
+        // Seen at a festival before it opened here. Negative gaps were already excluded from
+        // the primary date; reading the French one must not smuggle them back in.
+        $film = $this->film('vu-en-avant-premiere', '2024-03-06');
+        $film->setFrenchReleaseDate(new \DateTimeImmutable('2024-06-01'));
+        $this->entityManager->flush();
+
+        $this->seen($film, '2024-03-09');
+
+        self::assertSame(0, $this->service->getReleaseWindowStats($this->user)->count);
+    }
+
     private function film(string $title, ?string $releaseDate): Movie
     {
         $movie = new Movie('zz-release-'.$title, $title);
