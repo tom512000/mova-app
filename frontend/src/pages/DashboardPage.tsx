@@ -21,7 +21,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { TimelineChart } from '@/charts/TimelineChart'
 import { RatingDistributionChart } from '@/charts/RatingDistributionChart'
 import { GenreBarChart } from '@/charts/GenreBarChart'
-import { CountryBarChart } from '@/charts/CountryBarChart'
+import { CountryDonutChart } from '@/charts/CountryDonutChart'
 import { WeekdayChart } from '@/charts/WeekdayChart'
 import { ActivityHeatmap } from '@/charts/ActivityHeatmap'
 import { buttonVariants } from '@/components/ui/Button'
@@ -39,7 +39,9 @@ export function DashboardPage() {
   const directors = useQuery({ queryKey: ['stats', 'directors'], queryFn: () => fetchDirectorStats(6) })
   const actors = useQuery({ queryKey: ['stats', 'actors'], queryFn: () => fetchActorStats(6) })
   const writers = useQuery({ queryKey: ['stats', 'writers'], queryFn: () => fetchWriterStats(6) })
-  const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(12) })
+  // Every country, not a top twelve: the donut groups the tail into "Autres", and that
+  // wedge is only honest if it really covers everything else.
+  const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(100) })
   const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats })
   const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
 
@@ -184,10 +186,10 @@ export function DashboardPage() {
         <section className="border border-ink p-5 sm:p-6">
           <h2 className="mb-1 font-serif text-2xl font-bold">Pays de production</h2>
           <p className="mb-4 font-mono text-xs text-subtle">
-            Une coproduction compte pour chaque pays impliqué
+            Une coproduction compte pour chaque pays : les parts portent sur les crédits, pas sur les films
           </p>
           {countries.isLoading && <SkeletonGrid count={1} />}
-          {countries.data && <CountryBarChart data={countries.data} />}
+          {countries.data && <CountryDonutChart data={countries.data} />}
         </section>
 
         <section className="border border-ink p-5 sm:p-6">
