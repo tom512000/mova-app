@@ -273,7 +273,7 @@ export function DashboardPage() {
 function ChartHint() {
   return (
     <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-subtle">
-      Clique une barre pour filtrer les films
+      Clique une barre pour filtrer les films et séries
     </p>
   )
 }
