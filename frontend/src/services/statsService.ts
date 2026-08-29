@@ -35,6 +35,12 @@ export async function fetchDirectorStats(limit = 25): Promise<PersonStat[]> {
   return data
 }
 
+/** Whoever series are by — a ranking of its own, since creating is not directing. */
+export async function fetchCreatorStats(limit = 25): Promise<PersonStat[]> {
+  const { data } = await apiClient.get<PersonStat[]>('/stats/creators', { params: { limit } })
+  return data
+}
+
 export async function fetchActorStats(limit = 25): Promise<PersonStat[]> {
   const { data } = await apiClient.get<PersonStat[]>('/stats/actors', { params: { limit } })
   return data

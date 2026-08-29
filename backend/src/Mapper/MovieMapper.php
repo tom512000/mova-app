@@ -86,6 +86,7 @@ final class MovieMapper
     public function toDetailDto(Movie $movie, User $viewedUser): MovieDetailDto
     {
         $directors = [];
+        $creators = [];
         $cast = [];
         foreach ($movie->getCredits() as $credit) {
             $dto = new CreditDto(
@@ -97,6 +98,8 @@ final class MovieMapper
 
             if (CreditRole::DIRECTOR === $credit->getRole()) {
                 $directors[] = $dto;
+            } elseif (CreditRole::CREATOR === $credit->getRole()) {
+                $creators[] = $dto;
             } elseif (CreditRole::ACTOR === $credit->getRole()) {
                 $cast[] = $dto;
             }
@@ -131,6 +134,7 @@ final class MovieMapper
             genres: array_map(static fn ($g) => $g->getName(), $movie->getGenres()->toArray()),
             countries: array_map(static fn ($c) => $c->getName(), $movie->getCountries()->toArray()),
             directors: $directors,
+            creators: $creators,
             cast: $cast,
             watches: $watches,
             mediaType: $movie->getMediaType(),

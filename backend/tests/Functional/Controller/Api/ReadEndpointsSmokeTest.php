@@ -7,6 +7,7 @@ namespace App\Tests\Functional\Controller\Api;
 use App\Entity\Country;
 use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
+use App\Entity\Enum\MediaType;
 use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
 use App\Entity\Movie;
@@ -86,6 +87,7 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'stats ratings' => ['/api/stats/ratings'];
         yield 'stats genres' => ['/api/stats/genres'];
         yield 'stats directors' => ['/api/stats/directors'];
+        yield 'stats creators' => ['/api/stats/creators'];
         yield 'stats actors' => ['/api/stats/actors'];
         yield 'stats writers' => ['/api/stats/writers'];
         yield 'stats countries' => ['/api/stats/countries'];
@@ -137,8 +139,8 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         $this->movie->addGenre($genre)->addCountry($country)->addStudio($studio);
         $this->entityManager->persist($this->movie);
 
-        // One of each credit role: three separate stats endpoints read one role each, and a
-        // fixture with only actors would let two of them pass on an empty result.
+        // One of each credit role: four separate stats endpoints read one role each, and a
+        // fixture with only actors would let three of them pass on an empty result.
         foreach ([CreditRole::DIRECTOR, CreditRole::WRITER, CreditRole::ACTOR] as $index => $role) {
             $person = (new Person())->setName('ZZ Smoke '.$role->value);
             $this->entityManager->persist($person);
@@ -156,6 +158,22 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         $watch = new Watch($this->user, $this->movie, WatchSource::MANUAL);
         $watch->setWatchedDate(new \DateTimeImmutable('2026-02-14'))->setRating(4.0);
         $this->entityManager->persist($watch);
+
+        // A series and whoever created it: /stats/creators reads that role and nothing else
+        // in this fixture carries it.
+        $series = new Movie('zz-smoke-serie', 'ZZ Serie Smoke');
+        $series->setMediaType(MediaType::SERIES)->setReleaseYear(2021)->setRuntimeMinutes(600);
+        $this->entityManager->persist($series);
+
+        $creator = (new Person())->setName('ZZ Smoke creator');
+        $this->entityManager->persist($creator);
+        $credit = new Credit($series, $creator, CreditRole::CREATOR);
+        $series->addCredit($credit);
+        $this->entityManager->persist($credit);
+
+        $seriesWatch = new Watch($this->user, $series, WatchSource::MANUAL);
+        $seriesWatch->setWatchedDate(new \DateTimeImmutable('2026-03-01'))->setRating(5.0);
+        $this->entityManager->persist($seriesWatch);
 
         $wanted = new Movie('zz-smoke-envie', 'ZZ Film À Voir');
         $wanted->setReleaseYear(2024)->setPosterPath('/zz-smoke-envie.jpg');

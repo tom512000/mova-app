@@ -199,7 +199,11 @@ export interface TimelineBoard {
   solution: string[] | null
 }
 
-export type CreditRole = 'director' | 'writer' | 'actor'
+/**
+ * 'creator' is who a series is *by*, which is not the job 'director' names — TMDB keeps them
+ * apart too, and so does the ranking of most-watched directors.
+ */
+export type CreditRole = 'director' | 'creator' | 'writer' | 'actor'
 
 /** The person a listing was narrowed to, resolved server-side from the id in the URL. */
 export interface PersonFilter {
@@ -270,7 +274,10 @@ export interface MovieDetail {
   enrichmentStatus: EnrichmentStatus
   genres: string[]
   countries: string[]
+  /** Always empty on a series: it has no director of record. */
   directors: Credit[]
+  /** Who a series is by. Always empty on a film. */
+  creators: Credit[]
   cast: Credit[]
   watches: Watch[]
   mediaType: MediaType

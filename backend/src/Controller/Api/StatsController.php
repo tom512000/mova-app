@@ -66,6 +66,20 @@ final class StatsController
         ));
     }
 
+    /**
+     * Whoever series are *by*. A separate ranking rather than a slice of /directors, because
+     * creating a series is not directing one — see CreditRole::CREATOR.
+     */
+    #[Route('/creators', methods: ['GET'])]
+    public function creators(Request $request, PersonStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getStats(
+            $this->profileResolver->getViewedUser(),
+            CreditRole::CREATOR,
+            $this->limitFrom($request),
+        ));
+    }
+
     #[Route('/actors', methods: ['GET'])]
     public function actors(Request $request, PersonStatsService $service): JsonResponse
     {

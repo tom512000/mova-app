@@ -20,6 +20,7 @@ use App\Entity\Movie;
  *   release_date    → first_air_date        (plus last_air_date, which films have no use for)
  *   runtime         → nothing usable        (see $totalRuntimeMinutes below)
  *   Director credit → created_by            budget/revenue → absent entirely
+ *                     (stored as CREATOR, not DIRECTOR — see below)
  *
  * The cast is the one place where the shapes genuinely diverge rather than merely being
  * renamed, and it is worth the trouble: the series-level `credits` block lists a token cast
@@ -87,11 +88,13 @@ final class TmdbSeriesMapper extends AbstractTmdbMapper
     {
         $movie->clearCredits();
 
-        // A series has no director of record; created_by is the closest equivalent, and
-        // storing it under DIRECTOR is what lets the clue and comparison games treat a
-        // series exactly like a film without a single branch in their builders.
+        // A series has no director of record. created_by is the nearest thing, but it is a
+        // different job and gets a role of its own: filed under DIRECTOR, as it was at first,
+        // it put whoever created a series into the most-watched *directors* ranking. TMDB
+        // keeps episode directors in the per-episode payload, which this app never fetches,
+        // so a series simply has no DIRECTOR credits at all.
         foreach ($details['created_by'] ?? [] as $creator) {
-            $movie->addCredit(new Credit($movie, $this->findOrCreatePerson($creator), CreditRole::DIRECTOR));
+            $movie->addCredit(new Credit($movie, $this->findOrCreatePerson($creator), CreditRole::CREATOR));
         }
 
         $credits = $details['aggregate_credits'] ?? [];

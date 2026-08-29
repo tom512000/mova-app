@@ -12,7 +12,9 @@ final readonly class MovieDetailDto
     /**
      * @param string[]    $genres
      * @param string[]    $countries
-     * @param CreditDto[] $directors
+     * @param CreditDto[] $directors who directed it — always empty on a series, which has
+     *                               no director of record
+     * @param CreditDto[] $creators  who a series is by; always empty on a film
      * @param CreditDto[] $cast
      * @param WatchDto[]  $watches
      */
@@ -32,6 +34,7 @@ final readonly class MovieDetailDto
         public array $genres,
         public array $countries,
         public array $directors,
+        public array $creators,
         public array $cast,
         public array $watches,
         public MediaType $mediaType = MediaType::MOVIE,

@@ -60,19 +60,23 @@ final class TmdbSeriesMapperTest extends TestCase
         self::assertNull($this->map(totalRuntimeMinutes: null)->getRuntimeMinutes());
     }
 
-    public function testTheCreatorIsStoredAsTheDirectorCredit(): void
+    public function testTheCreatorGetsACreditOfItsOwnRatherThanTheDirectors(): void
     {
         $movie = $this->map();
 
-        $directors = array_values(array_filter(
-            $movie->getCredits()->toArray(),
-            static fn ($credit) => CreditRole::DIRECTOR === $credit->getRole()
+        $byRole = static fn (CreditRole $role) => array_values(array_map(
+            static fn ($credit) => $credit->getPerson()->getName(),
+            array_filter($movie->getCredits()->toArray(), static fn ($credit) => $role === $credit->getRole())
         ));
 
-        // A series has no director of record; created_by is the closest equivalent, and
-        // filling the slot is what keeps the clue and comparison games playable on one.
-        self::assertCount(1, $directors);
-        self::assertSame('Michael Waldron', $directors[0]->getPerson()->getName());
+        self::assertSame(['Michael Waldron'], $byRole(CreditRole::CREATOR));
+
+        // And emphatically not here. Filed under DIRECTOR, as it was at first, whoever
+        // created a series turned up in the most-watched *directors* ranking — which is how
+        // Pierre Niney came to be listed as a director of Fiasco, a series he created.
+        // TMDB keeps episode directors in the per-episode payload, which is never fetched,
+        // so a series legitimately has no director credits at all.
+        self::assertSame([], $byRole(CreditRole::DIRECTOR));
     }
 
     public function testTheCastComesFromAggregateCreditsWithItsNestedCharacterName(): void

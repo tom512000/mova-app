@@ -34,6 +34,7 @@ export function defaultDirectionFor(sort: MovieSortField): SortDirection {
 /** Reads as a sentence in the filter chip: "Réalisé par Quentin Dupieux". */
 export const ROLE_PREFIX: Record<CreditRole, string> = {
   director: 'Réalisé par',
+  creator: 'Créé par',
   actor: 'Avec',
   writer: 'Écrit par',
 }

@@ -179,6 +179,43 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame(615, $detail['runtimeMinutes']);
     }
 
+    public function testASeriesIsCreditedToItsCreatorAndToNoDirector(): void
+    {
+        $id = $this->firstCardFor('mediaType=series')['id'];
+
+        $this->client->request('GET', "/api/movies/{$id}");
+        $detail = $this->json();
+
+        self::assertSame([self::PERSON], array_column($detail['creators'], 'name'));
+        // A series has no director of record: TMDB keeps episode directors in a payload this
+        // app never fetches. Filing the creator here instead, as it did at first, is what put
+        // whoever made a series into the most-watched directors ranking.
+        self::assertSame([], $detail['directors']);
+    }
+
+    public function testAFilmIsCreditedToItsDirectorAndToNoCreator(): void
+    {
+        $id = $this->firstCardFor('mediaType=movie&q=Brazil')['id'];
+
+        $this->client->request('GET', "/api/movies/{$id}");
+        $detail = $this->json();
+
+        self::assertSame([self::PERSON], array_column($detail['directors'], 'name'));
+        self::assertSame([], $detail['creators'], 'a film has nobody who created it');
+    }
+
+    public function testCreatingASeriesDoesNotCountTowardsDirecting(): void
+    {
+        // The person directed two films and created one series. The ranking of directors
+        // must say two.
+        $this->client->request('GET', '/api/stats/directors');
+        self::assertResponseIsSuccessful();
+
+        $row = array_values(array_filter($this->json(), static fn (array $r) => self::PERSON === $r['name']));
+        self::assertCount(1, $row);
+        self::assertSame(2, $row[0]['movieCount']);
+    }
+
     public function testAFilmDetailLeavesTheSeriesFieldsEmpty(): void
     {
         $id = $this->firstCardFor('mediaType=movie')['id'];
@@ -242,11 +279,17 @@ final class MovieControllerTest extends WebTestCase
     public function testPersonFilterNarrowsToOneCreditRole(): void
     {
         self::assertSame(['Brazil', 'Dune'], $this->titlesFor("personId={$this->personId}&personRole=director"));
+        self::assertSame(['Zone Blanche'], $this->titlesFor("personId={$this->personId}&personRole=creator"));
         self::assertSame(['Amélie'], $this->titlesFor("personId={$this->personId}&personRole=actor"));
         self::assertSame([], $this->titlesFor("personId={$this->personId}&personRole=writer"));
 
-        // Without a role the same person answers for every credit they hold.
-        self::assertSame(['Amélie', 'Brazil', 'Dune'], $this->titlesFor("personId={$this->personId}"));
+        // Directing and creating are separate credits, so the series is absent from the
+        // director list above and present here — the whole point of the two roles.
+        self::assertSame(
+            ['Amélie', 'Brazil', 'Dune', 'Zone Blanche'],
+            $this->titlesFor("personId={$this->personId}"),
+            'without a role the same person answers for every credit they hold'
+        );
     }
 
     public function testPersonFilterCombinesWithTheOtherFiltersAndSorts(): void
@@ -417,6 +460,9 @@ final class MovieControllerTest extends WebTestCase
         $this->credit($brazil, $person, CreditRole::DIRECTOR);
         $this->credit($dune, $person, CreditRole::DIRECTOR);
         $this->credit($amelie, $person, CreditRole::ACTOR);
+        // The same person creates the series. That is the shape the roles have to keep
+        // apart: creating Zone Blanche must not add to their tally as a director.
+        $this->credit($zone, $person, CreditRole::CREATOR);
 
         $this->entityManager->flush();
 

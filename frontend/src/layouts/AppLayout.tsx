@@ -26,7 +26,7 @@ type NavItem = NavLinkItem | NavMenuItem
 
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
-  { to: '/movies', label: 'Films' },
+  { to: '/movies', label: 'Films et séries' },
   { to: '/watchlist', label: 'Watchlist' },
   // Read-only like the listings, so it stays available while viewing someone else's profile.
   { to: '/museum', label: 'Musée' },

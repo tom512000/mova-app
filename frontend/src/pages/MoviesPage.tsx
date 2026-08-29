@@ -130,7 +130,7 @@ export function MoviesPage() {
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 border-b-4 border-ink pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">Films</h1>
+        <h1 className="text-balance font-serif text-5xl font-black tracking-tighter sm:text-6xl">Films et séries</h1>
         <input
           value={searchInput}
           onChange={(event) => setSearchInput(event.target.value)}

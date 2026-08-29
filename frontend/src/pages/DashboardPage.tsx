@@ -5,6 +5,7 @@ import {
   fetchActivityStats,
   fetchActorStats,
   fetchCountryStats,
+  fetchCreatorStats,
   fetchDirectorStats,
   fetchGenreStats,
   fetchOverviewStats,
@@ -39,6 +40,7 @@ export function DashboardPage() {
   const directors = useQuery({ queryKey: ['stats', 'directors'], queryFn: () => fetchDirectorStats(6) })
   const actors = useQuery({ queryKey: ['stats', 'actors'], queryFn: () => fetchActorStats(6) })
   const writers = useQuery({ queryKey: ['stats', 'writers'], queryFn: () => fetchWriterStats(6) })
+  const creators = useQuery({ queryKey: ['stats', 'creators'], queryFn: () => fetchCreatorStats(6) })
   // Every country, not a top twelve: the donut groups the tail into "Autres", and that
   // wedge is only honest if it really covers everything else.
   const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(100) })
@@ -252,6 +254,17 @@ export function DashboardPage() {
         data={writers.data}
         emptyMessage="Pas encore de scénaristes enrichi·e·s via TMDB."
       />
+
+      <PersonStatSection
+        role="creator"
+        title="Créateur·rice·s de séries les plus vu·e·s"
+        isLoading={creators.isLoading}
+        data={creators.data}
+        // "séries" and not "films": counting a series as a film is the exact mislabelling
+        // the creator role exists to undo.
+        unit="série"
+        emptyMessage="Aucune série dans la bibliothèque pour l'instant."
+      />
     </div>
   )
 }
@@ -325,12 +338,15 @@ function PersonStatSection({
   isLoading,
   data,
   emptyMessage,
+  unit = 'film',
 }: {
   role: CreditRole
   title: string
   isLoading: boolean
   data: PersonStat[] | undefined
   emptyMessage: string
+  /** What one credit counts as. Everything here is a film except a series creator's work. */
+  unit?: 'film' | 'série'
 }) {
   return (
     <section className="border border-ink p-5 sm:p-6">
@@ -347,7 +363,8 @@ function PersonStatSection({
             >
               <p className="font-serif text-lg font-bold group-hover:text-accent">{p.name}</p>
               <p className="mt-0.5 font-mono text-xs text-subtle">
-                {p.movieCount} film{p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
+                {p.movieCount} {unit}
+                {p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
               </p>
             </Link>
           ))}

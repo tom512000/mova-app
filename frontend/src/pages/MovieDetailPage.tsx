@@ -121,14 +121,20 @@ export function MovieDetailPage() {
             </p>
           )}
 
+          {/* Two different jobs under two different roles, so the label and the link both
+              follow the credit rather than the media type. A series has no director of
+              record and a film has no creator, so only one of these ever draws. */}
           {movie.directors.length > 0 && (
             <p className="mt-6 text-sm">
-              {/* A series has no director of record; TMDB's created_by is stored in the same
-                  slot, so only the label changes. */}
-              <span className="font-mono text-xs uppercase tracking-widest text-subtle">
-                {isSeries ? 'Créé par ' : 'Réalisé par '}
-              </span>
+              <span className="font-mono text-xs uppercase tracking-widest text-subtle">Réalisé par </span>
               <CreditLinks credits={movie.directors} role="director" className="font-serif font-bold" />
+            </p>
+          )}
+
+          {movie.creators.length > 0 && (
+            <p className="mt-6 text-sm">
+              <span className="font-mono text-xs uppercase tracking-widest text-subtle">Créé par </span>
+              <CreditLinks credits={movie.creators} role="creator" className="font-serif font-bold" />
             </p>
           )}
 
