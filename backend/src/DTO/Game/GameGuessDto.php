@@ -13,7 +13,7 @@ final readonly class GameGuessDto
      *                                              beyond right or wrong
      */
     public function __construct(
-        public int $movieId,
+        public string $movieId,
         public string $title,
         public ?int $releaseYear,
         public ?string $posterUrl,

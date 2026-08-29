@@ -18,6 +18,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Messenger\MessageBusInterface;
+use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Uid\Uuid;
 
@@ -101,8 +102,8 @@ final class ImportController
         ], Response::HTTP_ACCEPTED);
     }
 
-    #[Route('/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function show(int $id): JsonResponse
+    #[Route('/{id}', methods: ['GET'], requirements: ['id' => Requirement::UUID_V7])]
+    public function show(string $id): JsonResponse
     {
         $batch = $this->importBatchRepository->findOneOwnedBy($this->profileResolver->getAuthenticatedUser(), $id);
         if (null === $batch) {

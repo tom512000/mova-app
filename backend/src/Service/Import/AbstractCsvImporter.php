@@ -60,7 +60,7 @@ abstract class AbstractCsvImporter implements ImporterInterface
 
         $this->entityManager->flush();
 
-        return array_values(array_unique(array_map(static fn (Movie $m) => $m->getId(), $touchedMovies)));
+        return array_values(array_unique(array_map(static fn (Movie $m) => (string) $m->getId(), $touchedMovies)));
     }
 
     /**

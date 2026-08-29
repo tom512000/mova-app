@@ -18,7 +18,7 @@ export function useFilmGame(game: GameKind, mode: GameMode) {
   const cache = (state: GameState) => queryClient.setQueryData(queryKey, state)
 
   const start = useMutation({ mutationFn: () => startGame(game, mode), onSuccess: cache })
-  const guess = useMutation({ mutationFn: (movieId: number) => submitGuess(game, mode, movieId), onSuccess: cache })
+  const guess = useMutation({ mutationFn: (movieId: string) => submitGuess(game, mode, movieId), onSuccess: cache })
   // Hangman only; the other three have nothing to do with letters.
   const letter = useMutation({ mutationFn: (value: string) => submitLetter(game, mode, value), onSuccess: cache })
 

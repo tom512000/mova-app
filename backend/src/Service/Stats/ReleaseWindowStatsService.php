@@ -38,7 +38,7 @@ final class ReleaseWindowStatsService
     public function getReleaseWindowStats(User $user): ReleaseWindowStatsDto
     {
         $connection = $this->entityManager->getConnection();
-        $params = ['userId' => $user->getId()];
+        $params = ['userId' => (string) $user->getId()];
 
         // The first viewing, not any viewing: rewatching a film ten years on says nothing
         // about having been there when it came out.
@@ -69,7 +69,7 @@ final class ReleaseWindowStatsService
 
         $movies = array_map(
             static fn (array $row) => new ReleaseWindowMovieDto(
-                movieId: (int) $row['id'],
+                movieId: (string) $row['id'],
                 title: $row['title'],
                 releaseYear: null !== $row['release_year'] ? (int) $row['release_year'] : null,
                 releaseDate: $row['release_date'],

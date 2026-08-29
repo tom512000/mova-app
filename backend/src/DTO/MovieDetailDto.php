@@ -17,7 +17,7 @@ final readonly class MovieDetailDto
      * @param WatchDto[]  $watches
      */
     public function __construct(
-        public int $id,
+        public string $id,
         public string $title,
         public ?string $originalTitle,
         public ?int $releaseYear,

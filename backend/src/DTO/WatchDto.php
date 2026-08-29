@@ -10,7 +10,7 @@ final readonly class WatchDto
      * @param string[] $tags
      */
     public function __construct(
-        public int $id,
+        public string $id,
         public ?string $watchedDate,
         public ?float $rating,
         public bool $isRewatch,

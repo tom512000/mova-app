@@ -10,7 +10,7 @@ export function GuessInput({
   error,
 }: {
   state: GameState
-  onGuess: (movieId: number) => void
+  onGuess: (movieId: string) => void
   isPending: boolean
   error: unknown
 }) {

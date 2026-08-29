@@ -42,7 +42,7 @@ final class ImportOrchestrator
             }
         } catch (\Throwable $e) {
             $this->logger->error('Import batch #{id} failed: {message}', [
-                'id' => $batch->getId(),
+                'id' => (string) $batch->getId(),
                 'message' => $e->getMessage(),
                 'exception' => $e,
             ]);

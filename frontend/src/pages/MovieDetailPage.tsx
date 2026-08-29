@@ -34,7 +34,9 @@ function episodeCountLabel(movie: MovieDetail): string | null {
 
 export function MovieDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const movieId = Number(id)
+  // A UUID, straight from the route — nothing to parse, and nothing that could
+  // silently become NaN the way Number() did.
+  const movieId = id ?? ''
 
   const { data: movie, isLoading, isError, error } = useQuery({
     queryKey: ['movie', movieId],

@@ -66,7 +66,9 @@ final class RatingsImporter extends AbstractCsvImporter
         // A movie with no id yet is a brand-new stub from this same import run — not flushed,
         // so it cannot have any Watch in the database yet, and querying by it would fail
         // (Doctrine can only bind a persisted entity with an identifier as a query parameter).
-        if (null !== $movie->getId() && $this->watchRepository->hasAnyWatch($user, $movie)) {
+        // A film this run just created cannot have anything attached to it yet, so the
+        // lookup is skipped rather than run against a row nothing points at.
+        if (!$this->movieUpserter->wasCreatedInThisRun($movie) && $this->watchRepository->hasAnyWatch($user, $movie)) {
             $existing = $this->watchRepository->findOneWithoutExternalRefByMovie($user, $movie);
             if (null !== $existing) {
                 $existing->setRating($rating);

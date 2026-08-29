@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Entity\Enum\CreditRole;
 use App\Repository\CreditRepository;
 use Doctrine\DBAL\Types\Types;
@@ -15,10 +16,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_credit_role', fields: ['role'])]
 class Credit
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: Movie::class, inversedBy: 'credits')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -44,14 +42,10 @@ class Credit
 
     public function __construct(Movie $movie, Person $person, CreditRole $role)
     {
+        $this->initialiseUuid();
         $this->movie = $movie;
         $this->person = $person;
         $this->role = $role;
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getMovie(): Movie

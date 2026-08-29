@@ -13,7 +13,7 @@ final class UserMapper
     public function toDto(User $user): UserDto
     {
         return new UserDto(
-            id: (int) $user->getId(),
+            id: (string) $user->getId(),
             email: $user->getEmail(),
             displayName: $user->getDisplayName(),
             letterboxdUsername: $user->getLetterboxdUsername(),
@@ -24,9 +24,9 @@ final class UserMapper
     public function toSummaryDto(User $user, User $viewer): ProfileSummaryDto
     {
         return new ProfileSummaryDto(
-            id: (int) $user->getId(),
+            id: (string) $user->getId(),
             displayName: $user->getDisplayName(),
-            isSelf: $user->getId() === $viewer->getId(),
+            isSelf: $user->getId()->equals($viewer->getId()),
         );
     }
 }

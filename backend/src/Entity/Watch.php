@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Entity\Enum\WatchSource;
 use App\Repository\WatchRepository;
 use Doctrine\Common\Collections\ArrayCollection;
@@ -23,10 +24,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_watch_user', fields: ['user'])]
 class Watch
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -74,16 +72,12 @@ class Watch
 
     public function __construct(User $user, Movie $movie, WatchSource $source)
     {
+        $this->initialiseUuid();
         $this->user = $user;
         $this->movie = $movie;
         $this->source = $source;
         $this->createdAt = new \DateTimeImmutable();
         $this->tags = new ArrayCollection();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getUser(): User

@@ -13,7 +13,7 @@ use App\Entity\Enum\CreditRole;
 final readonly class PersonFilterDto
 {
     public function __construct(
-        public int $id,
+        public string $id,
         public string $name,
         public ?CreditRole $role,
     ) {

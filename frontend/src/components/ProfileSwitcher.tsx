@@ -20,7 +20,7 @@ export function ProfileSwitcher() {
 
       <select
         value={activeProfile.id}
-        onChange={(event) => switchProfile(Number(event.target.value))}
+        onChange={(event) => switchProfile(event.target.value)}
         // appearance-none removes the platform arrow so the lucide chevron below can sit
         // flush with the rest of the strip; pr-5 reserves its room.
         className="cursor-pointer appearance-none border-0 bg-transparent py-0 pl-0 pr-5 font-mono text-[10px] uppercase tracking-widest text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"

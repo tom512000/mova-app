@@ -301,7 +301,7 @@ const Column = memo(function Column({
   layout: Layout
   hovered: number | null
   onEnter: (poster: MoviePoster | null, index: number | null) => void
-  onOpen: (id: number) => void
+  onOpen: (id: string) => void
 }) {
   return (
     <div

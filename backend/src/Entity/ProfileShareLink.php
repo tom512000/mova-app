@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\ProfileShareLinkRepository;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Component\Uid\Uuid;
@@ -21,10 +22,7 @@ use Symfony\Component\Uid\Uuid;
 #[ORM\UniqueConstraint(name: 'uniq_share_link_owner', fields: ['owner'])]
 class ProfileShareLink
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -38,14 +36,10 @@ class ProfileShareLink
 
     public function __construct(User $owner)
     {
+        $this->initialiseUuid();
         $this->owner = $owner;
         $this->token = self::generateToken();
         $this->createdAt = new \DateTimeImmutable();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getOwner(): User

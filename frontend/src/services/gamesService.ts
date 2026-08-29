@@ -16,7 +16,7 @@ export async function startGame(game: GameKind, mode: GameMode): Promise<GameSta
   return data.session as GameState
 }
 
-export async function submitGuess(game: GameKind, mode: GameMode, movieId: number): Promise<GameState> {
+export async function submitGuess(game: GameKind, mode: GameMode, movieId: string): Promise<GameState> {
   const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/guess`, { movieId })
   return data.session as GameState
 }

@@ -95,7 +95,7 @@ final class AuditTmdbMatchesCommand extends Command
 
             $slug = $movie->getLetterboxdSlug();
             $page = $this->filmPageResolver->resolve($slug);
-            $label = sprintf('#%d %s', $movie->getId(), $movie->getTitle());
+            $label = sprintf('#%s %s', $movie->getId(), $movie->getTitle());
 
             if (null !== $page['tmdbTvId']) {
                 if ($apply) {
@@ -135,11 +135,11 @@ final class AuditTmdbMatchesCommand extends Command
             // Letterboxd slugs point at the same film and merging them is a data decision,
             // not something an audit should make silently.
             $holder = $this->movieRepository->findOneByTmdbId($page['tmdbId']);
-            if (null !== $holder && $holder->getId() !== $movie->getId()) {
+            if (null !== $holder && !$holder->getId()->equals($movie->getId())) {
                 $rows['conflict'][] = [$label, $slug, sprintf(
                     'TMDB %d déjà pris par #%d %s',
                     $page['tmdbId'],
-                    (int) $holder->getId(),
+                    $holder->getId(),
                     $holder->getTitle()
                 )];
 

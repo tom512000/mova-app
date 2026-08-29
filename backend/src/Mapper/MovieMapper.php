@@ -35,7 +35,7 @@ final class MovieMapper
     public function toPosterDto(array $row): MoviePosterDto
     {
         return new MoviePosterDto(
-            id: (int) $row['id'],
+            id: (string) $row['id'],
             title: (string) $row['title'],
             releaseYear: null !== $row['release_year'] ? (int) $row['release_year'] : null,
             // w185 rather than the w342 a card gets: a wall holds dozens at once and they
@@ -59,7 +59,7 @@ final class MovieMapper
         )));
 
         return new MovieSummaryDto(
-            id: $movie->getId(),
+            id: (string) $movie->getId(),
             title: $movie->getTitle(),
             releaseYear: $movie->getReleaseYear(),
             posterUrl: $this->posterUrl($movie->getPosterPath()),
@@ -77,7 +77,9 @@ final class MovieMapper
     {
         return array_values(array_filter(
             $movie->getWatches()->toArray(),
-            static fn (Watch $w) => $w->getUser()->getId() === $viewedUser->getId()
+            // equals(), never ===: two Uuid objects carrying the same value are
+            // different instances, so === would quietly match nothing at all.
+            static fn (Watch $w) => $w->getUser()->getId()->equals($viewedUser->getId())
         ));
     }
 
@@ -87,7 +89,7 @@ final class MovieMapper
         $cast = [];
         foreach ($movie->getCredits() as $credit) {
             $dto = new CreditDto(
-                personId: $credit->getPerson()->getId(),
+                personId: (string) $credit->getPerson()->getId(),
                 name: $credit->getPerson()->getName(),
                 profileUrl: $this->profileUrl($credit->getPerson()->getProfilePath()),
                 characterName: $credit->getCharacterName(),
@@ -102,7 +104,7 @@ final class MovieMapper
 
         $watches = array_map(
             static fn (Watch $w) => new WatchDto(
-                id: $w->getId(),
+                id: (string) $w->getId(),
                 watchedDate: $w->getWatchedDate()?->format('Y-m-d'),
                 rating: $w->getRating(),
                 isRewatch: $w->isRewatch(),
@@ -115,7 +117,7 @@ final class MovieMapper
         usort($watches, static fn (WatchDto $a, WatchDto $b) => ($a->watchedDate ?? '') <=> ($b->watchedDate ?? ''));
 
         return new MovieDetailDto(
-            id: $movie->getId(),
+            id: (string) $movie->getId(),
             title: $movie->getTitle(),
             originalTitle: $movie->getOriginalTitle(),
             releaseYear: $movie->getReleaseYear(),

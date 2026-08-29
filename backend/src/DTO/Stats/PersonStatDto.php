@@ -11,7 +11,7 @@ namespace App\DTO\Stats;
 final readonly class PersonStatDto
 {
     public function __construct(
-        public int $personId,
+        public string $personId,
         public string $name,
         public int $movieCount,
         public ?float $averageRating,

@@ -13,7 +13,7 @@ final readonly class ImportBatchDto
      * @param ImportRowErrorDto[] $errorsSample
      */
     public function __construct(
-        public int $id,
+        public string $id,
         public string $filename,
         public ImportFileType $fileType,
         public ImportStatus $status,

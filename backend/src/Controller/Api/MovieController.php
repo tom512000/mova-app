@@ -17,6 +17,8 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Routing\Requirement\Requirement;
+use Symfony\Component\Uid\Uuid;
 
 #[Route('/api/movies')]
 final class MovieController
@@ -80,8 +82,8 @@ final class MovieController
         return new JsonResponse($movieRepository->facetsFor($this->profileResolver->getViewedUser()));
     }
 
-    #[Route('/{id}', methods: ['GET'], requirements: ['id' => '\d+'])]
-    public function show(int $id, MovieRepository $movieRepository, MovieMapper $mapper): JsonResponse
+    #[Route('/{id}', methods: ['GET'], requirements: ['id' => Requirement::UUID_V7])]
+    public function show(string $id, MovieRepository $movieRepository, MovieMapper $mapper): JsonResponse
     {
         $viewedUser = $this->profileResolver->getViewedUser();
 
@@ -118,7 +120,9 @@ final class MovieController
             year: $query->has('year') && '' !== $query->get('year') ? (int) $query->get('year') : null,
             rating: !$unratedOnly && '' !== $rating ? $this->clampRating((float) $rating) : null,
             unratedOnly: $unratedOnly,
-            personId: $query->has('personId') ? max(1, (int) $query->get('personId')) : null,
+            // Only a well-formed UUID reaches the query; anything else is read as no
+            // filter at all, the same forgiving treatment the other parameters get.
+            personId: $this->uuidOrNull($query->get('personId')),
             personRole: CreditRole::tryFrom((string) $query->get('personRole', '')),
             // Absent or unrecognised means the whole library, films and series together —
             // the same forgiving reading as every other filter here.
@@ -146,7 +150,12 @@ final class MovieController
 
         return null === $person
             ? null
-            : new PersonFilterDto((int) $person->getId(), $person->getName(), $criteria->personRole);
+            : new PersonFilterDto((string) $person->getId(), $person->getName(), $criteria->personRole);
+    }
+
+    private function uuidOrNull(mixed $value): ?string
+    {
+        return \is_string($value) && Uuid::isValid($value) ? $value : null;
     }
 
     private function trimmedOrNull(mixed $value): ?string

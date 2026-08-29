@@ -5,6 +5,13 @@ export type EnrichmentStatus = 'pending' | 'enriched' | 'failed' | 'ambiguous' |
  * detail page — this is what tells them apart where it matters.
  */
 export type MediaType = 'movie' | 'series'
+
+/**
+ * Every row in the database is keyed on a UUIDv7, so an id is text on this side —
+ * never a number, and never arithmetic. It sorts by creation order all the same,
+ * because a v7's leading bits are a timestamp.
+ */
+export type Id = string
 export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'list'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 
@@ -19,7 +26,7 @@ export interface SyncState {
 }
 
 export interface MovieSummary {
-  id: number
+  id: string
   title: string
   releaseYear: number | null
   posterUrl: string | null
@@ -60,7 +67,7 @@ export interface ComparisonFacet {
 }
 
 export interface GameGuess {
-  movieId: number
+  movieId: string
   title: string
   releaseYear: number | null
   posterUrl: string | null
@@ -122,14 +129,14 @@ export type CreditRole = 'director' | 'writer' | 'actor'
 
 /** The person a listing was narrowed to, resolved server-side from the id in the URL. */
 export interface PersonFilter {
-  id: number
+  id: string
   name: string
   role: CreditRole | null
 }
 
 /** One exhibit on the museum wall. Thinner than MovieSummary — the wall loads all of them. */
 export interface MoviePoster {
-  id: number
+  id: string
   title: string
   releaseYear: number | null
   /** Always present: the wall only ever holds films that have artwork. */
@@ -158,14 +165,14 @@ export interface MovieListResponse {
 }
 
 export interface Credit {
-  personId: number
+  personId: string
   name: string
   profileUrl: string | null
   characterName: string | null
 }
 
 export interface Watch {
-  id: number
+  id: string
   watchedDate: string | null
   rating: number | null
   isRewatch: boolean
@@ -175,7 +182,7 @@ export interface Watch {
 }
 
 export interface MovieDetail {
-  id: number
+  id: string
   title: string
   originalTitle: string | null
   releaseYear: number | null
@@ -200,7 +207,7 @@ export interface MovieDetail {
 }
 
 export interface MovieRuntime {
-  movieId: number
+  movieId: string
   title: string
   runtimeMinutes: number
 }
@@ -246,7 +253,7 @@ export interface GenreStat {
 }
 
 export interface PersonStat {
-  personId: number
+  personId: string
   name: string
   movieCount: number
   averageRating: number | null
@@ -260,7 +267,7 @@ export interface ImportRowErrorItem {
 }
 
 export interface ImportBatch {
-  id: number
+  id: string
   filename: string
   fileType: ImportFileType
   status: ImportStatus
@@ -280,7 +287,7 @@ export interface ImportUploadResponse {
 }
 
 export interface AuthUser {
-  id: number
+  id: string
   email: string
   displayName: string
   letterboxdUsername: string | null
@@ -288,7 +295,7 @@ export interface AuthUser {
 }
 
 export interface ProfileSummary {
-  id: number
+  id: string
   displayName: string
   isSelf: boolean
 }
@@ -312,7 +319,7 @@ export interface CountryStat {
 
 /** A film seen while it was still new, and the gap that earned it the place. */
 export interface ReleaseWindowMovie {
-  movieId: number
+  movieId: string
   title: string
   releaseYear: number | null
   releaseDate: string

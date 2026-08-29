@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\GenreRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -13,10 +14,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_genre_name', fields: ['name'])]
 class Genre
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\Column(nullable: true)]
     private ?int $tmdbId = null;
@@ -24,9 +22,9 @@ class Genre
     #[ORM\Column(length: 100)]
     private string $name;
 
-    public function getId(): ?int
+    public function __construct()
     {
-        return $this->id;
+        $this->initialiseUuid();
     }
 
     public function getTmdbId(): ?int

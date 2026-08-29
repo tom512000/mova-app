@@ -15,13 +15,13 @@ export const apiClient = axios.create({
  * Null means "me", and the param is then omitted entirely so the API falls back to the
  * authenticated user.
  */
-let activeProfileId: number | null = null
+let activeProfileId: string | null = null
 
-export function setActiveProfileId(profileId: number | null): void {
+export function setActiveProfileId(profileId: string | null): void {
   activeProfileId = profileId
 }
 
-export function getActiveProfileId(): number | null {
+export function getActiveProfileId(): string | null {
   return activeProfileId
 }
 

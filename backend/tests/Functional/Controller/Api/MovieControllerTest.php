@@ -35,7 +35,7 @@ final class MovieControllerTest extends WebTestCase
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     /** Directs Brazil and Dune, and acts in Amelie - enough to tell the roles apart. */
-    private int $personId;
+    private string $personId;
 
     protected function setUp(): void
     {
@@ -274,7 +274,9 @@ final class MovieControllerTest extends WebTestCase
         self::assertNull($this->json()['person']);
 
         // An id nobody matches narrows to nothing rather than silently listing everything.
-        self::assertSame([], $this->titlesFor('personId=99999999'));
+        // A well-formed UUID nobody holds, so the filter narrows to nothing rather
+        // than being ignored — which is what a malformed one would do.
+        self::assertSame([], $this->titlesFor('personId=01920000-0000-7000-8000-000000000000'));
         self::assertNull($this->json()['person']);
     }
 
@@ -418,7 +420,7 @@ final class MovieControllerTest extends WebTestCase
 
         $this->entityManager->flush();
 
-        $this->personId = (int) $person->getId();
+        $this->personId = (string) $person->getId();
     }
 
     private function credit(Movie $movie, Person $person, CreditRole $role): void

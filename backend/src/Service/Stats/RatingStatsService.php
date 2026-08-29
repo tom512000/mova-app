@@ -20,7 +20,7 @@ final class RatingStatsService
         $ratings = array_map(
             static fn (array $row) => (float) $row['rating'],
             $this->entityManager->getConnection()
-                ->executeQuery('SELECT rating FROM watch WHERE rating IS NOT NULL AND user_id = :userId', ['userId' => $user->getId()])
+                ->executeQuery('SELECT rating FROM watch WHERE rating IS NOT NULL AND user_id = :userId', ['userId' => (string) $user->getId()])
                 ->fetchAllAssociative()
         );
 

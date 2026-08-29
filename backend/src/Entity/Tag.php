@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\TagRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -12,22 +13,15 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_tag_name', fields: ['name'])]
 class Tag
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\Column(length: 100)]
     private string $name;
 
     public function __construct(string $name)
     {
+        $this->initialiseUuid();
         $this->name = $name;
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getName(): string

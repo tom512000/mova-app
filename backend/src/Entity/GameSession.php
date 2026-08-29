@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Entity\Enum\GameKind;
 use App\Entity\Enum\GameMode;
 use App\Entity\Enum\GameStatus;
@@ -27,10 +28,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_game_session_user_game_mode_status', fields: ['user', 'game', 'mode', 'status'])]
 class GameSession
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -49,7 +47,14 @@ class GameSession
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $puzzleDate = null;
 
-    /** @var list<int> */
+    /**
+     * The films proposed, in order, as UUID strings. Strings and not Uuid objects because
+     * this is a JSON column: what round-trips through it is exactly what json_encode
+     * produced, so the stored form is the canonical one and comparisons here are string
+     * comparisons.
+     *
+     * @var list<string>
+     */
     #[ORM\Column(type: Types::JSON)]
     private array $guesses = [];
 
@@ -74,17 +79,13 @@ class GameSession
 
     public function __construct(User $user, GameKind $game, GameMode $mode, Movie $movie, ?\DateTimeImmutable $puzzleDate = null)
     {
+        $this->initialiseUuid();
         $this->user = $user;
         $this->game = $game;
         $this->mode = $mode;
         $this->movie = $movie;
         $this->puzzleDate = $puzzleDate;
         $this->createdAt = new \DateTimeImmutable();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getUser(): User
@@ -112,18 +113,18 @@ class GameSession
         return $this->puzzleDate;
     }
 
-    /** @return list<int> */
+    /** @return list<string> */
     public function getGuesses(): array
     {
         return $this->guesses;
     }
 
-    public function hasGuessed(int $movieId): bool
+    public function hasGuessed(string $movieId): bool
     {
         return \in_array($movieId, $this->guesses, true);
     }
 
-    public function addGuess(int $movieId): static
+    public function addGuess(string $movieId): static
     {
         $this->guesses[] = $movieId;
 

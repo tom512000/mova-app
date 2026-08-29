@@ -44,7 +44,7 @@ final class ResetToAmbiguousCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $movie = $this->movieRepository->find((int) $input->getArgument('movieId'));
+        $movie = $this->movieRepository->find((string) $input->getArgument('movieId'));
         if (null === $movie) {
             $io->error('Film introuvable.');
 
@@ -56,7 +56,7 @@ final class ResetToAmbiguousCommand extends Command
         $movie->setEnrichmentError((string) $input->getArgument('reason'));
         $this->entityManager->flush();
 
-        $io->success(sprintf('Film #%d ("%s") réinitialisé en ambiguous.', $movie->getId(), $movie->getTitle()));
+        $io->success(sprintf('Film #%s ("%s") réinitialisé en ambiguous.', $movie->getId(), $movie->getTitle()));
 
         return Command::SUCCESS;
     }

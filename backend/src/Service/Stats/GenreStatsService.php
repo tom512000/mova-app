@@ -34,7 +34,7 @@ final class GenreStatsService
             WHERE w.user_id = :userId
             GROUP BY g.id, g.name
             ORDER BY watch_count DESC',
-            ['userId' => $user->getId()]
+            ['userId' => (string) $user->getId()]
         )->fetchAllAssociative();
 
         return array_map(

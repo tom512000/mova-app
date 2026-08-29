@@ -10,7 +10,7 @@ namespace App\DTO\Stats;
 final readonly class ReleaseWindowMovieDto
 {
     public function __construct(
-        public int $movieId,
+        public string $movieId,
         public string $title,
         public ?int $releaseYear,
         public string $releaseDate,

@@ -36,7 +36,7 @@ class Schedule implements ScheduleProviderInterface
         // --time-limit=3600 in docker-compose.yml, which recycles it hourly).
         foreach ($this->userRepository->findWithRssSyncEnabled() as $user) {
             $schedule->with(
-                RecurringMessage::every('1 hour', new SyncLetterboxdRssMessage((int) $user->getId()))
+                RecurringMessage::every('1 hour', new SyncLetterboxdRssMessage((string) $user->getId()))
             );
         }
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\StudioRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -16,10 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_studio_tmdb_id', fields: ['tmdbId'])]
 class Studio
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\Column]
     private int $tmdbId;
@@ -27,9 +25,9 @@ class Studio
     #[ORM\Column(length: 200)]
     private string $name;
 
-    public function getId(): ?int
+    public function __construct()
     {
-        return $this->id;
+        $this->initialiseUuid();
     }
 
     public function getTmdbId(): int

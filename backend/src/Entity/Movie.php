@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\MediaType;
 use App\Repository\MovieRepository;
@@ -22,10 +23,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_movie_enrichment_status', fields: ['enrichmentStatus'])]
 class Movie
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\Column(length: 20, enumType: MediaType::class, options: ['default' => 'movie'])]
     private MediaType $mediaType = MediaType::MOVIE;
@@ -157,6 +155,7 @@ class Movie
 
     public function __construct(string $letterboxdSlug, string $title)
     {
+        $this->initialiseUuid();
         $this->letterboxdSlug = $letterboxdSlug;
         $this->title = $title;
         $this->createdAt = new \DateTimeImmutable();
@@ -166,11 +165,6 @@ class Movie
         $this->studios = new ArrayCollection();
         $this->credits = new ArrayCollection();
         $this->watches = new ArrayCollection();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getMediaType(): MediaType

@@ -25,7 +25,7 @@ final class OverviewStatsService
     public function getOverview(User $user): OverviewStatsDto
     {
         $conn = $this->entityManager->getConnection();
-        $userId = $user->getId();
+        $userId = (string) $user->getId();
 
         $totals = $conn->executeQuery(
             'SELECT
@@ -82,10 +82,11 @@ final class OverviewStatsService
         );
     }
 
-    private function findExtremeRuntimeMovie(\Doctrine\DBAL\Connection $conn, ?int $userId, string $direction): ?MovieRuntimeDto
+    private function findExtremeRuntimeMovie(\Doctrine\DBAL\Connection $conn, string $userId, string $direction): ?MovieRuntimeDto
     {
         // $direction is interpolated, never $userId: the former is one of two literals
         // chosen in this file, the latter is bound so it can never reach the SQL text.
+        //
         // Films only. A series stores its whole run in this column, so leaving them in
         // would hand "le plus long" to a ten-hour series permanently and turn a stat about
         // films into a stat about formats.
@@ -104,6 +105,6 @@ final class OverviewStatsService
             return null;
         }
 
-        return new MovieRuntimeDto((int) $row['id'], $row['title'], (int) $row['runtime_minutes']);
+        return new MovieRuntimeDto((string) $row['id'], $row['title'], (int) $row['runtime_minutes']);
     }
 }

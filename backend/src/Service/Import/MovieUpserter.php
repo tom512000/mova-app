@@ -30,6 +30,20 @@ final class MovieUpserter
     /** @var array<string, Movie> */
     private array $cache = [];
 
+    /**
+     * Slugs this run created rather than found. Importers use it to skip lookups that
+     * cannot possibly match: a film first seen thirty rows ago has no viewings, no
+     * watchlist entry and no review in the database yet.
+     *
+     * This used to be inferred from `null === $movie->getId()`, which worked only because
+     * an IDENTITY column left a new entity without an id until flush. Ids are UUIDs
+     * assigned at construction now, so that signal is gone — and it was never really the
+     * question being asked anyway.
+     *
+     * @var array<string, true>
+     */
+    private array $created = [];
+
     public function __construct(
         private readonly MovieRepository $movieRepository,
         private readonly EntityManagerInterface $entityManager,
@@ -39,6 +53,16 @@ final class MovieUpserter
     public function reset(): void
     {
         $this->cache = [];
+        $this->created = [];
+    }
+
+    /**
+     * True when this run is what brought the film into the database, so nothing can be
+     * attached to it yet.
+     */
+    public function wasCreatedInThisRun(Movie $movie): bool
+    {
+        return isset($this->created[$movie->getLetterboxdSlug()]);
     }
 
     public function upsert(string $letterboxdSlug, string $title, ?int $releaseYear): Movie
@@ -52,6 +76,7 @@ final class MovieUpserter
             $movie = new Movie($letterboxdSlug, $title);
             $movie->setReleaseYear($releaseYear);
             $this->entityManager->persist($movie);
+            $this->created[$letterboxdSlug] = true;
         }
 
         return $this->cache[$letterboxdSlug] = $movie;

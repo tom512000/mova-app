@@ -7,7 +7,7 @@ namespace App\DTO;
 final readonly class CreditDto
 {
     public function __construct(
-        public int $personId,
+        public string $personId,
         public string $name,
         public ?string $profileUrl,
         public ?string $characterName,

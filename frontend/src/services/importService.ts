@@ -11,7 +11,7 @@ export async function uploadLetterboxdExport(file: File): Promise<ImportUploadRe
   return data
 }
 
-export async function fetchImportBatch(id: number): Promise<ImportBatch> {
+export async function fetchImportBatch(id: string): Promise<ImportBatch> {
   const { data } = await apiClient.get<ImportBatch>(`/import/${id}`)
   return data
 }

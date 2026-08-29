@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\CountryRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -12,10 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\UniqueConstraint(name: 'uniq_country_iso_code', fields: ['isoCode'])]
 class Country
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\Column(length: 2)]
     private string $isoCode;
@@ -23,9 +21,9 @@ class Country
     #[ORM\Column(length: 150)]
     private string $name;
 
-    public function getId(): ?int
+    public function __construct()
     {
-        return $this->id;
+        $this->initialiseUuid();
     }
 
     public function getIsoCode(): string

@@ -56,7 +56,9 @@ final class WatchlistImporter extends AbstractCsvImporter
         // A movie with no id yet is a brand-new stub from this same import run — not flushed,
         // so it cannot have any WatchlistEntry in the database yet (see other importers for
         // the same pattern with Watch).
-        $existing = null !== $movie->getId() ? $this->watchlistEntryRepository->findOneByMovie($user, $movie) : null;
+        $existing = $this->movieUpserter->wasCreatedInThisRun($movie)
+            ? null
+            : $this->watchlistEntryRepository->findOneByMovie($user, $movie);
         if (null !== $existing) {
             $existing->setAddedDate($addedDate);
 

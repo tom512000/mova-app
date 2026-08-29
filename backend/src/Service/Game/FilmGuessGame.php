@@ -72,7 +72,7 @@ final class FilmGuessGame
             : $this->startInfinite($user, $game);
     }
 
-    public function guess(User $user, GameSession $session, int $movieId): GameSession
+    public function guess(User $user, GameSession $session, string $movieId): GameSession
     {
         $this->assertOpen($session);
 
@@ -88,7 +88,9 @@ final class FilmGuessGame
         }
 
         $session->addGuess($movieId);
-        $this->settle($session, $movieId === $session->getMovie()->getId());
+        // Both sides as strings: two Uuid objects holding the same value are not
+        // `===` each other, and $movieId arrives from the request as text anyway.
+        $this->settle($session, $movieId === (string) $session->getMovie()->getId());
 
         return $session;
     }
@@ -202,7 +204,7 @@ final class FilmGuessGame
             $game,
             GameMode::DAILY,
             // Each game gets its own answer on the same day: the seed carries the kind.
-            $this->pick($user, $game, sprintf('daily-%s-%d-%s', $game->value, $user->getId(), $today->format('Y-m-d'))),
+            $this->pick($user, $game, sprintf('daily-%s-%s-%s', $game->value, $user->getId(), $today->format('Y-m-d'))),
             $today
         );
 
@@ -237,7 +239,7 @@ final class FilmGuessGame
     }
 
     /**
-     * @param list<int> $excludeIds
+     * @param list<string> $excludeIds
      */
     private function pick(User $user, GameKind $game, string $seed, array $excludeIds = []): Movie
     {
@@ -302,12 +304,12 @@ final class FilmGuessGame
 
     private function wrongFilmCount(GameSession $session): int
     {
-        $answerId = $session->getMovie()->getId();
+        $answerId = (string) $session->getMovie()->getId();
 
         // A winning guess is in the list too, and it never cost a life.
         return \count(array_filter(
             $session->getGuesses(),
-            static fn (int $movieId) => $movieId !== $answerId
+            static fn (string $movieId) => $movieId !== $answerId
         ));
     }
 
@@ -323,7 +325,8 @@ final class FilmGuessGame
 
         $byId = [];
         foreach ($this->movies->findBy(['id' => $ids]) as $movie) {
-            $byId[$movie->getId()] = $movie;
+            // A Uuid object cannot be an array key, and the stored guesses are strings.
+            $byId[(string) $movie->getId()] = $movie;
         }
 
         $answer = $session->getMovie();
@@ -343,7 +346,7 @@ final class FilmGuessGame
                 title: $summary->title,
                 releaseYear: $summary->releaseYear,
                 posterUrl: $summary->posterUrl,
-                correct: $id === $answer->getId(),
+                correct: $id === (string) $answer->getId(),
                 facets: $isComparison ? $this->comparisonBuilder->compare($movie, $answer) : null,
             );
         }

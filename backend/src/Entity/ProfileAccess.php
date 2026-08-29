@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\ProfileAccessRepository;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -19,10 +20,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_profile_access_viewer', fields: ['viewer'])]
 class ProfileAccess
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -37,14 +35,10 @@ class ProfileAccess
 
     public function __construct(User $owner, User $viewer)
     {
+        $this->initialiseUuid();
         $this->owner = $owner;
         $this->viewer = $viewer;
         $this->grantedAt = new \DateTimeImmutable();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getOwner(): User

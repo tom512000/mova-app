@@ -12,7 +12,7 @@ namespace App\DTO\Profile;
 final readonly class UserDto
 {
     public function __construct(
-        public int $id,
+        public string $id,
         public string $email,
         public string $displayName,
         public ?string $letterboxdUsername,

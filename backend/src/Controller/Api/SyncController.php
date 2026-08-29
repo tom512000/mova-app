@@ -43,7 +43,7 @@ final class SyncController
             return new JsonResponse(['error' => 'Aucun compte Letterboxd configuré sur ce profil.'], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $this->messageBus->dispatch(new SyncLetterboxdRssMessage((int) $user->getId()));
+        $this->messageBus->dispatch(new SyncLetterboxdRssMessage((string) $user->getId()));
 
         return new JsonResponse($this->buildDto(), Response::HTTP_ACCEPTED);
     }

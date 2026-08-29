@@ -14,7 +14,7 @@ final readonly class MovieSearchCriteria
      * @param string|null     $query      matched against the title *and* the original title
      * @param float|null      $rating     exact half-star value; keeps films rated exactly that
      * @param bool            $unratedOnly mutually exclusive with $rating, and wins over it
-     * @param int|null        $personId   keeps films this person is credited on
+     * @param string|null     $personId   keeps films this person is credited on
      * @param CreditRole|null $personRole narrows that credit to one role; any role when null
      * @param MediaType|null  $mediaType  keeps only films, or only series; both when null,
      *                                    which is the default everywhere the library is
@@ -28,7 +28,7 @@ final readonly class MovieSearchCriteria
         public ?int $year = null,
         public ?float $rating = null,
         public bool $unratedOnly = false,
-        public ?int $personId = null,
+        public ?string $personId = null,
         public ?CreditRole $personRole = null,
         public ?MediaType $mediaType = null,
         public MovieSortField $sort = MovieSortField::TITLE,

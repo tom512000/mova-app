@@ -34,7 +34,7 @@ final class TimelineStatsService
               AND w.user_id = :userId
             GROUP BY period
             ORDER BY period ASC",
-            ['format' => $format, 'userId' => $user->getId()]
+            ['format' => $format, 'userId' => (string) $user->getId()]
         )->fetchAllAssociative();
 
         return array_map(

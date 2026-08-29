@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\ImportStatus;
 use App\Repository\ImportBatchRepository;
@@ -16,10 +17,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_import_batch_user', fields: ['user'])]
 class ImportBatch
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -65,6 +63,7 @@ class ImportBatch
 
     public function __construct(User $user, string $filename, string $storedPath, ImportFileType $fileType)
     {
+        $this->initialiseUuid();
         $this->user = $user;
         $this->filename = $filename;
         $this->storedPath = $storedPath;
@@ -72,11 +71,6 @@ class ImportBatch
         $this->startedAt = new \DateTimeImmutable();
         $this->createdAt = new \DateTimeImmutable();
         $this->rowErrors = new ArrayCollection();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getUser(): User

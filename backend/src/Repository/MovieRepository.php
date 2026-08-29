@@ -46,7 +46,7 @@ class MovieRepository extends ServiceEntityRepository
      */
     public function search(User $user, MovieSearchCriteria $criteria): array
     {
-        $params = ['userId' => $user->getId()];
+        $params = ['userId' => (string) $user->getId()];
         $conditions = [];
 
         if (null !== $criteria->query && '' !== $criteria->query) {
@@ -114,7 +114,7 @@ class MovieRepository extends ServiceEntityRepository
         )->fetchFirstColumn();
 
         return [
-            'items' => $this->findByIdsOrdered(array_map('intval', $ids)),
+            'items' => $this->findByIdsOrdered(array_map('strval', $ids)),
             'total' => $total,
         ];
     }
@@ -126,11 +126,11 @@ class MovieRepository extends ServiceEntityRepository
      * reproducible: the daily puzzle needs the same answer all day, and a test needs to know
      * what it will get.
      *
-     * @param list<int> $excludeIds recent answers, so the infinite mode stops repeating itself
+     * @param list<string> $excludeIds recent answers, so the infinite mode stops repeating itself
      */
     public function findGuessable(User $user, GameKind $game, string $seed, array $excludeIds = []): ?Movie
     {
-        $params = ['userId' => $user->getId(), 'seed' => $seed];
+        $params = ['userId' => (string) $user->getId(), 'seed' => $seed];
         $types = [];
 
         if (GameKind::POSTER === $game) {
@@ -158,7 +158,7 @@ class MovieRepository extends ServiceEntityRepository
         if ([] !== $excludeIds) {
             $exclusion = ' AND m.id NOT IN (:excluded)';
             $params['excluded'] = $excludeIds;
-            $types['excluded'] = ArrayParameterType::INTEGER;
+            $types['excluded'] = ArrayParameterType::STRING;
         }
 
         $id = $this->getEntityManager()->getConnection()->executeQuery(
@@ -173,13 +173,13 @@ class MovieRepository extends ServiceEntityRepository
             $types
         )->fetchOne();
 
-        return false === $id || null === $id ? null : $this->find((int) $id);
+        return false === $id || null === $id ? null : $this->find((string) $id);
     }
 
     public function facetsFor(User $user): MovieFacetsDto
     {
         $connection = $this->getEntityManager()->getConnection();
-        $params = ['userId' => $user->getId()];
+        $params = ['userId' => (string) $user->getId()];
 
         $genres = $connection->executeQuery(
             'SELECT DISTINCT g.name
@@ -236,7 +236,7 @@ class MovieRepository extends ServiceEntityRepository
      */
     public function posterWall(User $user, MovieSearchCriteria $criteria): array
     {
-        $params = ['userId' => $user->getId()];
+        $params = ['userId' => (string) $user->getId()];
         if (MovieSortField::RANDOM === $criteria->sort) {
             $params['seed'] = $criteria->seed ?? '';
         }
@@ -299,7 +299,7 @@ class MovieRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param list<int> $ids
+     * @param list<string> $ids UUIDs, in the order the SQL above chose
      *
      * @return list<Movie>
      */
@@ -322,12 +322,13 @@ class MovieRepository extends ServiceEntityRepository
 
         $byId = [];
         foreach ($movies as $movie) {
-            $byId[$movie->getId()] = $movie;
+            // Cast: a Uuid object cannot be used as an array key.
+            $byId[(string) $movie->getId()] = $movie;
         }
 
         // SQL gave the order; the hydration above did not preserve it.
         return array_values(array_filter(array_map(
-            static fn (int $id) => $byId[$id] ?? null,
+            static fn (string $id) => $byId[$id] ?? null,
             $ids
         )));
     }

@@ -14,6 +14,7 @@ use App\Service\Profile\ViewedProfileResolver;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\Routing\Requirement\Requirement;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/profiles')]
@@ -99,7 +100,7 @@ final class ProfileController
         }
 
         $owner = $link->getOwner();
-        if ($owner->getId() === $me->getId()) {
+        if ($owner->getId()->equals($me->getId())) {
             return new JsonResponse(['error' => 'Ce lien est le vôtre.'], Response::HTTP_CONFLICT);
         }
 
@@ -118,13 +119,13 @@ final class ProfileController
     /**
      * Lets a viewer drop a profile from their own switcher.
      */
-    #[Route('/{id}/access', name: 'api_profiles_revoke_access', methods: ['DELETE'], requirements: ['id' => '\d+'])]
-    public function revokeAccess(int $id): JsonResponse
+    #[Route('/{id}/access', name: 'api_profiles_revoke_access', methods: ['DELETE'], requirements: ['id' => Requirement::UUID_V7])]
+    public function revokeAccess(string $id): JsonResponse
     {
         $me = $this->profileResolver->getAuthenticatedUser();
 
         foreach ($this->profileAccessRepository->findOwnersGrantedTo($me) as $owner) {
-            if ($owner->getId() !== $id) {
+            if ((string) $owner->getId() !== $id) {
                 continue;
             }
 

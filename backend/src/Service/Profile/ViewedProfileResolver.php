@@ -12,6 +12,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException;
 use Symfony\Component\HttpKernel\Exception\NotFoundHttpException;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * The single place that decides *whose* data a read endpoint returns.
@@ -66,16 +67,19 @@ final class ViewedProfileResolver
             return $me;
         }
 
-        if (!ctype_digit((string) $profileId)) {
+        // Checked before it reaches the repository: an id that is not a UUID at all is a
+        // malformed request, and letting Doctrine try to bind it would surface as a driver
+        // error rather than the 404 this is meant to be.
+        if (!Uuid::isValid((string) $profileId)) {
             throw new NotFoundHttpException('Profil introuvable.');
         }
 
-        $owner = $this->userRepository->find((int) $profileId);
+        $owner = $this->userRepository->find((string) $profileId);
         if (null === $owner) {
             throw new NotFoundHttpException('Profil introuvable.');
         }
 
-        if ($owner->getId() === $me->getId()) {
+        if ($owner->getId()->equals($me->getId())) {
             return $me;
         }
 
@@ -94,6 +98,6 @@ final class ViewedProfileResolver
      */
     public function isViewingOtherProfile(): bool
     {
-        return $this->getViewedUser()->getId() !== $this->getAuthenticatedUser()->getId();
+        return !$this->getViewedUser()->getId()->equals($this->getAuthenticatedUser()->getId());
     }
 }

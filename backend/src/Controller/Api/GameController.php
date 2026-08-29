@@ -13,6 +13,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * Playing is a write, and writes belong to the account making them — every action here
@@ -65,8 +66,8 @@ final class GameController
         }
 
         $payload = json_decode((string) $request->getContent(), true);
-        $movieId = \is_array($payload) ? (int) ($payload['movieId'] ?? 0) : 0;
-        if ($movieId <= 0) {
+        $movieId = \is_array($payload) ? (string) ($payload['movieId'] ?? '') : '';
+        if (!Uuid::isValid($movieId)) {
             return new JsonResponse(['error' => 'Aucun film proposé.'], Response::HTTP_BAD_REQUEST);
         }
 

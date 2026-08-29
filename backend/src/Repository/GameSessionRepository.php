@@ -51,7 +51,7 @@ class GameSessionRepository extends ServiceEntityRepository
      * Answers already used, newest first — fed back into the picker so the infinite mode
      * works through the library instead of circling a handful of films.
      *
-     * @return list<int>
+     * @return list<string>
      */
     public function recentAnswerIds(User $user, GameKind $game, GameMode $mode, int $limit): array
     {
@@ -68,7 +68,7 @@ class GameSessionRepository extends ServiceEntityRepository
             ->getQuery()
             ->getScalarResult();
 
-        return array_map(static fn (array $row) => (int) $row['movieId'], $rows);
+        return array_map(static fn (array $row) => (string) $row['movieId'], $rows);
     }
 
     /**

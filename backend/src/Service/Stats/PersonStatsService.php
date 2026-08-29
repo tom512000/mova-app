@@ -43,13 +43,13 @@ final class PersonStatsService
             GROUP BY p.id, p.name
             ORDER BY movie_count DESC, average_rating DESC NULLS LAST
             LIMIT :limit',
-            ['role' => $role->value, 'limit' => $limit, 'userId' => $user->getId()],
+            ['role' => $role->value, 'limit' => $limit, 'userId' => (string) $user->getId()],
             ['limit' => ParameterType::INTEGER]
         )->fetchAllAssociative();
 
         return array_map(
             static fn (array $row) => new PersonStatDto(
-                personId: (int) $row['person_id'],
+                personId: (string) $row['person_id'],
                 name: $row['name'],
                 movieCount: (int) $row['movie_count'],
                 averageRating: null !== $row['average_rating'] ? round((float) $row['average_rating'], 2) : null,

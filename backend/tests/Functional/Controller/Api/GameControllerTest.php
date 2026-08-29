@@ -159,9 +159,24 @@ final class GameControllerTest extends WebTestCase
     {
         $this->start('daily');
 
-        $this->guess('daily', 99999999);
+        // Well-formed but held by nobody, so it gets past the UUID check in the controller
+        // and is refused for the reason this test is about: the film is not in the library.
+        $this->guess('daily', '01920000-0000-7000-8000-000000000000');
 
         self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    public function testAMalformedFilmIdIsARequestErrorRatherThanAWastedGuess(): void
+    {
+        $this->start('daily');
+
+        // Ids used to be integers, so a leftover client sending one — or anything else that
+        // is not a UUID — must be turned away before it reaches the game and costs a life.
+        $this->guess('daily', '99999999');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_BAD_REQUEST);
+        // Starting again returns the same daily run, which must still be untouched.
+        self::assertSame([], $this->start('daily')['guesses']);
     }
 
     public function testFindingItEndsTheRunAndRevealsTheAnswer(): void
@@ -492,7 +507,7 @@ final class GameControllerTest extends WebTestCase
     /**
      * @return array<string, mixed>
      */
-    private function guess(string $mode, int $movieId, string $game = 'clue'): array
+    private function guess(string $mode, string $movieId, string $game = 'clue'): array
     {
         $this->client->request(
             'POST',
@@ -504,7 +519,7 @@ final class GameControllerTest extends WebTestCase
         return $this->json()['session'] ?? [];
     }
 
-    private function answerId(GameMode $mode, GameKind $game = GameKind::CLUE): int
+    private function answerId(GameMode $mode, GameKind $game = GameKind::CLUE): string
     {
         $session = GameMode::DAILY === $mode
             ? $this->sessions->findDaily($this->player, $game, new \DateTimeImmutable('today', new \DateTimeZone('Europe/Paris')))
@@ -512,23 +527,23 @@ final class GameControllerTest extends WebTestCase
 
         self::assertNotNull($session);
 
-        return (int) $session->getMovie()->getId();
+        return (string) $session->getMovie()->getId();
     }
 
     /**
-     * @return list<int>
+     * @return list<string>
      */
     private function wrongMovieIds(GameMode $mode = GameMode::DAILY, GameKind $game = GameKind::CLUE): array
     {
         $answerId = $this->answerId($mode, $game);
 
         return array_values(array_filter(
-            array_map(static fn (Movie $movie) => (int) $movie->getId(), $this->library),
-            static fn (int $id) => $id !== $answerId
+            array_map(static fn (Movie $movie) => (string) $movie->getId(), $this->library),
+            static fn (string $id) => $id !== $answerId
         ));
     }
 
-    private function aWrongMovieId(GameMode $mode = GameMode::DAILY, GameKind $game = GameKind::CLUE): int
+    private function aWrongMovieId(GameMode $mode = GameMode::DAILY, GameKind $game = GameKind::CLUE): string
     {
         return $this->wrongMovieIds($mode, $game)[0];
     }

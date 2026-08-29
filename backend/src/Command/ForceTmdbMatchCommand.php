@@ -48,7 +48,7 @@ final class ForceTmdbMatchCommand extends Command
     {
         $io = new SymfonyStyle($input, $output);
 
-        $movie = $this->movieRepository->find((int) $input->getArgument('movieId'));
+        $movie = $this->movieRepository->find((string) $input->getArgument('movieId'));
         if (null === $movie) {
             $io->error('Film introuvable.');
 
@@ -61,7 +61,7 @@ final class ForceTmdbMatchCommand extends Command
         $movie->setEnrichmentError(null);
         $this->entityManager->flush();
 
-        $io->success(sprintf('Film #%d re-mappé sur "%s" (TMDB #%s).', $movie->getId(), $movie->getTitle(), $input->getArgument('tmdbId')));
+        $io->success(sprintf('Film #%s re-mappé sur "%s" (TMDB #%s).', $movie->getId(), $movie->getTitle(), $input->getArgument('tmdbId')));
 
         return Command::SUCCESS;
     }

@@ -102,7 +102,7 @@ final class ReviewsImporter extends AbstractCsvImporter
         // Only worth asking once the film has an id: MovieUpserter hands back unflushed
         // entities for films it has just created, and Doctrine cannot bind those to a
         // query — nor would it need to, since a film created a moment ago has no viewings.
-        if (null !== $watchedDate && null !== $movie->getId()) {
+        if (null !== $watchedDate && !$this->movieUpserter->wasCreatedInThisRun($movie)) {
             $watch = $this->watchRepository->findOneByMovieAndWatchedDate($user, $movie, $watchedDate);
             if (null !== $watch) {
                 return $watch;

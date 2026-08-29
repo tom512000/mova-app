@@ -21,7 +21,7 @@ export function MovieSearchCombobox({
 }: {
   onSelect: (movie: MovieSummary) => void
   /** Films already played, dropped from the list rather than offered and refused. */
-  excludeIds?: number[]
+  excludeIds?: string[]
   disabled?: boolean
   placeholder?: string
 }) {

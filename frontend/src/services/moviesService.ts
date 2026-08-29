@@ -17,7 +17,7 @@ export interface MovieSearchParams {
   /** An exact half-star note, or 'none' for the films left unrated. */
   rating?: string
   /** Keeps films this person is credited on, optionally narrowed to one role. */
-  personId?: number
+  personId?: string
   personRole?: CreditRole
   /** Films only, or series only. Absent means the whole library. */
   mediaType?: MediaType
@@ -39,7 +39,7 @@ export async function fetchMovieFacets(): Promise<MovieFacets> {
   return data
 }
 
-export async function fetchMovie(id: number): Promise<MovieDetail> {
+export async function fetchMovie(id: string): Promise<MovieDetail> {
   const { data } = await apiClient.get<MovieDetail>(`/movies/${id}`)
   return data
 }

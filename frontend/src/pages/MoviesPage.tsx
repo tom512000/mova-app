@@ -40,7 +40,7 @@ export function MoviesPage() {
   const page = Math.max(1, Number(params.get('page') ?? 1))
   // Reached by clicking a name on the dashboard: the URL carries the id, the listing
   // answers with the name to label it.
-  const personId = Number(params.get('personId') ?? 0)
+  const personId = params.get('personId') ?? ''
   const personRole = params.get('personRole') as CreditRole | null
 
   const updateParams = useCallback(
@@ -113,7 +113,7 @@ export function MoviesPage() {
 
   // Until the listing comes back the name is unknown, but the chip must already be there
   // or the bar would jump a line once it arrives.
-  const activePerson = personId
+  const activePerson = personId !== ''
     ? { name: data?.person?.name ?? '…', role: data?.person?.role ?? personRole }
     : null
 
@@ -123,7 +123,7 @@ export function MoviesPage() {
     filters.rating !== '' ||
     filters.year !== '' ||
     q !== '' ||
-    personId > 0
+    personId !== ''
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
 

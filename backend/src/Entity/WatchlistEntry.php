@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\WatchlistEntryRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -14,10 +15,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Index(name: 'idx_watchlist_entry_user', fields: ['user'])]
 class WatchlistEntry
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: User::class)]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -35,14 +33,10 @@ class WatchlistEntry
 
     public function __construct(User $user, Movie $movie)
     {
+        $this->initialiseUuid();
         $this->user = $user;
         $this->movie = $movie;
         $this->createdAt = new \DateTimeImmutable();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getUser(): User

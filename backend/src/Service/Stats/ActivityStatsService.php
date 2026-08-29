@@ -38,7 +38,7 @@ final class ActivityStatsService
     public function getActivity(User $user): ActivityStatsDto
     {
         $conn = $this->entityManager->getConnection();
-        $userId = $user->getId();
+        $userId = (string) $user->getId();
 
         $weekdayRows = $conn->executeQuery(
             'SELECT

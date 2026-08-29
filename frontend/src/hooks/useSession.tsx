@@ -20,14 +20,14 @@ interface SessionValue {
   login: (email: string, password: string) => Promise<void>
   register: (email: string, displayName: string, password: string) => Promise<void>
   logout: () => Promise<void>
-  switchProfile: (profileId: number) => void
+  switchProfile: (profileId: string) => void
 }
 
 const SessionContext = createContext<SessionValue | null>(null)
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const queryClient = useQueryClient()
-  const [activeProfileId, setActiveProfileIdState] = useState<number | null>(null)
+  const [activeProfileId, setActiveProfileIdState] = useState<string | null>(null)
 
   // Typed nullable because logout writes null into it to sign out without waiting for the
   // API; fetchCurrentUser itself only ever resolves to a user.
@@ -57,7 +57,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [activeProfileId])
 
   const switchProfile = useCallback(
-    (profileId: number) => {
+    (profileId: string) => {
       const isSelf = profileList.find((p) => p.id === profileId)?.isSelf ?? false
       setActiveProfileId(isSelf ? null : profileId)
       setActiveProfileIdState(isSelf ? null : profileId)

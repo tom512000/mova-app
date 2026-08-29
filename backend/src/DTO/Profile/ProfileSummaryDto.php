@@ -12,7 +12,7 @@ namespace App\DTO\Profile;
 final readonly class ProfileSummaryDto
 {
     public function __construct(
-        public int $id,
+        public string $id,
         public string $displayName,
         public bool $isSelf,
     ) {

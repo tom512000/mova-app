@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Entity\Concern\HasUuid;
 use App\Repository\ImportRowErrorRepository;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
@@ -12,10 +13,7 @@ use Doctrine\ORM\Mapping as ORM;
 #[ORM\Table(name: 'import_row_error')]
 class ImportRowError
 {
-    #[ORM\Id]
-    #[ORM\GeneratedValue]
-    #[ORM\Column]
-    private ?int $id = null;
+    use HasUuid;
 
     #[ORM\ManyToOne(targetEntity: ImportBatch::class, inversedBy: 'rowErrors')]
     #[ORM\JoinColumn(nullable: false, onDelete: 'CASCADE')]
@@ -35,16 +33,12 @@ class ImportRowError
 
     public function __construct(ImportBatch $importBatch, int $rowNumber, array $rawData, string $errorMessage)
     {
+        $this->initialiseUuid();
         $this->importBatch = $importBatch;
         $this->rowNumber = $rowNumber;
         $this->rawData = $rawData;
         $this->errorMessage = $errorMessage;
         $this->createdAt = new \DateTimeImmutable();
-    }
-
-    public function getId(): ?int
-    {
-        return $this->id;
     }
 
     public function getImportBatch(): ImportBatch

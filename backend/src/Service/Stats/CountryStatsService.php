@@ -38,7 +38,7 @@ final class CountryStatsService
             GROUP BY c.id, c.name, c.iso_code
             ORDER BY movie_count DESC
             LIMIT :limit',
-            ['userId' => $user->getId(), 'limit' => $limit],
+            ['userId' => (string) $user->getId(), 'limit' => $limit],
             ['limit' => ParameterType::INTEGER]
         )->fetchAllAssociative();
 

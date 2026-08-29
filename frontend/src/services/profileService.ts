@@ -21,6 +21,6 @@ export async function acceptShareLink(token: string): Promise<ShareAcceptResult>
   return data
 }
 
-export async function revokeProfileAccess(profileId: number): Promise<void> {
+export async function revokeProfileAccess(profileId: string): Promise<void> {
   await apiClient.delete(`/profiles/${profileId}/access`)
 }

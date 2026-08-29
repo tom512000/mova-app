@@ -11,7 +11,7 @@ namespace App\Message;
 final readonly class SyncLetterboxdRssMessage
 {
     public function __construct(
-        public int $userId,
+        public string $userId,
     ) {
     }
 }

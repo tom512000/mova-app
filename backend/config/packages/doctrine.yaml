@@ -8,6 +8,12 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+
+        types:
+            # Every entity is keyed on a UUIDv7 (see App\Entity\Concern\HasUuid).
+            # PostgreSQL has a native UUID type, so this stores the 36-char RFC 4122
+            # form in a real uuid column rather than a string or a blob.
+            uuid: Symfony\Bridge\Doctrine\Types\UuidType
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true

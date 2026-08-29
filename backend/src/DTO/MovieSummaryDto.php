@@ -10,7 +10,7 @@ use App\Entity\Enum\MediaType;
 final readonly class MovieSummaryDto
 {
     public function __construct(
-        public int $id,
+        public string $id,
         public string $title,
         public ?int $releaseYear,
         public ?string $posterUrl,
