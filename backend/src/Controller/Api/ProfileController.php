@@ -7,7 +7,9 @@ namespace App\Controller\Api;
 use App\DTO\Profile\ShareLinkDto;
 use App\Entity\ProfileAccess;
 use App\Entity\ProfileShareLink;
+use App\Mapper\LetterboxdProfileMapper;
 use App\Mapper\UserMapper;
+use App\Repository\LetterboxdProfileRepository;
 use App\Repository\ProfileAccessRepository;
 use App\Repository\ProfileShareLinkRepository;
 use App\Service\Profile\ViewedProfileResolver;
@@ -25,6 +27,8 @@ final class ProfileController
         private readonly ProfileShareLinkRepository $shareLinkRepository,
         private readonly ProfileAccessRepository $profileAccessRepository,
         private readonly UserMapper $userMapper,
+        private readonly LetterboxdProfileRepository $letterboxdProfiles,
+        private readonly LetterboxdProfileMapper $letterboxdProfileMapper,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -43,6 +47,26 @@ final class ProfileController
         }
 
         return new JsonResponse($profiles);
+    }
+
+    /**
+     * What profile.csv said about my Letterboxd account, favourites included.
+     *
+     * getAuthenticatedUser(), not getViewedUser(): this is the account settings screen, and
+     * it describes whoever is signed in — switching to a shared profile must not swap what
+     * "my profile" means here.
+     *
+     * Null rather than 404 when nothing has been imported: having no profile.csv yet is an
+     * ordinary state the screen has a panel for, not an error.
+     */
+    #[Route('/letterboxd', name: 'api_profiles_letterboxd', methods: ['GET'])]
+    public function letterboxd(): JsonResponse
+    {
+        $profile = $this->letterboxdProfiles->findOneByUser($this->profileResolver->getAuthenticatedUser());
+
+        return new JsonResponse([
+            'profile' => null === $profile ? null : $this->letterboxdProfileMapper->toDto($profile),
+        ]);
     }
 
     /**

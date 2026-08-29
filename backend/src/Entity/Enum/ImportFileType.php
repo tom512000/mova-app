@@ -11,6 +11,7 @@ enum ImportFileType: string
     case WATCHED = 'watched';
     case REVIEWS = 'reviews';
     case WATCHLIST = 'watchlist';
+    case PROFILE = 'profile';
     case LIST = 'list';
 
     /**
@@ -18,6 +19,10 @@ enum ImportFileType: string
      * yet, so diary.csv (the most detailed source) must be fully processed first —
      * otherwise a race between files in the same upload could create a spurious
      * dateless Watch for a film diary.csv was about to describe properly.
+     *
+     * profile.csv goes last for a milder reason: its four favourites are films the library
+     * almost always already holds, and letting the files that carry a title and a year land
+     * first means it finds them instead of minting stubs named after their slugs.
      */
     public function importPriority(): int
     {
@@ -27,7 +32,8 @@ enum ImportFileType: string
             self::WATCHED => 2,
             self::REVIEWS => 3,
             self::WATCHLIST => 4,
-            self::LIST => 5,
+            self::PROFILE => 5,
+            self::LIST => 6,
         };
     }
 }

@@ -335,6 +335,36 @@ export interface PersonStat {
   worstRating: number | null
 }
 
+/** One of the four films pinned to the top of a Letterboxd profile. */
+export interface FavouriteFilm {
+  movieId: string
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  /** 1-based, in the order Letterboxd lists them. */
+  position: number
+}
+
+/**
+ * The Letterboxd page behind an imported library, as profile.csv described it.
+ *
+ * Everything but the dates is nullable: Letterboxd asks for none of these fields, so a
+ * profile carrying nothing but a username is ordinary and the panel has to read well that
+ * way rather than showing a grid of dashes.
+ */
+export interface LetterboxdProfile {
+  username: string | null
+  fullName: string | null
+  location: string | null
+  website: string | null
+  bio: string | null
+  pronoun: string | null
+  joinedOn: string | null
+  favourites: FavouriteFilm[]
+  /** When the profile.csv this came from was imported. */
+  importedAt: string
+}
+
 export interface ImportRowErrorItem {
   rowNumber: number
   errorMessage: string

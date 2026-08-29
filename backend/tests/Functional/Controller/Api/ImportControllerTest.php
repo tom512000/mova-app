@@ -79,7 +79,7 @@ final class ImportControllerTest extends WebTestCase
 
         $filenames = array_column($payload['batches'], 'filename');
         sort($filenames);
-        self::assertSame(['diary.csv', 'ratings.csv'], $filenames);
+        self::assertSame(['diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
 
         foreach ($payload['batches'] as $batch) {
             // A UUID and not a number — the shape the whole chain below has to agree on.
@@ -98,7 +98,7 @@ final class ImportControllerTest extends WebTestCase
             static fn ($envelope) => $envelope->getMessage(),
             $transport->getSent()
         );
-        self::assertCount(2, $messages);
+        self::assertCount(3, $messages);
 
         foreach ($messages as $message) {
             self::assertInstanceOf(ProcessImportBatchMessage::class, $message);
@@ -121,9 +121,10 @@ final class ImportControllerTest extends WebTestCase
         );
 
         // A single sequential worker consumes these in order, and RatingsImporter's backfill
-        // depends on the diary already being in. The sort in the controller is the only
-        // thing holding that, so it is worth pinning.
-        self::assertSame(['diary.csv', 'ratings.csv'], $order);
+        // depends on the diary already being in. profile.csv goes last so its favourites find
+        // films that already carry a title. The sort in the controller is the only thing
+        // holding either, so it is worth pinning.
+        self::assertSame(['diary.csv', 'ratings.csv', 'profile.csv'], $order);
     }
 
     public function testABatchCanBeFollowedByItsId(): void
@@ -166,7 +167,7 @@ final class ImportControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $filenames = array_column($this->json(), 'filename');
         sort($filenames);
-        self::assertSame(['diary.csv', 'ratings.csv'], $filenames);
+        self::assertSame(['diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
     }
 
     public function testAnUnreadableUploadIsRefusedRatherThanStored(): void
@@ -220,6 +221,13 @@ final class ImportControllerTest extends WebTestCase
         $zip->addFromString(
             'ratings.csv',
             "Date,Name,Year,Letterboxd URI,Rating\n2024-03-13,Arrival,2016,https://letterboxd.com/johndoe/film/arrival/,4\n"
+        );
+        $zip->addFromString(
+            'profile.csv',
+            "Date Joined,Username,Given Name,Family Name,Email Address,Location,Website,Bio,Pronoun,Favorite Films
+"
+            ."2025-04-14,tom51200,,,tom@example.com,France,,,He / his,
+"
         );
         $zip->addFromString('comments.csv', "Date,Comment\n2024-01-01,rien a voir\n");
         $zip->addFromString('notes-perso.txt', "rien a voir non plus\n");

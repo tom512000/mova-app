@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Check } from 'lucide-react'
 import { useSession } from '@/hooks/useSession'
+import { LetterboxdProfilePanel } from '@/components/LetterboxdProfilePanel'
 import { changePassword } from '@/services/authService'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
@@ -54,7 +55,9 @@ export function AccountPage() {
     <div className="mx-auto max-w-xl">
       <div className="mb-8 border-b-2 border-ink pb-4">
         <h1 className="font-serif text-4xl font-black tracking-tighter sm:text-5xl">Mon compte</h1>
-        <p className="mt-2 font-body text-sm italic text-subtle">Vos identifiants de connexion.</p>
+        <p className="mt-2 font-body text-sm italic text-subtle">
+          Vos identifiants de connexion, et le profil Letterboxd derrière cette bibliothèque.
+        </p>
       </div>
 
       <dl className="mb-10 grid grid-cols-1 gap-px border border-ink bg-ink/15 sm:grid-cols-2">
@@ -68,60 +71,64 @@ export function AccountPage() {
         </div>
       </dl>
 
-      <section className="border border-ink p-5 sm:p-6">
-        <h2 className="font-serif text-2xl font-bold">Changer de mot de passe</h2>
+      <div className="flex flex-col gap-8">
+        <LetterboxdProfilePanel />
 
-        <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
-          <TextField
-            label="Mot de passe actuel"
-            type="password"
-            value={currentPassword}
-            onChange={(e) => setCurrentPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-            error={fieldErrors.currentPassword}
-          />
+        <section className="border border-ink p-5 sm:p-6">
+          <h2 className="font-serif text-2xl font-bold">Changer de mot de passe</h2>
 
-          <TextField
-            label="Nouveau mot de passe"
-            type="password"
-            value={newPassword}
-            onChange={(e) => setNewPassword(e.target.value)}
-            required
-            minLength={MIN_PASSWORD_LENGTH}
-            autoComplete="new-password"
-            error={fieldErrors.newPassword}
-            hint={`${MIN_PASSWORD_LENGTH} caractères minimum.`}
-          />
+          <form onSubmit={handleSubmit} className="mt-5 flex flex-col gap-4">
+            <TextField
+              label="Mot de passe actuel"
+              type="password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+              autoComplete="current-password"
+              error={fieldErrors.currentPassword}
+            />
 
-          <TextField
-            label="Confirmer le nouveau mot de passe"
-            type="password"
-            value={confirmation}
-            onChange={(e) => setConfirmation(e.target.value)}
-            required
-            autoComplete="new-password"
-            error={fieldErrors.confirmation}
-          />
+            <TextField
+              label="Nouveau mot de passe"
+              type="password"
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+              minLength={MIN_PASSWORD_LENGTH}
+              autoComplete="new-password"
+              error={fieldErrors.newPassword}
+              hint={`${MIN_PASSWORD_LENGTH} caractères minimum.`}
+            />
 
-          {error && (
-            <p role="alert" className="border border-accent px-3 py-2 font-mono text-xs text-accent">
-              {error}
-            </p>
-          )}
+            <TextField
+              label="Confirmer le nouveau mot de passe"
+              type="password"
+              value={confirmation}
+              onChange={(e) => setConfirmation(e.target.value)}
+              required
+              autoComplete="new-password"
+              error={fieldErrors.confirmation}
+            />
 
-          {isDone && (
-            <p role="status" className="inline-flex items-center gap-2 border border-ink px-3 py-2 font-mono text-xs">
-              <Check className="h-4 w-4 text-accent" strokeWidth={2} />
-              Mot de passe mis à jour. Vous restez connecté sur cet appareil.
-            </p>
-          )}
+            {error && (
+              <p role="alert" className="border border-accent px-3 py-2 font-mono text-xs text-accent">
+                {error}
+              </p>
+            )}
 
-          <Button type="submit" disabled={isSubmitting} className="mt-2 self-start">
-            {isSubmitting ? 'Mise à jour…' : 'Mettre à jour'}
-          </Button>
-        </form>
-      </section>
+            {isDone && (
+              <p role="status" className="inline-flex items-center gap-2 border border-ink px-3 py-2 font-mono text-xs">
+                <Check className="h-4 w-4 text-accent" strokeWidth={2} />
+                Mot de passe mis à jour. Vous restez connecté sur cet appareil.
+              </p>
+            )}
+
+            <Button type="submit" disabled={isSubmitting} className="mt-2 self-start">
+              {isSubmitting ? 'Mise à jour…' : 'Mettre à jour'}
+            </Button>
+          </form>
+        </section>
+      </div>
     </div>
   )
 }
