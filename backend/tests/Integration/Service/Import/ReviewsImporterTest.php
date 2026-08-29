@@ -8,6 +8,7 @@ use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\WatchSource;
 use App\Entity\ImportBatch;
 use App\Entity\Movie;
+use App\Entity\Tag;
 use App\Entity\User;
 use App\Entity\Watch;
 use App\Repository\MovieRepository;
@@ -159,9 +160,54 @@ final class ReviewsImporterTest extends KernelTestCase
         self::assertFalse($importer->supports('diary.csv', $header));
     }
 
-    private function importDiary(): ImportBatch
+    public function testAReviewUploadedWithoutItsDiaryFileKeepsItsTags(): void
     {
-        $batch = $this->batch('diary.csv', ImportFileType::DIARY, <<<CSV
+        // reviews.csv carries the Tags column, and when it is the only file that knows about
+        // the viewing it is also the only place those tags exist. They used to be dropped
+        // here while the rating and the rewatch flag on the same row were kept.
+        $this->importReviews(<<<CSV
+            Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review,Tags,Watched Date
+            2026-08-18,"Neuilly sa mère, sa mère !",2018,https://letterboxd.com/tom/film/neuilly-sa-mere-sa-mere/,2.5,,"Ca put sa mère, sa mère !","nanar, vu en famille",2026-08-18
+            CSV);
+
+        $this->entityManager->clear();
+
+        $watch = $this->movie('neuilly-sa-mere-sa-mere')->getWatches()->first();
+        self::assertInstanceOf(Watch::class, $watch);
+        self::assertSame(
+            ['nanar', 'vu en famille'],
+            array_map(static fn (Tag $tag) => $tag->getName(), $watch->getTags()->toArray())
+        );
+    }
+
+    public function testTagsAlreadySetByTheDiaryAreNotOverwritten(): void
+    {
+        $this->importDiary(<<<CSV
+            Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date
+            2026-08-18,"Neuilly sa mère, sa mère !",2018,https://letterboxd.com/tom/film/neuilly-sa-mere-sa-mere/,2.5,,"vu au cinéma",2026-08-18
+            CSV);
+
+        // A staler reviews.csv beside it, tagged differently. Same rule as the rating: the
+        // diary owns the entry, and this file must not quietly rewrite it.
+        $this->importReviews(<<<CSV
+            Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review,Tags,Watched Date
+            2026-08-18,"Neuilly sa mère, sa mère !",2018,https://letterboxd.com/tom/film/neuilly-sa-mere-sa-mere/,2.5,,"Ca put sa mère, sa mère !","nanar",2026-08-18
+            CSV);
+
+        $this->entityManager->clear();
+
+        $watch = $this->movie('neuilly-sa-mere-sa-mere')->getWatches()->first();
+        self::assertInstanceOf(Watch::class, $watch);
+        self::assertSame(
+            ['vu au cinéma'],
+            array_map(static fn (Tag $tag) => $tag->getName(), $watch->getTags()->toArray())
+        );
+        self::assertNotNull($watch->getReviewText(), 'the review still lands, it is only the tags that stay put');
+    }
+
+    private function importDiary(?string $csv = null): ImportBatch
+    {
+        $batch = $this->batch('diary.csv', ImportFileType::DIARY, $csv ?? <<<CSV
             Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date
             2026-08-18,"Neuilly sa mère, sa mère !",2018,https://letterboxd.com/tom/film/neuilly-sa-mere-sa-mere/,2.5,,,2026-08-18
             CSV);

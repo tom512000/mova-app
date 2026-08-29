@@ -6,6 +6,7 @@ namespace App\Tests\Integration\Service\Import;
 
 use App\Entity\Enum\ImportFileType;
 use App\Entity\ImportBatch;
+use App\Entity\Tag;
 use App\Entity\User;
 use App\Entity\Watch;
 use App\Repository\MovieRepository;
@@ -113,6 +114,35 @@ final class DiaryImporterTest extends KernelTestCase
         $watchRepository = $this->entityManager->getRepository(Watch::class);
         self::assertCount(2, $watchRepository->findBy(['user' => $this->user]));
         self::assertCount(2, $watchRepository->findBy(['user' => $other]));
+    }
+
+    public function testTwoEntriesSharingANewTagCreateItOnce(): void
+    {
+        // The lookup behind a tag name only sees flushed rows, and an importer batch flushes
+        // once at the end — so before TagUpserter's cache, these two rows each persisted
+        // their own "rétrospective" and the pair hit uniq_tag_name on the way out.
+        file_put_contents($this->csvPath, <<<CSV
+            Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date
+            2024-03-13,Interstellar,2014,https://letterboxd.com/johndoe/film/interstellar/,4.5,,"rétrospective, sci-fi",2024-03-12
+            2024-04-02,Arrival,2016,https://letterboxd.com/johndoe/film/arrival/,4,,rétrospective,2024-04-01
+            CSV);
+
+        self::getContainer()->get(DiaryImporter::class)->import($this->csvPath, $this->createBatch($this->user));
+        $this->entityManager->clear();
+
+        $tags = $this->entityManager->getRepository(Tag::class)->findBy(['name' => 'rétrospective']);
+        self::assertCount(1, $tags, 'one row in tag, shared by both entries');
+
+        // And the sharing is real: the single row is attached to both viewings.
+        foreach (['interstellar', 'arrival'] as $slug) {
+            $watch = $this->movieRepository()->findOneByLetterboxdSlug($slug)?->getWatches()->first();
+            self::assertInstanceOf(Watch::class, $watch);
+            self::assertContains(
+                'rétrospective',
+                array_map(static fn (Tag $tag) => $tag->getName(), $watch->getTags()->toArray()),
+                $slug.' should carry the tag its row declared'
+            );
+        }
     }
 
     private function createUser(string $email): User

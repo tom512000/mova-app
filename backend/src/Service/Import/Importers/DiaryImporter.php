@@ -6,16 +6,16 @@ namespace App\Service\Import\Importers;
 
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\WatchSource;
+use App\Entity\ImportBatch;
 use App\Entity\Movie;
-use App\Entity\Tag;
 use App\Entity\User;
 use App\Entity\Watch;
-use App\Repository\TagRepository;
 use App\Repository\WatchRepository;
 use App\Service\Import\AbstractCsvImporter;
 use App\Service\Import\CsvReader;
 use App\Service\Import\FilmSlugResolver;
 use App\Service\Import\MovieUpserter;
+use App\Service\Import\TagUpserter;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -35,9 +35,18 @@ final class DiaryImporter extends AbstractCsvImporter
         MovieUpserter $movieUpserter,
         EntityManagerInterface $entityManager,
         private readonly WatchRepository $watchRepository,
-        private readonly TagRepository $tagRepository,
+        private readonly TagUpserter $tagUpserter,
     ) {
         parent::__construct($csvReader, $slugResolver, $movieUpserter, $entityManager);
+    }
+
+    public function import(string $filepath, ImportBatch $batch): array
+    {
+        // Same reason AbstractCsvImporter resets the MovieUpserter: the cache must not
+        // outlive the batch it was filled for.
+        $this->tagUpserter->reset();
+
+        return parent::import($filepath, $batch);
     }
 
     public function getFileType(): ImportFileType
@@ -80,20 +89,9 @@ final class DiaryImporter extends AbstractCsvImporter
 
         $watch->clearTags();
         foreach ($this->parseTags($row['Tags'] ?? null) as $tagName) {
-            $watch->addTag($this->findOrCreateTag($tagName));
+            $watch->addTag($this->tagUpserter->upsert($tagName));
         }
 
         return $movie;
-    }
-
-    private function findOrCreateTag(string $name): Tag
-    {
-        $tag = $this->tagRepository->findOneByName($name);
-        if (null === $tag) {
-            $tag = new Tag($name);
-            $this->entityManager->persist($tag);
-        }
-
-        return $tag;
     }
 }

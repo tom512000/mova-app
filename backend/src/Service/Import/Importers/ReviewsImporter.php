@@ -6,6 +6,7 @@ namespace App\Service\Import\Importers;
 
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\WatchSource;
+use App\Entity\ImportBatch;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
@@ -15,6 +16,7 @@ use App\Service\Import\AbstractCsvImporter;
 use App\Service\Import\CsvReader;
 use App\Service\Import\FilmSlugResolver;
 use App\Service\Import\MovieUpserter;
+use App\Service\Import\TagUpserter;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
@@ -28,7 +30,12 @@ use Doctrine\ORM\EntityManagerInterface;
  *
  * Only the review text is written. Rating, rewatch and tags are diary.csv's to own, and
  * re-writing them here would let a stale reviews.csv quietly undo a fresher diary.csv —
- * they are set only when this importer has to create the Watch itself.
+ * they are set only when this importer has to create the Watch itself, which is the one
+ * case where this file is the only thing that knows about the viewing at all.
+ *
+ * That last clause used to be a promise the code did not keep: rating and rewatch were set
+ * on a Watch created here, tags were not, and a reviews.csv uploaded without its diary.csv
+ * lost them for good.
  */
 final class ReviewsImporter extends AbstractCsvImporter
 {
@@ -38,8 +45,18 @@ final class ReviewsImporter extends AbstractCsvImporter
         MovieUpserter $movieUpserter,
         EntityManagerInterface $entityManager,
         private readonly WatchRepository $watchRepository,
+        private readonly TagUpserter $tagUpserter,
     ) {
         parent::__construct($csvReader, $slugResolver, $movieUpserter, $entityManager);
+    }
+
+    public function import(string $filepath, ImportBatch $batch): array
+    {
+        // Same reason AbstractCsvImporter resets the MovieUpserter: the cache must not
+        // outlive the batch it was filled for.
+        $this->tagUpserter->reset();
+
+        return parent::import($filepath, $batch);
     }
 
     public function getFileType(): ImportFileType
@@ -117,6 +134,14 @@ final class ReviewsImporter extends AbstractCsvImporter
         $watch->setWatchedDate($watchedDate);
         $watch->setRating($this->parseOptionalRating($row['Rating'] ?? null));
         $watch->setIsRewatch($this->parseBooleanFlag($row['Rewatch'] ?? null));
+
+        // reviews.csv carries the Tags column too. Read only here, on a Watch this importer
+        // is creating: on an existing one, diary.csv has already said its piece and a
+        // possibly-staler file must not overwrite it.
+        foreach ($this->parseTags($row['Tags'] ?? null) as $tagName) {
+            $watch->addTag($this->tagUpserter->upsert($tagName));
+        }
+
         $this->entityManager->persist($watch);
         $movie->addWatch($watch);
 
