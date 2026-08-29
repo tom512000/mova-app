@@ -67,7 +67,7 @@ export function AppLayout() {
     <div className="min-h-screen bg-paper text-ink">
       <header className="sticky top-0 z-40 border-b-4 border-ink bg-paper">
         <div className="mx-auto max-w-screen-xl px-4">
-          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-ink/15 py-2 font-mono text-[10px] uppercase tracking-widest text-subtle">
+          <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-ink/15 py-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
             <span>Vol. I &middot; Édition numérique</span>
 
             <div className="flex items-center gap-4">
@@ -99,9 +99,9 @@ export function AppLayout() {
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-5 py-7 sm:flex-row sm:justify-between sm:gap-4">
+          <div className="flex flex-col items-center gap-3 py-3.5 sm:flex-row sm:justify-between sm:gap-4">
             <div className="flex flex-col items-center sm:items-start">
-              <NavLink to="/" className="font-serif text-4xl font-black tracking-tighter sm:text-5xl">
+              <NavLink to="/" className="font-serif text-3xl font-black tracking-tighter sm:text-4xl">
                 Ciné-Stats
               </NavLink>
               {isViewingOtherProfile && activeProfile && (
@@ -137,7 +137,7 @@ export function AppLayout() {
               <button
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Passer en édition papier (clair)' : 'Passer en édition nuit (sombre)'}
-                className="flex h-11 w-11 items-center justify-center border border-ink text-ink transition-colors duration-200 hover:bg-ink hover:text-paper"
+                className="flex h-10 w-10 items-center justify-center border border-ink text-ink transition-colors duration-200 hover:bg-ink hover:text-paper"
               >
                 {theme === 'dark' ? <Sun className="h-4 w-4" strokeWidth={1.5} /> : <Moon className="h-4 w-4" strokeWidth={1.5} />}
               </button>
