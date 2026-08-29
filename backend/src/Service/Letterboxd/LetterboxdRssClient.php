@@ -34,6 +34,20 @@ final class LetterboxdRssClient implements LetterboxdRssClientInterface
     private const LETTERBOXD_NS = 'https://letterboxd.com';
     private const TMDB_NS = 'https://themoviedb.org';
 
+    /**
+     * The one place the feed says a review hides the plot.
+     *
+     * An item's title reads "Film Name, 2018 - ★★½", and Letterboxd appends this to it when
+     * the review is flagged. It is English whatever the film's language — the feed's other
+     * literals behave the same way (letterboxd:rewatch is "Yes"/"No" on a French account).
+     *
+     * Anchored at the end because that is where the suffix goes, and matched case-insensitively
+     * only to survive a capitalisation change. Nothing about this is documented, so it is
+     * built to fail in one direction: a format Letterboxd changes tomorrow yields "no marker"
+     * rather than a warning slapped on a review that never asked for one.
+     */
+    private const SPOILER_MARKER = '/\(contains spoilers\)\s*$/i';
+
     public function __construct(
         private readonly HttpClientInterface $httpClient,
         private readonly LetterboxdSlugExtractor $slugExtractor,
@@ -108,6 +122,7 @@ final class LetterboxdRssClient implements LetterboxdRssClientInterface
             rating: isset($lb->memberRating) && '' !== (string) $lb->memberRating ? (float) $lb->memberRating : null,
             isRewatch: isset($lb->rewatch) && 'Yes' === (string) $lb->rewatch,
             reviewText: $this->extractReviewText((string) $item->description),
+            containsSpoilers: 1 === preg_match(self::SPOILER_MARKER, (string) $item->title),
         );
     }
 

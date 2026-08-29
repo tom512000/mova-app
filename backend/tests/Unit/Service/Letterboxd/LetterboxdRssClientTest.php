@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Service\Letterboxd;
 
+use App\DTO\Letterboxd\RssDiaryEntry;
 use App\Service\Import\LetterboxdSlugExtractor;
 use App\Service\Letterboxd\LetterboxdRssClient;
 use PHPUnit\Framework\TestCase;
@@ -55,6 +56,69 @@ final class LetterboxdRssClientTest extends TestCase
         self::assertSame(2.5, $entry->rating);
         self::assertFalse($entry->isRewatch);
         self::assertSame('Ca put sa mère, sa mère !', $entry->reviewText);
+        self::assertFalse($entry->containsSpoilers);
+    }
+
+    public function testTheRealFeedEntryCarriesNoSpoilerWarning(): void
+    {
+        $httpClient = new MockHttpClient(new MockResponse(self::REAL_FEED_SAMPLE));
+        $client = new LetterboxdRssClient($httpClient, new LetterboxdSlugExtractor(), new NullLogger());
+
+        self::assertFalse($client->fetchDiaryEntries('tom51200')[0]->containsSpoilers);
+    }
+
+    public function testAFlaggedReviewIsReadFromTheTitleSuffix(): void
+    {
+        // The feed has no element and no attribute for this — the suffix on <title> is the
+        // only trace of it anywhere in the document.
+        $entry = $this->entryWithTitle('Neuilly sa mère, sa mère !, 2018 - ★★½ (contains spoilers)');
+
+        self::assertTrue($entry->containsSpoilers);
+        // And reading the title must not disturb anything else that comes off the item.
+        self::assertSame('Neuilly sa mère, sa mère !', $entry->filmTitle);
+        self::assertSame(2.5, $entry->rating);
+    }
+
+    public function testTheMarkerSurvivesACapitalisationChange(): void
+    {
+        self::assertTrue(
+            $this->entryWithTitle('Neuilly sa mère, sa mère !, 2018 - ★★½ (Contains Spoilers)')->containsSpoilers
+        );
+    }
+
+    public function testTheMarkerIsOnlyReadWhereLetterboxdPutsIt(): void
+    {
+        // A film whose own title happens to contain the words. Anchoring at the end is what
+        // keeps this from becoming a warning nobody asked for.
+        self::assertFalse(
+            $this->entryWithTitle('(contains spoilers) le film, 2018 - ★★½')->containsSpoilers
+        );
+    }
+
+    public function testATitleShapeNobodyRecognisesMeansNoMarker(): void
+    {
+        // The whole point of building this one-directional: Letterboxd can change the format
+        // tomorrow and the worst outcome is a spoiler warning that stops appearing — never a
+        // review wrongly hidden behind a click.
+        self::assertFalse($this->entryWithTitle('')->containsSpoilers);
+        self::assertFalse($this->entryWithTitle('Neuilly sa mère, sa mère ! ~ contient des révélations')->containsSpoilers);
+    }
+
+    private function entryWithTitle(string $title): RssDiaryEntry
+    {
+        $feed = str_replace(
+            '<title>Neuilly sa mère, sa mère !, 2018 - ★★½</title>',
+            '<title>'.$title.'</title>',
+            self::REAL_FEED_SAMPLE
+        );
+
+        $client = new LetterboxdRssClient(
+            new MockHttpClient(new MockResponse($feed)),
+            new LetterboxdSlugExtractor(),
+            new NullLogger()
+        );
+
+        return $client->fetchDiaryEntries('tom51200')[0];
     }
 
     public function testThrowsOnNonOkResponse(): void

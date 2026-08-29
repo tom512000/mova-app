@@ -20,6 +20,13 @@ final readonly class RssDiaryEntry
         public ?float $rating,
         public bool $isRewatch,
         public ?string $reviewText,
+        /**
+         * Letterboxd exposes this nowhere in the feed's own vocabulary — no element, no
+         * attribute. The only trace is a "(contains spoilers)" suffix on the item's <title>,
+         * which is why this is read there and why it defaults to false: an unrecognised
+         * title shape must mean "no marker", never a spoiler warning nobody asked for.
+         */
+        public bool $containsSpoilers = false,
     ) {
     }
 }

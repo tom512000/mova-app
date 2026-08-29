@@ -88,6 +88,10 @@ final class LetterboxdRssSyncService
             $watch->setRating($entry->rating);
             $watch->setIsRewatch($entry->isRewatch);
             $watch->setReviewText($entry->reviewText);
+            // Until now nothing in the application ever set this, so the reveal-on-click
+            // block on a film's page could not be reached. The RSS feed is the only source
+            // that carries the flag at all — the CSV export has no column for it.
+            $watch->setContainsSpoilers($entry->containsSpoilers);
             $this->entityManager->persist($watch);
             $movie->addWatch($watch);
 
