@@ -7,6 +7,7 @@ namespace App\Service\Import;
 use App\Entity\Enum\ImportStatus;
 use App\Entity\ImportBatch;
 use App\Message\EnrichMovieMessage;
+use App\Repository\MovieRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\MessageBusInterface;
@@ -17,6 +18,7 @@ final class ImportOrchestrator
         private readonly ImporterRegistry $importerRegistry,
         private readonly CsvReader $csvReader,
         private readonly EntityManagerInterface $entityManager,
+        private readonly MovieRepository $movieRepository,
         private readonly MessageBusInterface $messageBus,
         private readonly LoggerInterface $logger,
     ) {
@@ -42,7 +44,11 @@ final class ImportOrchestrator
             $batch->markFinished();
             $this->entityManager->flush();
 
-            foreach ($touchedMovieIds as $movieId) {
+            // Only the films an enrichment could still change anything about. An importer
+            // hands back everything it touched, and on a re-import — or on a second account
+            // importing the same export — that is almost entirely films already enriched,
+            // for which the handler would wake up, read one column and go back to sleep.
+            foreach ($this->movieRepository->filterNeedingEnrichment($touchedMovieIds) as $movieId) {
                 $this->messageBus->dispatch(new EnrichMovieMessage($movieId));
             }
         } catch (\Throwable $e) {

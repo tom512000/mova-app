@@ -496,6 +496,51 @@ class MovieRepository extends ServiceEntityRepository
     }
 
     /**
+     * Narrows a list of ids to the films an enrichment job could still do something with.
+     *
+     * An import hands back every film it touched, which on a re-import — or on a second
+     * account importing the same export — is overwhelmingly films the library already knows
+     * everything about. Queueing those was never wrong: EnrichMovieMessageHandler returns
+     * immediately on an ENRICHED film without going near TMDB. It was just expensive for
+     * nothing: measured at roughly 5 ms to write the message and 2 ms to consume it, seven
+     * hundred films came to about five seconds of pure queue churn per file, repeated for
+     * every file in the zip that mentions them.
+     *
+     * Ids come back in the order they were given, so enrichment still follows the order of
+     * the CSV rather than whatever the planner felt like.
+     *
+     * @param list<string> $ids
+     *
+     * @return list<string>
+     */
+    public function filterNeedingEnrichment(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+
+        // Only the ids are selected: hydrating whole entities to read one enum off each is
+        // exactly the work this method exists to avoid.
+        $rows = $this->createQueryBuilder('m')
+            ->select('m.id')
+            ->where('m.id IN (:ids)')
+            ->andWhere('m.enrichmentStatus IN (:statuses)')
+            ->setParameter('ids', $ids)
+            ->setParameter('statuses', EnrichmentStatus::needingEnrichment())
+            ->getQuery()
+            ->getScalarResult();
+
+        $needing = [];
+        foreach ($rows as $row) {
+            // Cast: depending on hydration this is a Uuid object rather than a string, and
+            // either way it has to become an array key.
+            $needing[(string) $row['id']] = true;
+        }
+
+        return array_values(array_filter($ids, static fn (string $id) => isset($needing[$id])));
+    }
+
+    /**
      * @return Movie[]
      */
     public function findNeedingEnrichment(int $limit = 50): array

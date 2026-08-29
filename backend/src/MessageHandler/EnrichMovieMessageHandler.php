@@ -39,10 +39,11 @@ final class EnrichMovieMessageHandler
             return;
         }
 
-        // ENRICHED is done; EXCLUDED means a human already confirmed this Letterboxd
-        // entry has no TMDB movie match (see EnrichmentStatus::EXCLUDED) — retrying it
-        // on every CSV re-import is exactly what let TmdbResolver re-pick a wrong movie.
-        if (\in_array($movie->getEnrichmentStatus(), [EnrichmentStatus::ENRICHED, EnrichmentStatus::EXCLUDED], true)) {
+        // The dispatchers filter on the same rule, so reaching this line with nothing to do
+        // is now the exception rather than the norm. It stays because a message can outlive
+        // the state it was queued for: two files in one zip can both name a film, and the
+        // first one's enrichment can land before the second one's message is consumed.
+        if (!$movie->getEnrichmentStatus()->needsEnrichment()) {
             return;
         }
 

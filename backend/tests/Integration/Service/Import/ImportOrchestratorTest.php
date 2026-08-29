@@ -4,14 +4,17 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration\Service\Import;
 
+use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\ImportFileType;
 use App\Entity\Enum\ImportStatus;
 use App\Entity\ImportBatch;
+use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
 use App\Service\Import\ImportOrchestrator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport;
 
 /**
  * What happens when the *same* batch is processed twice.
@@ -116,6 +119,79 @@ final class ImportOrchestratorTest extends KernelTestCase
 
         self::assertSame(ImportStatus::COMPLETED_WITH_ERRORS, $batch->getStatus());
         self::assertSame(2, $batch->getRowsImported());
+    }
+
+    public function testEveryFilmTheImportTouchedIsQueuedTheFirstTimeRound(): void
+    {
+        $this->transport()->reset();
+        self::getContainer()->get(ImportOrchestrator::class)->process($this->createBatch());
+
+        // Two rows carry a usable film; the third has no title and never gets that far.
+        self::assertCount(2, $this->transport()->getSent());
+    }
+
+    public function testAFilmTheLibraryAlreadyKnowsEverythingAboutIsNotQueuedAgain(): void
+    {
+        $orchestrator = self::getContainer()->get(ImportOrchestrator::class);
+        $orchestrator->process($this->createBatch());
+
+        $this->setStatusOfEveryFilm(EnrichmentStatus::ENRICHED);
+
+        // The same export imported again — by this account or, more to the point, by another
+        // one, which is where nothing gets skipped along the way and every row comes back.
+        $this->transport()->reset();
+        $orchestrator->process($this->createBatch());
+
+        self::assertSame(
+            [],
+            $this->transport()->getSent(),
+            'an enriched film has nothing to ask TMDB, so it should not cost a message either'
+        );
+    }
+
+    public function testAFilmDeliberatelyExcludedIsNotQueuedEither(): void
+    {
+        $orchestrator = self::getContainer()->get(ImportOrchestrator::class);
+        $orchestrator->process($this->createBatch());
+
+        // EXCLUDED is a human decision that this entry has no TMDB match. Re-queueing it is
+        // what used to send TmdbResolver hunting for a wrong one on every re-import.
+        $this->setStatusOfEveryFilm(EnrichmentStatus::EXCLUDED);
+
+        $this->transport()->reset();
+        $orchestrator->process($this->createBatch());
+
+        self::assertSame([], $this->transport()->getSent());
+    }
+
+    public function testAFilmWhoseEnrichmentFailedIsQueuedAgain(): void
+    {
+        $orchestrator = self::getContainer()->get(ImportOrchestrator::class);
+        $orchestrator->process($this->createBatch());
+
+        // The other half of the rule: filtering must not turn into never retrying. FAILED
+        // and AMBIGUOUS are both still worth an attempt.
+        $this->setStatusOfEveryFilm(EnrichmentStatus::FAILED);
+
+        $this->transport()->reset();
+        $orchestrator->process($this->createBatch());
+
+        self::assertCount(2, $this->transport()->getSent());
+    }
+
+    private function setStatusOfEveryFilm(EnrichmentStatus $status): void
+    {
+        foreach ($this->entityManager->getRepository(Movie::class)->findAll() as $movie) {
+            $movie->setEnrichmentStatus($status);
+        }
+        $this->entityManager->flush();
+    }
+
+    private function transport(): InMemoryTransport
+    {
+        // messenger.yaml routes async to in-memory under when@test, so what the orchestrator
+        // dispatched can be read back without a worker.
+        return self::getContainer()->get('messenger.transport.async');
     }
 
     private function createBatch(): ImportBatch

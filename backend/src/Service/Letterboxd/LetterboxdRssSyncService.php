@@ -98,7 +98,8 @@ final class LetterboxdRssSyncService
         $this->entityManager->flush();
 
         foreach ($touchedMovies as $movie) {
-            if (EnrichmentStatus::ENRICHED !== $movie->getEnrichmentStatus()) {
+            // Was `!== ENRICHED`, which still queued films deliberately marked EXCLUDED.
+            if ($movie->getEnrichmentStatus()->needsEnrichment()) {
                 $this->messageBus->dispatch(new EnrichMovieMessage((string) $movie->getId()));
             }
         }
