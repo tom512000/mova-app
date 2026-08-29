@@ -12,10 +12,12 @@ framework:
             App\Message\EnrichMovieMessage: async
             App\Message\SyncLetterboxdRssMessage: async
 
-# when@test:
-#    framework:
-#        messenger:
-#            transports:
-#                # replace with your transport name here (e.g., my_transport: 'in-memory://')
-#                # For more Messenger testing tools, see https://github.com/zenstruck/messenger-test
-#                async: 'in-memory://'
+# Tests dispatch for real — an import ends by queueing an enrichment job for every film it
+# touched — but they have no worker to consume any of it, and the doctrine transport would
+# need its table created inside a transaction the test then rolls back. In-memory keeps
+# dispatching a genuine operation that can genuinely fail, without a queue behind it.
+when@test:
+    framework:
+        messenger:
+            transports:
+                async: 'in-memory://'

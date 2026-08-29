@@ -93,7 +93,7 @@ final class ImportController
         usort($batches, static fn (ImportBatch $a, ImportBatch $b) => $a->getFileType()->importPriority() <=> $b->getFileType()->importPriority());
 
         foreach ($batches as $batch) {
-            $this->messageBus->dispatch(new ProcessImportBatchMessage($batch->getId()));
+            $this->messageBus->dispatch(new ProcessImportBatchMessage((string) $batch->getId()));
         }
 
         return new JsonResponse([

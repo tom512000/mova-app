@@ -39,7 +39,7 @@ final class RetryFailedEnrichmentsCommand extends Command
 
         $movies = $this->movieRepository->findNeedingEnrichment($limit);
         foreach ($movies as $movie) {
-            $this->messageBus->dispatch(new EnrichMovieMessage($movie->getId()));
+            $this->messageBus->dispatch(new EnrichMovieMessage((string) $movie->getId()));
         }
 
         $io->success(sprintf('%d film(s) re-mis en file pour enrichissement TMDB.', \count($movies)));

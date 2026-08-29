@@ -22,7 +22,8 @@ interface ImporterInterface
      * attaching an ImportRowError for every row that could not be processed
      * (never letting a single bad row abort the whole batch).
      *
-     * @return int[] ids of Movie entities that were created or need re-checking for TMDB enrichment
+     * @return list<string> ids of Movie entities that were created or need re-checking for
+     *                      TMDB enrichment
      */
     public function import(string $filepath, ImportBatch $batch): array;
 }

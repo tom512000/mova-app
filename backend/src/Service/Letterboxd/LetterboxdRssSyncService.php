@@ -99,7 +99,7 @@ final class LetterboxdRssSyncService
 
         foreach ($touchedMovies as $movie) {
             if (EnrichmentStatus::ENRICHED !== $movie->getEnrichmentStatus()) {
-                $this->messageBus->dispatch(new EnrichMovieMessage($movie->getId()));
+                $this->messageBus->dispatch(new EnrichMovieMessage((string) $movie->getId()));
             }
         }
 

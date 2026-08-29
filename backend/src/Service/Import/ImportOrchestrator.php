@@ -29,7 +29,12 @@ final class ImportOrchestrator
 
         try {
             $importer = $this->importerRegistry->resolve($batch->getFilename(), $batch->getStoredPath());
+
+            // This run's tallies start here. A batch reaching this line for the second time
+            // is a redelivered message about to re-read the whole file, and its counts
+            // describe that pass — not the sum of every attempt at it.
             $batch->setRowsTotal($this->csvReader->countDataRows($batch->getStoredPath()));
+            $batch->resetTallies();
 
             $touchedMovieIds = $importer->import($batch->getStoredPath(), $batch);
 
