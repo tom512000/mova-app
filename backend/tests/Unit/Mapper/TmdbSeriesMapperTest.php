@@ -132,7 +132,9 @@ final class TmdbSeriesMapperTest extends TestCase
             ['Drame', 'Science-Fiction', 'Fantastique'],
             $this->names($movie->getGenres()->toArray())
         );
-        self::assertSame(['United States of America'], $this->names($movie->getCountries()->toArray()));
+        // Not the English label the payload carries: TMDB never translates production
+        // countries, so FrenchCountryNames derives the name from the ISO code instead.
+        self::assertSame(['États-Unis'], $this->names($movie->getCountries()->toArray()));
         self::assertSame(['Marvel Studios'], $this->names($movie->getStudios()->toArray()));
     }
 

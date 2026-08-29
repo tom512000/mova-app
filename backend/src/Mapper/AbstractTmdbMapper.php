@@ -89,9 +89,14 @@ abstract class AbstractTmdbMapper
             if (null === $country) {
                 $country = new Country();
                 $country->setIsoCode($countryData['iso_3166_1']);
-                $country->setName($countryData['name']);
                 $this->entityManager->persist($country);
             }
+
+            // Set on every pass, not only on creation: TMDB never translates this field, so
+            // a row created before FrenchCountryNames existed would keep its English label
+            // for good otherwise.
+            $country->setName(FrenchCountryNames::of($countryData['iso_3166_1'], $countryData['name']));
+
             $movie->addCountry($country);
         }
     }
