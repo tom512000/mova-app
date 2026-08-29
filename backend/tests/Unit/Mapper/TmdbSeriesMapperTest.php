@@ -126,7 +126,12 @@ final class TmdbSeriesMapperTest extends TestCase
     {
         $movie = $this->map();
 
-        self::assertSame(['Drame', 'Science-Fiction & Fantastique'], $this->names($movie->getGenres()->toArray()));
+        // "Science-Fiction & Fantastique" does not survive the mapper: TvGenreVocabulary
+        // splits TMDB's compound television genres into their film-side halves on the way in.
+        self::assertSame(
+            ['Drame', 'Science-Fiction', 'Fantastique'],
+            $this->names($movie->getGenres()->toArray())
+        );
         self::assertSame(['United States of America'], $this->names($movie->getCountries()->toArray()));
         self::assertSame(['Marvel Studios'], $this->names($movie->getStudios()->toArray()));
     }

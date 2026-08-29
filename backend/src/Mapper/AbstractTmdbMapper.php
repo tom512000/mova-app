@@ -27,9 +27,9 @@ use Doctrine\ORM\EntityManagerInterface;
  * One caveat worth keeping in mind while reading the subclasses: TMDB maintains *separate*
  * genre vocabularies for films and series. The ids that appear in both (18 Drama, 35 Comedy,
  * 80 Crime, 99 Documentary…) carry the same name on both sides, so they land on the same
- * Genre row and nothing collides. The series-only ones ("Sci-Fi & Fantasy", "War & Politics")
- * simply join the same table, which is why the genre filter can show both "Science-Fiction"
- * and "Science-Fiction & Fantastique".
+ * Genre row and nothing collides. Two of the series-only ones bundle concepts the film list
+ * keeps apart, and mapGenres() below splits those before they ever reach the table — see
+ * TvGenreVocabulary for which, and for the ones left alone.
  */
 abstract class AbstractTmdbMapper
 {
@@ -63,7 +63,10 @@ abstract class AbstractTmdbMapper
     protected function mapGenres(Movie $movie, array $genres): void
     {
         $movie->clearGenres();
-        foreach ($genres as $genreData) {
+
+        // Series genres are rewritten into the film vocabulary first, so that the two
+        // catalogues stop describing the same idea under two names.
+        foreach (TvGenreVocabulary::translate($genres) as $genreData) {
             $genre = $this->genreRepository->findOneByTmdbId($genreData['id']);
             if (null === $genre) {
                 $genre = new Genre();
