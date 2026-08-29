@@ -41,6 +41,12 @@ const NAV_ITEMS: NavItem[] = [
       { to: '/games/compare/daily', label: 'Le film comparé', hint: 'Chaque proposition se compare à la cible' },
       { to: '/games/poster/daily', label: 'Le film pixelisé', hint: 'Une affiche qui se précise à chaque essai' },
       { to: '/games/hangman/daily', label: 'Le film pendu', hint: 'Un titre à deviner lettre par lettre' },
+      { to: '/games/tagline/daily', label: "L'accroche", hint: 'La phrase qui a vendu le film' },
+      { to: '/games/backdrop/daily', label: 'Le décor', hint: 'Un plan du film, sans le titre ni les visages' },
+      // The two that are not about recognising a film: they come last, after the six that
+      // are, so the list still reads as one idea before it changes register.
+      { to: '/games/duel/daily', label: 'Le duel', hint: 'Lequel des deux as-tu noté le plus haut ?' },
+      { to: '/games/timeline/daily', label: 'La chronologie', hint: 'Cinq films à remettre par date de sortie' },
     ],
   },
   // Import writes, and writing only ever targets the logged-in account — so it disappears

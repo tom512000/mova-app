@@ -36,7 +36,15 @@ export interface MovieSummary {
   mediaType: MediaType
 }
 
-export type GameKind = 'clue' | 'compare' | 'poster' | 'hangman'
+export type GameKind =
+  | 'clue'
+  | 'compare'
+  | 'poster'
+  | 'hangman'
+  | 'tagline'
+  | 'backdrop'
+  | 'duel'
+  | 'timeline'
 export type GameMode = 'daily' | 'infinite'
 export type GameStatus = 'in_progress' | 'won' | 'lost'
 export type FacetMatch = 'exact' | 'close' | 'none' | 'unknown'
@@ -77,10 +85,11 @@ export interface GameGuess {
 }
 
 /**
- * The answer's poster at the sharpness earned so far. The grid is the whole payload — no
- * URL, no full-size image to un-blur — so there is nothing here to cheat with.
+ * The answer's artwork at the sharpness earned so far — its poster in "Le film pixelisé",
+ * its backdrop in "Le décor". The grid is the whole payload — no URL, no full-size image to
+ * un-blur — so there is nothing here to cheat with.
  */
-export interface PosterPixels {
+export interface ArtworkPixels {
   width: number
   height: number
   /** Which rung of the ladder, 1-based, and how many there are. */
@@ -119,10 +128,75 @@ export interface GameState {
   guesses: GameGuess[]
   answer: MovieSummary | null
   puzzleDate: string | null
-  /** Populated in the poster game only. Null when TMDB's artwork could not be read. */
-  poster: PosterPixels | null
+  /** The film's own marketing line, in "L'accroche" only — where it is the opening card. */
+  tagline: string | null
+  /** Populated in the two pixel games. Null when TMDB's artwork could not be read. */
+  artwork: ArtworkPixels | null
   /** Populated in the hangman only. */
   hangman: HangmanBoard | null
+  /** Populated in the duel only. */
+  duel: DuelBoard | null
+  /** Populated in the timeline only. */
+  timeline: TimelineBoard | null
+}
+
+/**
+ * One side of a duel. Thinner than MovieSummary on purpose: the summary carries the
+ * rating, and in this game the rating is the answer — so it arrives null until the round
+ * has been settled.
+ */
+export interface DuelCard {
+  movieId: string
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  rating: number | null
+}
+
+/** A duel already played, both ratings now visible. */
+export interface DuelRound {
+  /** Exactly two, in the order they were shown. */
+  cards: DuelCard[]
+  pickedId: string
+  correct: boolean
+}
+
+export interface DuelBoard {
+  /** Exactly two while the run is open, null once it is over. */
+  cards: DuelCard[] | null
+  /** Oldest first; the losing round is the last one. */
+  history: DuelRound[]
+  streak: number
+  /** The longest streak this profile has ever run up in this mode. */
+  best: number
+}
+
+/** One film to place on the timeline. The year is the answer, so it stays null until the end. */
+export interface TimelineCard {
+  movieId: string
+  title: string
+  posterUrl: string | null
+  releaseYear: number | null
+}
+
+/**
+ * One submitted ordering, and the only thing said back about it: which slots were right.
+ * Not which film belongs where, and not whether one is too early — either would collapse
+ * the puzzle in a single move.
+ */
+export interface TimelineAttempt {
+  order: string[]
+  /** One per slot, aligned with `order`. */
+  correct: boolean[]
+  correctCount: number
+}
+
+export interface TimelineBoard {
+  /** As dealt, never re-shuffled mid-run. */
+  cards: TimelineCard[]
+  attempts: TimelineAttempt[]
+  /** The film ids in true release order, revealed only once the run is over. */
+  solution: string[] | null
 }
 
 export type CreditRole = 'director' | 'writer' | 'actor'

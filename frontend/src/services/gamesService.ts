@@ -21,6 +21,24 @@ export async function submitGuess(game: GameKind, mode: GameMode, movieId: strin
   return data.session as GameState
 }
 
+/**
+ * Duel only: one side of the pair on the table.
+ *
+ * Same payload as a guess and a different route, because it means a different thing — "this
+ * one of the two" rather than "this is the film you are hiding". The API refuses each at the
+ * other's door.
+ */
+export async function submitPick(game: GameKind, mode: GameMode, movieId: string): Promise<GameState> {
+  const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/pick`, { movieId })
+  return data.session as GameState
+}
+
+/** Timeline only: the whole board in the order the player believes it came out. */
+export async function submitOrder(game: GameKind, mode: GameMode, order: string[]): Promise<GameState> {
+  const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/order`, { order })
+  return data.session as GameState
+}
+
 /** Hangman only: a letter rather than a film, which the API keeps on its own route. */
 export async function submitLetter(game: GameKind, mode: GameMode, letter: string): Promise<GameState> {
   const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/letter`, { letter })

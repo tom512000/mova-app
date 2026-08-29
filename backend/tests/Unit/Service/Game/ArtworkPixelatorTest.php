@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Service\Game;
 
 use App\Entity\Movie;
-use App\Service\Game\PosterPixelator;
+use App\Service\Game\ArtworkPixelator;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
 use Symfony\Component\Cache\Adapter\ArrayAdapter;
@@ -13,11 +13,11 @@ use Symfony\Component\HttpClient\MockHttpClient;
 use Symfony\Component\HttpClient\Response\MockResponse;
 
 /**
- * The poster game lives or dies on this class: it is the only thing standing between the
+ * The two pixel games live or die on this class: it is the only thing standing between the
  * player and the answer, since anything it emits is on screen and in the payload. So what
  * matters here is that a rung really is as coarse as it claims to be.
  */
-final class PosterPixelatorTest extends TestCase
+final class ArtworkPixelatorTest extends TestCase
 {
     private const BASE_URL = 'https://image.tmdb.org/t/p';
 
@@ -110,7 +110,7 @@ final class PosterPixelatorTest extends TestCase
             return new MockResponse($this->poster());
         });
 
-        $pixelator = new PosterPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
+        $pixelator = new ArtworkPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
         $movie = $this->movie();
 
         foreach (array_keys(self::LADDER) as $attemptsUsed) {
@@ -131,7 +131,7 @@ final class PosterPixelatorTest extends TestCase
     public function testAPosterTmdbNoLongerServesIsNotFatal(): void
     {
         $client = new MockHttpClient(new MockResponse('', ['http_code' => 404]));
-        $pixelator = new PosterPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
+        $pixelator = new ArtworkPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
 
         // The board says so rather than showing an empty frame the player reads as a clue.
         self::assertNull($pixelator->pixelate($this->movie(), 0));
@@ -140,14 +140,63 @@ final class PosterPixelatorTest extends TestCase
     public function testSomethingThatIsNotAnImageIsNotFatalEither(): void
     {
         $client = new MockHttpClient(new MockResponse('<!doctype html><title>404</title>'));
-        $pixelator = new PosterPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
+        $pixelator = new ArtworkPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
 
         self::assertNull($pixelator->pixelate($this->movie(), 0));
     }
 
-    private function pixelator(string $bytes): PosterPixelator
+    public function testTheBackdropStartsWiderThanThePosterBecauseTheImageIs(): void
     {
-        return new PosterPixelator(
+        // 16:9 against 2:3: six pixels across a backdrop is three rows of mud, so "Le décor"
+        // opens on a coarser-looking but genuinely wider grid.
+        $pixels = $this->pixelator($this->backdrop())->pixelateBackdrop($this->wideMovie(), 0);
+
+        self::assertNotNull($pixels);
+        self::assertSame(9, $pixels->width);
+        self::assertSame(5, $pixels->height, 'the 16:9 shape of the source is kept');
+        self::assertCount(45, $pixels->colors);
+    }
+
+    public function testBothLaddersAreTheSameLength(): void
+    {
+        // The two games share a number of tries even though they do not share a coarseness,
+        // and steps() is the single place either of them reads it from.
+        $pixelator = $this->pixelator($this->backdrop());
+
+        $last = $pixelator->pixelateBackdrop($this->wideMovie(), $pixelator->steps() - 1);
+
+        self::assertNotNull($last);
+        self::assertSame($pixelator->steps(), $last->steps);
+        self::assertSame(52, $last->width, 'the top rung of the backdrop ladder');
+    }
+
+    public function testTheBackdropIsFetchedAtItsOwnSourceWidth(): void
+    {
+        $urls = [];
+        $client = new MockHttpClient(function (string $method, string $url) use (&$urls): MockResponse {
+            $urls[] = $url;
+
+            return new MockResponse($this->backdrop());
+        });
+
+        $pixelator = new ArtworkPixelator($client, new ArrayAdapter(), new NullLogger(), self::BASE_URL);
+        $pixelator->pixelateBackdrop($this->wideMovie(), 0);
+
+        // w780 rather than the poster's w342: the top rung is 52 across and needs room to
+        // average over.
+        self::assertSame([self::BASE_URL.'/w780/backdrop.jpg'], $urls);
+    }
+
+    public function testAFilmWithoutABackdropHasNothingToShowEither(): void
+    {
+        // Carrying a poster is not carrying a backdrop — the two games ask different things
+        // of the same film, and the draw is what keeps them apart.
+        self::assertNull($this->pixelator($this->poster())->pixelateBackdrop($this->movie(), 0));
+    }
+
+    private function pixelator(string $bytes): ArtworkPixelator
+    {
+        return new ArtworkPixelator(
             new MockHttpClient(fn () => new MockResponse($bytes)),
             new ArrayAdapter(),
             new NullLogger(),
@@ -158,6 +207,19 @@ final class PosterPixelatorTest extends TestCase
     private function movie(): Movie
     {
         return (new Movie('un-film', 'Un film'))->setPosterPath('/poster.jpg');
+    }
+
+    private function wideMovie(): Movie
+    {
+        return (new Movie('un-film-large', 'Un film'))->setBackdropPath('/backdrop.jpg');
+    }
+
+    /** A plain 16:9 backdrop, in the proportions TMDB actually serves. */
+    private function backdrop(): string
+    {
+        return $this->png(96, 54, static function (\GdImage $image): void {
+            imagefilledrectangle($image, 0, 0, 95, 53, imagecolorallocate($image, 0x99, 0x66, 0x33));
+        });
     }
 
     /** A plain 2:3 poster, in the proportions TMDB actually serves. */

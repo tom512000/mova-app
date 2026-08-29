@@ -20,13 +20,23 @@ use App\Repository\WatchRepository;
 use Doctrine\ORM\EntityManagerInterface;
 
 /**
- * "Guess the film I watched", in all three of its flavours: one drip-feeds clues about the
- * answer, one lays each guess beside it attribute by attribute, and one shows its poster
- * from too far away. The board, the bookkeeping and the two modes are identical — only what
- * a guess buys you differs, which is why they share this class and split at toState().
+ * The engine every game runs on.
  *
- * The answer never crosses the wire while a run is open. toState() is the only place
- * allowed to decide what the player may see, so that rule has exactly one home.
+ * Eight of them now, and what they have in common is not the puzzle — it is the run: two
+ * modes, a seeded draw, one board per day or one per click, a status that closes exactly
+ * once. That is what lives here. What a move *means* lives in the small classes this one
+ * leans on (FilmClueBuilder, FilmComparisonBuilder, ArtworkPixelator, FilmTitleHangman,
+ * FilmRatingDuel, FilmReleaseTimeline), and toState() is where the two are joined.
+ *
+ * Six games hide one film and are played by naming films. The other two hide nothing: the
+ * duel asks which of two you rated higher, the timeline asks what order five came out in.
+ * They still need a `movie` because the column is not nullable, so they store the first
+ * film of their board there — which is why `answer` below is withheld from them even after
+ * they end. It would not be an answer, only an implementation detail.
+ *
+ * The one rule the whole file exists to keep: nothing the player has not earned crosses the
+ * wire. toState() is the only place allowed to decide what may be seen, so that rule has
+ * exactly one home.
  */
 final class FilmGuessGame
 {
@@ -50,8 +60,10 @@ final class FilmGuessGame
         private readonly MovieMapper $movieMapper,
         private readonly FilmClueBuilder $clueBuilder,
         private readonly FilmComparisonBuilder $comparisonBuilder,
-        private readonly PosterPixelator $pixelator,
+        private readonly ArtworkPixelator $pixelator,
         private readonly FilmTitleHangman $hangman,
+        private readonly FilmRatingDuel $duel,
+        private readonly FilmReleaseTimeline $timeline,
     ) {
     }
 
@@ -72,8 +84,15 @@ final class FilmGuessGame
             : $this->startInfinite($user, $game);
     }
 
+    /**
+     * Naming a film — the move six of the eight are played with.
+     */
     public function guess(User $user, GameSession $session, string $movieId): GameSession
     {
+        if (!$session->getGame()->isNamedByFilm()) {
+            throw new GameException('Ce jeu ne se joue pas en nommant un film.');
+        }
+
         $this->assertOpen($session);
 
         if ($session->hasGuessed($movieId)) {
@@ -124,6 +143,93 @@ final class FilmGuessGame
     }
 
     /**
+     * Duel only: backing one of the two films on the table.
+     *
+     * This is the one move that does not go through settle(). A streak has no attempt budget
+     * to run down — a right answer is not progress towards an end, it *is* the game
+     * continuing, and it draws the next pair here rather than ending anything. There are
+     * only two ways out: a wrong pick, or a library with no unplayed pair left in it, and
+     * the second is a win because nothing was got wrong to reach it.
+     */
+    public function pick(User $user, GameSession $session, string $movieId): GameSession
+    {
+        if (GameKind::DUEL !== $session->getGame()) {
+            throw new GameException('Ce jeu ne se joue pas en duel.');
+        }
+
+        $this->assertOpen($session);
+
+        $board = $session->getBoard();
+        if (!\in_array($movieId, $board, true)) {
+            throw new GameException('Ce film n\'est pas dans le duel en cours.');
+        }
+
+        $pair = $this->movies->findByIdsOrdered($board);
+        if (2 !== \count($pair)) {
+            throw new GameException('Ce duel n\'est plus jouable.');
+        }
+
+        [$left, $right] = $pair;
+        $backedLeft = (string) $left->getId() === $movieId;
+
+        $session->addPlay($board)->addGuess($movieId);
+
+        if (!$this->duel->isRightSide($user, $backedLeft ? $left : $right, $backedLeft ? $right : $left)) {
+            $this->close($session, GameStatus::LOST);
+
+            return $session;
+        }
+
+        // Seeded off the session and the round rather than off random bytes, so replaying a
+        // run against the same library deals the same duels — which is what makes this
+        // testable at all.
+        $next = $this->duel->draw(
+            $user,
+            sprintf('duel-%s-%d', $session->getId(), \count($session->getPlays())),
+            array_merge(...$session->getPlays())
+        );
+
+        if (2 === \count($next)) {
+            $session->setBoard(array_map(static fn (Movie $movie) => (string) $movie->getId(), $next));
+            $this->entityManager->flush();
+
+            return $session;
+        }
+
+        $this->close($session, GameStatus::WON);
+
+        return $session;
+    }
+
+    /**
+     * Timeline only: an ordering of every film on the board, oldest first.
+     *
+     * @param list<string> $order
+     */
+    public function order(GameSession $session, array $order): GameSession
+    {
+        if (GameKind::TIMELINE !== $session->getGame()) {
+            throw new GameException('Ce jeu ne se joue pas dans l\'ordre.');
+        }
+
+        $this->assertOpen($session);
+
+        $board = $session->getBoard();
+        $order = array_values($order);
+
+        // A permutation, not a subset and not a list with a film played twice — an ordering
+        // that is neither would be judged slot by slot and quietly scored as if it counted.
+        if (\count($order) !== \count($board) || array_unique($order) !== $order || [] !== array_diff($board, $order)) {
+            throw new GameException('Propose un ordre qui contient chacun des films une fois et une seule.');
+        }
+
+        $session->addPlay($order);
+        $this->settle($session, $this->timeline->isSolved($session, $order));
+
+        return $session;
+    }
+
+    /**
      * Records the outcome of a move and closes the run if it ended one.
      */
     private function settle(GameSession $session, bool $won): void
@@ -137,6 +243,16 @@ final class FilmGuessGame
         $this->entityManager->flush();
     }
 
+    /**
+     * Ends a run and clears the table. The board is emptied rather than left standing so
+     * that a finished duel cannot be clicked on; its rounds are all in `plays` anyway.
+     */
+    private function close(GameSession $session, GameStatus $status): void
+    {
+        $session->setBoard([])->finish($status);
+        $this->entityManager->flush();
+    }
+
     private function assertOpen(GameSession $session): void
     {
         if ($session->getStatus()->isOver()) {
@@ -146,26 +262,36 @@ final class FilmGuessGame
 
     public function toState(GameSession $session): GameStateDto
     {
+        $game = $session->getGame();
+        $movie = $session->getMovie();
         $isOver = $session->getStatus()->isOver();
         $attemptsUsed = $this->attemptsUsed($session);
-        $isClueGame = GameKind::CLUE === $session->getGame();
 
-        $clues = $isClueGame ? $this->clueBuilder->build($session->getMovie()) : [];
+        // Two games climb the fact ladder. The clue game has nothing else, so one rung is on
+        // the table before the first guess or the opening move is blind; the tagline game
+        // opens on the film's own words instead and keeps the ladder shut until the first
+        // miss. The rest have no ladder at all — their guesses are the feedback.
+        $clues = \in_array($game, [GameKind::CLUE, GameKind::TAGLINE], true)
+            ? $this->clueBuilder->build($movie)
+            : [];
 
-        // In the clue game one fact is on the table before the first guess, otherwise the
-        // opening move is blind; from there each wrong guess turns over the next. The
-        // comparison game has nothing to hand out up front — the guesses are the feedback.
-        $revealed = $isOver ? \count($clues) : min($attemptsUsed + 1, \count($clues));
+        $revealed = match (true) {
+            $isOver => \count($clues),
+            GameKind::TAGLINE === $game => min($attemptsUsed, \count($clues)),
+            default => min($attemptsUsed + 1, \count($clues)),
+        };
 
-        // The poster game hands out its opening rung the same way, and sharpens it by one
+        // Both pixel games hand out their opening rung the same way and sharpen it by one
         // with every guess spent — which is simply the count of guesses so far.
-        $poster = GameKind::POSTER === $session->getGame()
-            ? $this->pixelator->pixelate($session->getMovie(), $attemptsUsed)
-            : null;
+        $artwork = match ($game) {
+            GameKind::POSTER => $this->pixelator->pixelate($movie, $attemptsUsed),
+            GameKind::BACKDROP => $this->pixelator->pixelateBackdrop($movie, $attemptsUsed),
+            default => null,
+        };
 
-        $hangman = GameKind::HANGMAN === $session->getGame()
+        $hangman = GameKind::HANGMAN === $game
             ? $this->hangman->board(
-                $session->getMovie(),
+                $movie,
                 $session->getLetters(),
                 $this->wrongFilmCount($session),
                 // Losing shows the title it was hiding, rather than a board still full of
@@ -175,17 +301,24 @@ final class FilmGuessGame
             : null;
 
         return new GameStateDto(
-            game: $session->getGame(),
+            game: $game,
             mode: $session->getMode(),
             status: $session->getStatus(),
             attemptsUsed: $attemptsUsed,
             maxAttempts: $this->maxAttempts($session),
             clues: \array_slice($clues, 0, $revealed),
             guesses: $this->guessesOf($session),
-            answer: $isOver ? $this->movieMapper->toSummaryDto($session->getMovie(), $session->getUser()) : null,
+            // The two boardless games keep theirs withheld for good: `movie` is the first
+            // film of the board, not something the player was ever asked to find.
+            answer: $isOver && $game->isNamedByFilm()
+                ? $this->movieMapper->toSummaryDto($movie, $session->getUser())
+                : null,
             puzzleDate: $session->getPuzzleDate()?->format('Y-m-d'),
-            poster: $poster,
+            tagline: GameKind::TAGLINE === $game ? $movie->getTagline() : null,
+            artwork: $artwork,
             hangman: $hangman,
+            duel: GameKind::DUEL === $game ? $this->duel->board($session, $isOver) : null,
+            timeline: GameKind::TIMELINE === $game ? $this->timeline->board($session, $isOver) : null,
         );
     }
 
@@ -199,16 +332,14 @@ final class FilmGuessGame
             return $existing;
         }
 
-        $session = new GameSession(
+        return $this->persist($this->open(
             $user,
             $game,
             GameMode::DAILY,
-            // Each game gets its own answer on the same day: the seed carries the kind.
-            $this->pick($user, $game, sprintf('daily-%s-%s-%s', $game->value, $user->getId(), $today->format('Y-m-d'))),
+            // Each game gets its own board on the same day: the seed carries the kind.
+            sprintf('daily-%s-%s-%s', $game->value, $user->getId(), $today->format('Y-m-d')),
             $today
-        );
-
-        return $this->persist($session);
+        ));
     }
 
     private function startInfinite(User $user, GameKind $game): GameSession
@@ -222,44 +353,101 @@ final class FilmGuessGame
             $this->entityManager->flush();
         }
 
-        $session = new GameSession(
+        return $this->persist($this->open(
             $user,
             $game,
             GameMode::INFINITE,
-            $this->pick(
-                $user,
-                $game,
-                // Nothing to reproduce here, unlike the daily puzzle.
-                bin2hex(random_bytes(8)),
-                $this->sessions->recentAnswerIds($user, $game, GameMode::INFINITE, self::RECENT_ANSWERS)
-            )
-        );
-
-        return $this->persist($session);
+            // Nothing to reproduce here, unlike the daily puzzle.
+            bin2hex(random_bytes(8)),
+            null,
+            $this->sessions->recentAnswerIds($user, $game, GameMode::INFINITE, self::RECENT_ANSWERS)
+        ));
     }
 
     /**
      * @param list<string> $excludeIds
      */
-    private function pick(User $user, GameKind $game, string $seed, array $excludeIds = []): Movie
+    private function open(
+        User $user,
+        GameKind $game,
+        GameMode $mode,
+        string $seed,
+        ?\DateTimeImmutable $puzzleDate,
+        array $excludeIds = [],
+    ): GameSession {
+        $board = $this->draw($user, $game, $seed, $excludeIds);
+
+        // The first film doubles as the session's `movie`: for six games it is the answer,
+        // for the other two it is simply what keeps a non-nullable column filled.
+        $session = new GameSession($user, $game, $mode, $board[0], $puzzleDate);
+
+        if (\count($board) > 1) {
+            $session->setBoard(array_map(static fn (Movie $movie) => (string) $movie->getId(), $board));
+        }
+
+        return $session;
+    }
+
+    /**
+     * The films a run opens on: one for the six games that hide a film, two for the duel,
+     * five for the timeline.
+     *
+     * @param list<string> $excludeIds
+     *
+     * @return non-empty-list<Movie>
+     */
+    private function draw(User $user, GameKind $game, string $seed, array $excludeIds = []): array
     {
-        $movie = $this->movies->findGuessable($user, $game, $seed, $excludeIds);
+        $board = $this->drawOnce($user, $game, $seed, $excludeIds);
 
-        // A small library runs out of unseen answers long before it runs out of films.
-        if (null === $movie && [] !== $excludeIds) {
-            $movie = $this->movies->findGuessable($user, $game, $seed);
+        // A small library runs out of unplayed answers long before it runs out of films.
+        if ([] === $board && [] !== $excludeIds) {
+            $board = $this->drawOnce($user, $game, $seed);
         }
 
-        if (null === $movie) {
-            throw new GameException(match ($game) {
-                GameKind::POSTER => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'affiche.',
-                GameKind::HANGMAN => 'Aucun film jouable : il en faut au moins un dont le titre compte quatre lettres.',
-                default => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
-                    .'le pays, la réalisation et au moins trois acteur·rice·s.',
-            });
+        if ([] === $board) {
+            throw new GameException(self::cannotPlay($game));
         }
 
-        return $movie;
+        return $board;
+    }
+
+    /**
+     * @param list<string> $excludeIds
+     *
+     * @return list<Movie>
+     */
+    private function drawOnce(User $user, GameKind $game, string $seed, array $excludeIds = []): array
+    {
+        return match ($game) {
+            GameKind::DUEL => $this->duel->draw($user, $seed, $excludeIds),
+            // Not narrowed by recent answers: a set of five is drawn from a pool of one film
+            // per year, and excluding the last twenty would thin that pool for no gain.
+            GameKind::TIMELINE => $this->timeline->draw($user, $seed),
+            default => array_values(array_filter([$this->movies->findGuessable($user, $game, $seed, $excludeIds)])),
+        };
+    }
+
+    /**
+     * Why a library cannot field this game — always in terms of what is missing, since the
+     * fix is an enrichment run or a wider import rather than anything on this screen.
+     */
+    private static function cannotPlay(GameKind $game): string
+    {
+        return match ($game) {
+            GameKind::POSTER => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'affiche.',
+            GameKind::BACKDROP => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'image de fond.',
+            GameKind::HANGMAN => 'Aucun film jouable : il en faut au moins un dont le titre compte quatre lettres.',
+            GameKind::TAGLINE => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'accroche.',
+            GameKind::DUEL => 'Aucun duel possible : il faut au moins deux films que tu as notés différemment.',
+            GameKind::TIMELINE => sprintf(
+                'Aucune chronologie possible : il faut au moins %d films sortis %d années différentes.',
+                FilmReleaseTimeline::SIZE,
+                FilmReleaseTimeline::SIZE
+            ),
+            default => 'Aucun film jouable : il en faut au moins un dont TMDB connaisse l\'année, le genre, '
+                .'le pays, la réalisation et au moins trois acteur·rice·s.',
+        };
     }
 
     private function persist(GameSession $session): GameSession
@@ -271,35 +459,43 @@ final class FilmGuessGame
     }
 
     /**
-     * Two of the games are exactly as long as their ladder — running out of facts to reveal,
-     * or of sharpness to add, is what ends them. The other two have no such natural stop, so
-     * they get a number.
+     * Three of the games are exactly as long as their ladder — running out of facts to
+     * reveal, or of sharpness to add, is what ends them. The others get a number, and the
+     * duel gets a one: it has no budget of tries, only a single life.
      */
     private function maxAttempts(GameSession $session): int
     {
         return match ($session->getGame()) {
             GameKind::CLUE => \count($this->clueBuilder->build($session->getMovie())),
-            GameKind::POSTER => $this->pixelator->steps(),
+            // The tagline is a rung of its own, laid down before the ladder opens.
+            GameKind::TAGLINE => \count($this->clueBuilder->build($session->getMovie())) + 1,
+            GameKind::POSTER, GameKind::BACKDROP => $this->pixelator->steps(),
             GameKind::COMPARE => self::COMPARISON_ATTEMPTS,
             GameKind::HANGMAN => FilmTitleHangman::LIVES,
+            GameKind::DUEL => 1,
+            GameKind::TIMELINE => FilmReleaseTimeline::ATTEMPTS,
         };
     }
 
     /**
      * How much of the run has been spent.
      *
-     * Everywhere but the hangman that is simply the number of films named. The hangman
-     * charges only for misses — a letter that lands is progress, not an attempt — so it
-     * counts wrong letters and wrong films instead, which is what its lives are.
+     * In the six naming games that is simply the number of films named, except in the
+     * hangman, which charges only for misses — a letter that lands is progress, not an
+     * attempt — so it counts wrong letters and wrong films instead, which is what its lives
+     * are. The timeline spends one per ordering submitted. The duel spends nothing until it
+     * spends everything: its streak is not an attempt count, and the only thing it can use
+     * up is its single life.
      */
     private function attemptsUsed(GameSession $session): int
     {
-        if (GameKind::HANGMAN !== $session->getGame()) {
-            return \count($session->getGuesses());
-        }
-
-        return \count($this->hangman->wrongLetters($session->getMovie(), $session->getLetters()))
-            + $this->wrongFilmCount($session);
+        return match ($session->getGame()) {
+            GameKind::HANGMAN => \count($this->hangman->wrongLetters($session->getMovie(), $session->getLetters()))
+                + $this->wrongFilmCount($session),
+            GameKind::TIMELINE => \count($session->getPlays()),
+            GameKind::DUEL => GameStatus::LOST === $session->getStatus() ? 1 : 0,
+            default => \count($session->getGuesses()),
+        };
     }
 
     private function wrongFilmCount(GameSession $session): int
@@ -319,7 +515,10 @@ final class FilmGuessGame
     private function guessesOf(GameSession $session): array
     {
         $ids = $session->getGuesses();
-        if ([] === $ids) {
+
+        // The duel stores its picks here too, but a pick is one side of a pair rather than a
+        // film named against an answer — it is rendered from the duel board instead.
+        if ([] === $ids || !$session->getGame()->isNamedByFilm()) {
             return [];
         }
 

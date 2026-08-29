@@ -134,6 +134,27 @@ class ImportBatch
         return $this;
     }
 
+    /**
+     * Clears the three tallies below, ready for a run to fill them again.
+     *
+     * They are incremented, never assigned, and a batch can genuinely be processed more than
+     * once: a redelivered Messenger envelope re-reads the file from the top. Without this the
+     * second run adds its rows to the first one's, and the batch ends up claiming six times
+     * as many imported lines as the file has — which is exactly what happened to a
+     * ratings.csv that was redelivered five times.
+     *
+     * rowsTotal is left alone: the orchestrator assigns it from the file on every run, so it
+     * cannot drift.
+     */
+    public function resetTallies(): static
+    {
+        $this->rowsImported = 0;
+        $this->rowsSkipped = 0;
+        $this->rowsFailed = 0;
+
+        return $this;
+    }
+
     public function getRowsImported(): int
     {
         return $this->rowsImported;

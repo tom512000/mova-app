@@ -1,15 +1,15 @@
 import { useEffect, useRef } from 'react'
-import type { PosterPixels } from '@/types/api'
+import type { ArtworkPixels } from '@/types/api'
 
 /**
- * The answer's poster, blown back up from the handful of pixels the server sent.
+ * The answer's artwork, blown back up from the handful of pixels the server sent.
  *
- * The canvas is exactly as wide as the grid — six pixels on the opening rung — and the
- * browser scales it up with nearest-neighbour, so the blocks stay hard-edged instead of
- * dissolving into a blur. Everything on screen is in the payload; there is no full-size
- * image underneath to peek at.
+ * The canvas is exactly as wide as the grid — six pixels on the poster game's opening rung
+ * — and the browser scales it up with nearest-neighbour, so the blocks stay hard-edged
+ * instead of dissolving into a blur. Everything on screen is in the payload; there is no
+ * full-size image underneath to peek at.
  */
-export function PixelPoster({ pixels }: { pixels: PosterPixels }) {
+export function PixelArtwork({ pixels, label }: { pixels: ArtworkPixels; label: string }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const { width, height, colors } = pixels
 
@@ -35,9 +35,9 @@ export function PixelPoster({ pixels }: { pixels: PosterPixels }) {
       width={width}
       height={height}
       role="img"
-      aria-label={`L'affiche du film cherché, réduite à ${width} pixels de large`}
-      // Posters are greyscale everywhere else in the app; here the palette is half the
-      // clue, so this one keeps its colour on purpose.
+      aria-label={`${label}, réduite à ${width} pixels de large`}
+      // Artwork is greyscale everywhere else in the app; here the palette is half the clue,
+      // so these two games keep their colour on purpose.
       className="block h-auto w-full [image-rendering:pixelated]"
     />
   )

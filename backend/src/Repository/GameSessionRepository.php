@@ -72,6 +72,31 @@ class GameSessionRepository extends ServiceEntityRepository
     }
 
     /**
+     * The longest streak the profile has ever run up in the duel, in one mode.
+     *
+     * Read off the stored picks rather than kept in a counter: every pick but a losing one
+     * was correct, so the length of a run is its pick count minus the miss that ended it.
+     * A run still open counts too — a personal best being beaten mid-game is the whole
+     * reason the number is on screen.
+     */
+    public function bestStreak(User $user, GameKind $game, GameMode $mode): int
+    {
+        $best = $this->getEntityManager()->getConnection()->executeQuery(
+            "SELECT MAX(jsonb_array_length(s.guesses::jsonb) - CASE WHEN s.status = :lost THEN 1 ELSE 0 END)
+            FROM game_session s
+            WHERE s.user_id = :userId AND s.game = :game AND s.mode = :mode",
+            [
+                'userId' => (string) $user->getId(),
+                'game' => $game->value,
+                'mode' => $mode->value,
+                'lost' => GameStatus::LOST->value,
+            ]
+        )->fetchOne();
+
+        return max(0, (int) $best);
+    }
+
+    /**
      * The last infinite run whatever its state, so the result stays on screen after a
      * reload instead of the page offering a blank slate.
      */

@@ -13,12 +13,17 @@ use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
 /**
- * One run of the "guess the film" game.
+ * One run of one game.
  *
  * The answer lives here and never leaves the server until the run is over — that is the
- * whole reason this is a database row rather than client state. Guesses are stored as the
- * bare movie ids in the order they were made; everything the client sees (clues, titles,
- * how many tries are left) is derived from them at read time.
+ * whole reason this is a database row rather than client state. Moves are stored as bare
+ * movie ids, letters or orderings in the sequence they were made; everything the client
+ * sees (clues, titles, how many tries are left) is derived from them at read time.
+ *
+ * The columns below split three ways: `user`/`game`/`mode`/`status`/`puzzleDate` are the
+ * bookkeeping every game shares, `movie` is the hidden answer of the six that have one,
+ * and `guesses`/`letters`/`board`/`plays` are each read by only some of them. A column
+ * left empty is not a gap — it is a game that has no use for it.
  */
 #[ORM\Entity(repositoryClass: GameSessionRepository::class)]
 #[ORM\Table(name: 'game_session')]
@@ -67,6 +72,30 @@ class GameSession
      */
     #[ORM\Column(type: Types::JSON)]
     private array $letters = [];
+
+    /**
+     * The films on the table right now, in the order they are shown.
+     *
+     * Empty in the six games that hide a single film — for those the answer is the `movie`
+     * relation and there is nothing else on the board. The duel keeps its pair here and the
+     * timeline its five, both replaced wholesale when a round resolves, which is why this is
+     * a column and not something derived from a seed.
+     *
+     * @var list<string>
+     */
+    #[ORM\Column(type: Types::JSON)]
+    private array $board = [];
+
+    /**
+     * The boards already resolved, oldest first, each stored exactly as it was played: the
+     * duel's pair in the order it was shown, the timeline's submitted ordering. Keeping them
+     * is what lets a finished run show its history rather than just its score — the pair a
+     * streak died on, or the three orderings that missed.
+     *
+     * @var list<list<string>>
+     */
+    #[ORM\Column(type: Types::JSON)]
+    private array $plays = [];
 
     #[ORM\Column(length: 20, enumType: GameStatus::class)]
     private GameStatus $status = GameStatus::IN_PROGRESS;
@@ -145,6 +174,38 @@ class GameSession
     public function addLetter(string $letter): static
     {
         $this->letters[] = $letter;
+
+        return $this;
+    }
+
+    /** @return list<string> */
+    public function getBoard(): array
+    {
+        return $this->board;
+    }
+
+    /**
+     * @param list<string> $board
+     */
+    public function setBoard(array $board): static
+    {
+        $this->board = $board;
+
+        return $this;
+    }
+
+    /** @return list<list<string>> */
+    public function getPlays(): array
+    {
+        return $this->plays;
+    }
+
+    /**
+     * @param list<string> $play
+     */
+    public function addPlay(array $play): static
+    {
+        $this->plays[] = $play;
 
         return $this;
     }

@@ -1,4 +1,4 @@
-import { useEffect, useId, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { ChevronDown } from 'lucide-react'
 import { navItemClass } from '@/layouts/navItemClass'
@@ -8,6 +8,9 @@ export interface NavDropdownEntry {
   label: string
   hint?: string
 }
+
+/** Space left between the bottom of an open menu and the bottom of the window. */
+const GUTTER = 16
 
 /**
  * A nav entry that opens a short list instead of navigating. Deliberately hand-rolled
@@ -25,11 +28,38 @@ export function NavDropdown({
   matchPrefix: string
 }) {
   const [isOpen, setIsOpen] = useState(false)
+  const [maxHeight, setMaxHeight] = useState<number>()
   const containerRef = useRef<HTMLDivElement>(null)
+  const panelRef = useRef<HTMLDivElement>(null)
   const menuId = useId()
   const { pathname } = useLocation()
 
   const isActive = pathname.startsWith(matchPrefix)
+
+  /**
+   * Caps the menu at whatever room is left below it, so a long one scrolls instead of
+   * running off the bottom of the window.
+   *
+   * The height is measured rather than written down as a vh fraction. The masthead is
+   * sticky, so the menu always opens the same distance from the top of the viewport — but
+   * that distance is the masthead's own height, which changes with the breakpoint and with
+   * the reader's font size, and is not a number worth guessing at.
+   */
+  useLayoutEffect(() => {
+    if (!isOpen) return
+
+    function fit() {
+      const panel = panelRef.current
+      if (!panel) return
+
+      // Reading `top` and not `height`: the cap must not depend on the cap already applied.
+      setMaxHeight(window.innerHeight - panel.getBoundingClientRect().top - GUTTER)
+    }
+
+    fit()
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [isOpen])
 
   useEffect(() => {
     if (!isOpen) return
@@ -69,9 +99,13 @@ export function NavDropdown({
 
       {isOpen && (
         <div
+          ref={panelRef}
           id={menuId}
           role="menu"
-          className="absolute left-1/2 z-50 mt-1 w-60 -translate-x-1/2 border border-ink bg-paper shadow-[4px_4px_0_0_var(--ink)]"
+          style={{ maxHeight }}
+          // overscroll-contain so reaching the end of the list stops there rather than
+          // handing the wheel to the page underneath.
+          className="absolute left-1/2 z-50 mt-1 w-60 -translate-x-1/2 overflow-y-auto overscroll-contain border border-ink bg-paper shadow-[4px_4px_0_0_var(--ink)]"
         >
           {items.map((item) => (
             <Link

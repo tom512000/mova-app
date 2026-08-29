@@ -21,7 +21,7 @@ use Symfony\Component\Uid\Uuid;
  * cannot start or advance a game on somebody else's library, the same rule that keeps
  * import owner-only.
  */
-#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare|poster|hangman', 'mode' => 'daily|infinite'])]
+#[Route('/api/games/{game}/{mode}', requirements: ['game' => 'clue|compare|poster|hangman|tagline|backdrop|duel|timeline', 'mode' => 'daily|infinite'])]
 final class GameController
 {
     public function __construct(
@@ -73,6 +73,68 @@ final class GameController
 
         try {
             $session = $this->game->guess($user, $session, $movieId);
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)]);
+    }
+
+    /**
+     * A side rather than a film — the duel's only move. Same payload as /guess, and that is
+     * exactly why it is not /guess: the id means "this one of the two on the table", not
+     * "this is the film you are hiding", and one route answering to both meanings is how a
+     * game ends up judging a move it was never handed.
+     */
+    #[Route('/pick', methods: ['POST'], requirements: ['game' => 'duel'])]
+    public function pick(string $game, string $mode, Request $request): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
+        if (null === $session) {
+            return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode((string) $request->getContent(), true);
+        $movieId = \is_array($payload) ? (string) ($payload['movieId'] ?? '') : '';
+        if (!Uuid::isValid($movieId)) {
+            return new JsonResponse(['error' => 'Aucun film proposé.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $session = $this->game->pick($user, $session, $movieId);
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)]);
+    }
+
+    /**
+     * An ordering rather than a film — the timeline's only move. Every id is checked here
+     * for shape alone; whether the list is a permutation of the board is the game's business
+     * and is refused there.
+     */
+    #[Route('/order', methods: ['POST'], requirements: ['game' => 'timeline'])]
+    public function order(string $game, string $mode, Request $request): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
+        if (null === $session) {
+            return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
+        }
+
+        $payload = json_decode((string) $request->getContent(), true);
+        $order = \is_array($payload) && \is_array($payload['order'] ?? null) ? array_values($payload['order']) : [];
+
+        if ([] === $order || \count($order) !== \count(array_filter($order, static fn (mixed $id) => \is_string($id) && Uuid::isValid($id)))) {
+            return new JsonResponse(['error' => 'Aucun ordre proposé.'], Response::HTTP_BAD_REQUEST);
+        }
+
+        try {
+            $session = $this->game->order($session, $order);
         } catch (GameException $exception) {
             return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }

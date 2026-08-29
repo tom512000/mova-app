@@ -10,7 +10,7 @@ const MODES: { value: GameMode; label: string; blurb: string }[] = [
 ]
 
 /**
- * The masthead both games share: the title, how it is played, and the switch between the
+ * The masthead every game shares: the title, how it is played, and the switch between the
  * two modes. The modes are routes rather than local state so a mode can be bookmarked.
  */
 export function GameHeader({

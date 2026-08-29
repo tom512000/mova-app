@@ -9,6 +9,7 @@ use App\DTO\MovieSearchCriteria;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\GameKind;
+use App\Entity\Enum\MediaType;
 use App\Entity\Enum\MovieSortField;
 use App\Entity\Movie;
 use App\Entity\User;
@@ -126,17 +127,25 @@ class MovieRepository extends ServiceEntityRepository
      * reproducible: the daily puzzle needs the same answer all day, and a test needs to know
      * what it will get.
      *
+     * Series are never drawn. They live in the same table behind a media_type discriminator,
+     * so without the filter "Le film mystère" would happily serve WandaVision — a title the
+     * clue ladder describes badly (a season count is not a runtime) and the hangman hides
+     * under a heading that promises a film. The same exclusion applies to the pair and set
+     * draws below.
+     *
      * @param list<string> $excludeIds recent answers, so the infinite mode stops repeating itself
      */
     public function findGuessable(User $user, GameKind $game, string $seed, array $excludeIds = []): ?Movie
     {
-        $params = ['userId' => (string) $user->getId(), 'seed' => $seed];
+        $params = ['userId' => (string) $user->getId(), 'seed' => $seed, 'mediaType' => MediaType::MOVIE->value];
         $types = [];
 
         if (GameKind::POSTER === $game) {
             // The artwork is the entire game, so it is the entire requirement: a film with
             // no year, no credits and no studio is perfectly playable here.
             $playable = 'AND m.poster_path IS NOT NULL';
+        } elseif (GameKind::BACKDROP === $game) {
+            $playable = 'AND m.backdrop_path IS NOT NULL';
         } elseif (GameKind::HANGMAN === $game) {
             // Enough letters to be worth masking. "Ted" and "Rio" are solved by their own
             // shape, and a title made only of digits ("1917") would come up already won.
@@ -152,6 +161,13 @@ class MovieRepository extends ServiceEntityRepository
                 AND (SELECT COUNT(*) FROM credit ca WHERE ca.movie_id = m.id AND ca.role = :actor) >= 3';
             $params['director'] = CreditRole::DIRECTOR->value;
             $params['actor'] = CreditRole::ACTOR->value;
+
+            if (GameKind::TAGLINE === $game) {
+                // The tagline is the opening card and the clue ladder is what unlocks under
+                // it once the player misses, so both sets of requirements have to hold. TMDB
+                // records "no tagline" as an empty string about as often as it records null.
+                $playable .= " AND m.tagline IS NOT NULL AND m.tagline <> ''";
+            }
         }
 
         $exclusion = '';
@@ -165,6 +181,7 @@ class MovieRepository extends ServiceEntityRepository
             'SELECT m.id
             FROM movie m
             WHERE EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)
+                AND m.media_type = :mediaType
                 '.$playable
             .$exclusion.'
             ORDER BY md5(:seed || m.id::text)
@@ -174,6 +191,126 @@ class MovieRepository extends ServiceEntityRepository
         )->fetchOne();
 
         return false === $id || null === $id ? null : $this->find((string) $id);
+    }
+
+    /**
+     * Two watched films the profile rated differently — the duel's board.
+     *
+     * Drawn in two passes rather than as one seeded pick over every possible pair: the cross
+     * join is 700² rows to hash for a result of one, and a fresh pair is drawn on every
+     * correct answer. The first film is picked freely, the second from whatever is left
+     * carrying a different average.
+     *
+     * The gap between the two is deliberately not bounded. Capping it would make every round
+     * a near coin-flip and kill most streaks at two; leaving it open gives the mix a streak
+     * game needs — easy rounds to build on, close ones to die on.
+     *
+     * @param list<string> $excludeIds films already played in this run
+     *
+     * @return list<Movie> exactly two, or empty when the library cannot field a pair
+     */
+    public function findDuelPair(User $user, string $seed, array $excludeIds = []): array
+    {
+        $connection = $this->getEntityManager()->getConnection();
+
+        // Averaged rather than taken from one watch: a film seen twice and rated differently
+        // has one standing verdict, and it is the same number the rest of the app shows.
+        $rated = 'SELECT m.id, AVG(w.rating) AS rating
+            FROM movie m
+            JOIN watch w ON w.movie_id = m.id AND w.user_id = :userId
+            WHERE m.media_type = :mediaType
+                AND m.poster_path IS NOT NULL
+                AND w.rating IS NOT NULL
+            GROUP BY m.id';
+
+        $params = [
+            'userId' => (string) $user->getId(),
+            'mediaType' => MediaType::MOVIE->value,
+            'seed' => $seed,
+        ];
+        $types = [];
+
+        $filter = '';
+        if ([] !== $excludeIds) {
+            $filter = ' AND r.id NOT IN (:excluded)';
+            $params['excluded'] = $excludeIds;
+            $types['excluded'] = ArrayParameterType::STRING;
+        }
+
+        $first = $connection->executeQuery(
+            "WITH r AS ({$rated})
+            SELECT r.id, r.rating FROM r
+            WHERE true{$filter}
+            ORDER BY md5(:seed || r.id::text)
+            LIMIT 1",
+            $params,
+            $types
+        )->fetchAssociative();
+
+        if (false === $first) {
+            return [];
+        }
+
+        // A seed of its own for the second draw: reusing the first would order both queries
+        // by the same hash and hand back the same neighbours every round.
+        $params['seed'] = $seed.'-opponent';
+        $params['first'] = $first['id'];
+        $params['rating'] = $first['rating'];
+
+        $second = $connection->executeQuery(
+            "WITH r AS ({$rated})
+            SELECT r.id FROM r
+            WHERE r.id <> :first AND r.rating <> :rating{$filter}
+            ORDER BY md5(:seed || r.id::text)
+            LIMIT 1",
+            $params,
+            $types
+        )->fetchOne();
+
+        if (false === $second || null === $second) {
+            return [];
+        }
+
+        return $this->findByIdsOrdered([(string) $first['id'], (string) $second]);
+    }
+
+    /**
+     * Watched films with distinct release years — the timeline's board.
+     *
+     * The distinct years are the point: two films sharing one would leave the puzzle with no
+     * single right answer, and the player would be marked wrong for an ordering just as true
+     * as the stored one. DISTINCT ON collapses each year to one seeded film first, and the
+     * board is drawn from those survivors.
+     *
+     * Artwork is not required, unlike in the duel: this game is about years, and a film with
+     * no poster is just as orderable as one with a poster. Its card falls back to its title.
+     *
+     * @return list<Movie> exactly $size of them, or empty when the library is too thin
+     */
+    public function findTimelineSet(User $user, string $seed, int $size): array
+    {
+        $ids = $this->getEntityManager()->getConnection()->executeQuery(
+            'WITH one_per_year AS (
+                SELECT DISTINCT ON (m.release_year) m.id
+                FROM movie m
+                WHERE m.media_type = :mediaType
+                    AND m.release_year IS NOT NULL
+                    AND EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = m.id AND w.user_id = :userId)
+                ORDER BY m.release_year, md5(:seed || m.id::text)
+            )
+            SELECT id FROM one_per_year
+            ORDER BY md5(:seed || id::text)
+            LIMIT :size',
+            [
+                'userId' => (string) $user->getId(),
+                'mediaType' => MediaType::MOVIE->value,
+                'seed' => $seed,
+                'size' => $size,
+            ],
+            ['size' => ParameterType::INTEGER]
+        )->fetchFirstColumn();
+
+        return \count($ids) < $size ? [] : $this->findByIdsOrdered(array_map('strval', $ids));
     }
 
     public function facetsFor(User $user): MovieFacetsDto
@@ -299,11 +436,14 @@ class MovieRepository extends ServiceEntityRepository
     }
 
     /**
-     * @param list<string> $ids UUIDs, in the order the SQL above chose
+     * Hydrates a list of ids while keeping the order it was given in — every draw above
+     * chooses an order in SQL, and a plain findBy() would throw it away.
+     *
+     * @param list<string> $ids UUIDs, in the order they should come back
      *
      * @return list<Movie>
      */
-    private function findByIdsOrdered(array $ids): array
+    public function findByIdsOrdered(array $ids): array
     {
         if ([] === $ids) {
             return [];
