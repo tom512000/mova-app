@@ -65,6 +65,7 @@ final class MovieMapper
             posterUrl: $this->posterUrl($movie->getPosterPath()),
             myAverageRating: StatsMath::mean($ratings),
             watchCount: \count($watches),
+            runtimeMinutes: $movie->getRuntimeMinutes(),
             enrichmentStatus: $movie->getEnrichmentStatus(),
             mediaType: $movie->getMediaType(),
         );

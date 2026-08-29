@@ -1,9 +1,9 @@
-import { ArrowDown, ArrowUp, ChevronDown, Shuffle, X } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ArrowDown, ArrowUp, Shuffle, X } from 'lucide-react'
 import type { CreditRole, MovieFacets, MovieSortField } from '@/types/api'
 import { MEDIA_TYPE_OPTIONS, ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
 import { ratingToStars } from '@/utils/format'
 import { Button } from '@/components/ui/Button'
+import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 
 interface MovieFiltersProps {
   state: MovieFilterState
@@ -174,47 +174,3 @@ function PersonChip({
   )
 }
 
-function FilterSelect({
-  label,
-  value,
-  onChange,
-  className,
-  children,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-  className?: string
-  children: ReactNode
-}) {
-  return (
-    <label className={`group flex flex-col gap-1 ${className ?? ''}`}>
-      <span className="font-mono text-[10px] uppercase tracking-widest text-subtle">{label}</span>
-      <span className="relative flex items-center">
-        <select
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-          // appearance-none drops the platform arrow so the lucide chevron can sit on the
-          // rule; pr-6 reserves its room.
-          className="w-full cursor-pointer appearance-none truncate border-0 border-b-2 border-ink bg-transparent py-1 pl-0 pr-6 font-sans text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
-        >
-          {children}
-        </select>
-        <ChevronDown
-          aria-hidden
-          className="pointer-events-none absolute right-1 h-3.5 w-3.5 text-subtle transition-colors group-hover:text-accent"
-          strokeWidth={2}
-        />
-      </span>
-    </label>
-  )
-}
-
-/** Native options inherit the OS palette, so the theme colours have to be restated here. */
-function Option({ value, children }: { value: string; children: ReactNode }) {
-  return (
-    <option value={value} className="bg-paper text-ink">
-      {children}
-    </option>
-  )
-}

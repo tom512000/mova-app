@@ -32,6 +32,8 @@ export interface MovieSummary {
   posterUrl: string | null
   myAverageRating: number | null
   watchCount: number
+  /** Only the watchlist shows it: whether the film fits into the evening that is left. */
+  runtimeMinutes: number | null
   enrichmentStatus: EnrichmentStatus
   mediaType: MediaType
 }
@@ -473,4 +475,19 @@ export interface ActivityStats {
   longestStreakDays: number
   weekdays: WeekdayStat[]
   calendar: ActivityDay[]
+}
+
+/** How a watchlist is ordered. Shorter than MovieSortField: nothing here has been watched. */
+export type WatchlistSortField = 'added' | 'title' | 'year' | 'runtime'
+
+/**
+ * What the watchlist itself can be narrowed by — never the whole library, so no dropdown
+ * offers a choice that would empty the grid.
+ */
+export interface WatchlistFacets {
+  genres: string[]
+  /** First year of each decade present, newest first. */
+  decades: number[]
+  shortestRuntime: number | null
+  longestRuntime: number | null
 }

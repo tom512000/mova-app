@@ -16,6 +16,11 @@ final readonly class MovieSummaryDto
         public ?string $posterUrl,
         public ?float $myAverageRating,
         public int $watchCount,
+        /**
+         * Read by the watchlist, where the question is whether a film fits into the evening
+         * that is left. The cards elsewhere do not show it.
+         */
+        public ?int $runtimeMinutes,
         public EnrichmentStatus $enrichmentStatus,
         public MediaType $mediaType = MediaType::MOVIE,
     ) {
