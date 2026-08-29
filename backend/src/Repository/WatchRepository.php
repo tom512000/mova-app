@@ -63,6 +63,36 @@ class WatchRepository extends ServiceEntityRepository
     }
 
     /**
+     * The most recent viewing of a film, whatever wrote it down.
+     *
+     * RatingsImporter compares its row's date against this one to tell three situations
+     * apart: the same viewing being re-imported, a later one that has not been recorded yet,
+     * and an older export being loaded after a newer one. Ordered by id as a tie-break so
+     * that two viewings sharing a date resolve to the same row on every run rather than
+     * whichever the planner returned first.
+     *
+     * The HIDDEN expression is there because Postgres sorts NULLs first in a DESC order, so
+     * a viewing with no date at all — watched.csv makes those — would otherwise come back as
+     * the most recent one and every later import would be compared against a row that says
+     * nothing. Undated viewings sort last instead.
+     */
+    public function findLatestByMovie(User $user, Movie $movie): ?Watch
+    {
+        return $this->createQueryBuilder('w')
+            ->addSelect('CASE WHEN w.watchedDate IS NULL THEN 1 ELSE 0 END AS HIDDEN undated')
+            ->where('w.movie = :movie')
+            ->andWhere('w.user = :user')
+            ->setParameter('movie', $movie)
+            ->setParameter('user', $user)
+            ->orderBy('undated', 'ASC')
+            ->addOrderBy('w.watchedDate', 'DESC')
+            ->addOrderBy('w.id', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
+    /**
      * Used by ReviewsImporter to attach a review to the diary Watch that matches
      * the same film and watched date.
      */

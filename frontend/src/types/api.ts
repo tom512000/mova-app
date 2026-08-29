@@ -254,6 +254,8 @@ export interface Watch {
   watchedDate: string | null
   rating: number | null
   isRewatch: boolean
+  /** Worked out from a ratings.csv date moving, rather than declared in a diary entry. */
+  isDeduced: boolean
   reviewText: string | null
   containsSpoilers: boolean
   tags: string[]

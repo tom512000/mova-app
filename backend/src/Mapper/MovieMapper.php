@@ -111,6 +111,7 @@ final class MovieMapper
                 watchedDate: $w->getWatchedDate()?->format('Y-m-d'),
                 rating: $w->getRating(),
                 isRewatch: $w->isRewatch(),
+                isDeduced: $w->getSource()->isDeduced(),
                 reviewText: $w->getReviewText(),
                 containsSpoilers: $w->hasSpoilers(),
                 tags: array_map(static fn ($t) => $t->getName(), $w->getTags()->toArray()),
