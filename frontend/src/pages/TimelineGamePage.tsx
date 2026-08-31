@@ -5,17 +5,18 @@ import { Check, Dices, X } from 'lucide-react'
 import { useFilmGame } from '@/hooks/useFilmGame'
 import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import { cn } from '@/utils/cn'
-import type { GameMode, TimelineAttempt, TimelineBoard, TimelineCard } from '@/types/api'
+import type { GameMode, GameStatus, TimelineAttempt, TimelineBoard, TimelineCard } from '@/types/api'
 
 export function TimelineGamePage() {
   const { mode } = useParams<{ mode: string }>()
   const gameMode: GameMode = mode === 'infinite' ? 'infinite' : 'daily'
-  const { session, isLoading, isError, error, start, order, isOver } = useFilmGame('timeline', gameMode)
+  const { session, isLoading, isError, error, start, reveal, order, isOver } = useFilmGame('timeline', gameMode)
 
   const timeline = session?.timeline ?? null
   // Remounts the arranging board when a new set is dealt, which resets the arrangement
@@ -50,16 +51,24 @@ export function TimelineGamePage() {
       {timeline && session && (
         <>
           {!isOver && (
-            <Arranger
-              key={dealKey}
-              cards={timeline.cards}
-              attemptsLeft={session.maxAttempts - session.attemptsUsed}
-              onSubmit={(ids) => order.mutate(ids)}
-              isPending={order.isPending}
-            />
+            <>
+              <Arranger
+                key={dealKey}
+                cards={timeline.cards}
+                attemptsLeft={session.maxAttempts - session.attemptsUsed}
+                onSubmit={(ids) => order.mutate(ids)}
+                isPending={order.isPending}
+              />
+              <RevealAnswer
+                mode={gameMode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
-          {isOver && <Solution board={timeline} won={session.status === 'won'} />}
+          {isOver && <Solution board={timeline} status={session.status} />}
 
           {timeline.attempts.length > 0 && <Attempts board={timeline} />}
 
@@ -296,12 +305,15 @@ function offsetOf(index: number, drag: Drag | null): number {
  * Drawn as the same strip the player was just arranging, so the answer lands as a
  * correction of the thing they built rather than as a list to re-read from the top.
  */
-function Solution({ board, won }: { board: TimelineBoard; won: boolean }) {
+function Solution({ board, status }: { board: TimelineBoard; status: GameStatus }) {
   const byId = new Map(board.cards.map((card) => [card.movieId, card]))
+  const won = status === 'won'
 
   return (
     <section className={cn('border p-5 sm:p-6', won ? 'border-ink bg-ink text-paper' : 'border-ink')}>
-      <p className="font-mono text-xs uppercase tracking-widest opacity-70">{won ? 'Trouvé' : 'Raté'}</p>
+      <p className="font-mono text-xs uppercase tracking-widest opacity-70">
+        {won ? 'Trouvé' : status === 'revealed' ? 'Réponse donnée' : 'Raté'}
+      </p>
       <h2 className="mt-2 font-serif text-3xl font-black leading-tight">Le bon ordre</h2>
 
       <ol className="mt-4 flex gap-2 sm:gap-3">

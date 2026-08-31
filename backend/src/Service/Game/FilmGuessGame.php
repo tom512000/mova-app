@@ -231,6 +231,33 @@ final class FilmGuessGame
     }
 
     /**
+     * Gives up: the run stops here and everything it was hiding becomes readable.
+     *
+     * Infinite only. The daily board is one puzzle a day and asking for its answer would not
+     * end a run, it would spend the day — there is nothing to move on to until midnight, so
+     * the button that offers it is the one thing the mode cannot afford.
+     *
+     * Unlike close(), the board is left standing. A run that was given up is read for what
+     * was on the table when it stopped — the pair the duel could not separate, the five
+     * films the timeline could not order — and clearing it would answer the question by
+     * taking it away. Nothing else needs saying here: every reveal in toState() is already
+     * keyed on the run being over, which it now is.
+     */
+    public function reveal(GameSession $session): GameSession
+    {
+        if (GameMode::INFINITE !== $session->getMode()) {
+            throw new GameException('La partie du jour ne se donne pas : reviens demain, ou enchaîne en mode infini.');
+        }
+
+        $this->assertOpen($session);
+
+        $session->finish(GameStatus::REVEALED);
+        $this->entityManager->flush();
+
+        return $session;
+    }
+
+    /**
      * Records the outcome of a move and closes the run if it ended one.
      */
     private function settle(GameSession $session, bool $won): void

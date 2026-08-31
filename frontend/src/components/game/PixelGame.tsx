@@ -4,6 +4,7 @@ import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
 import { PixelArtwork } from '@/components/game/PixelArtwork'
 import { Skeleton } from '@/components/Skeleton'
@@ -39,7 +40,7 @@ export function PixelGame({
   /** The empty frame's aspect, so a missing file does not collapse the layout. */
   frameClassName: string
 }) {
-  const { session, isLoading, isError, error, start, guess, isOver } = useFilmGame(game, mode)
+  const { session, isLoading, isError, error, start, reveal, guess, isOver } = useFilmGame(game, mode)
 
   return (
     <div className="flex flex-col gap-8">
@@ -68,12 +69,20 @@ export function PixelGame({
           )}
 
           {!isOver && (
-            <GuessInput
-              state={session}
-              onGuess={(movieId) => guess.mutate(movieId)}
-              isPending={guess.isPending}
-              error={guess.isError ? guess.error : null}
-            />
+            <>
+              <GuessInput
+                state={session}
+                onGuess={(movieId) => guess.mutate(movieId)}
+                isPending={guess.isPending}
+                error={guess.isError ? guess.error : null}
+              />
+              <RevealAnswer
+                mode={mode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
           {isOver && <GameOutcome state={session} onReplay={() => start.mutate()} isReplaying={start.isPending} />}

@@ -6,6 +6,7 @@ import {
   submitLetter,
   submitOrder,
   submitPick,
+  revealAnswer,
 } from '@/services/gamesService'
 import type { GameKind, GameMode, GameState } from '@/types/api'
 
@@ -25,6 +26,9 @@ export function useFilmGame(game: GameKind, mode: GameMode) {
   const cache = (state: GameState) => queryClient.setQueryData(queryKey, state)
 
   const start = useMutation({ mutationFn: () => startGame(game, mode), onSuccess: cache })
+  // Every game has this one, and it is the same move in all eight: end the run and read
+  // the answer off the board. Infinite only, which the API enforces on the route.
+  const reveal = useMutation({ mutationFn: () => revealAnswer(game, mode), onSuccess: cache })
   const guess = useMutation({ mutationFn: (movieId: string) => submitGuess(game, mode, movieId), onSuccess: cache })
   // Hangman only; the other seven have nothing to do with letters.
   const letter = useMutation({ mutationFn: (value: string) => submitLetter(game, mode, value), onSuccess: cache })
@@ -39,6 +43,7 @@ export function useFilmGame(game: GameKind, mode: GameMode) {
     isError,
     error,
     start,
+    reveal,
     guess,
     letter,
     pick,

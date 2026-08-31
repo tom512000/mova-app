@@ -51,10 +51,10 @@ partage.
 | Symfony Scheduler | 7.4 | Tâches récurrentes (synchro RSS horaire) |
 | Doctrine ORM | 3.6.8 | Mapping par attributs |
 | Doctrine DBAL | 4.4.4 | SQL brut pour toutes les agrégations statistiques |
-| Doctrine Migrations | 3.7 | 17 migrations versionnées |
+| Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 284 tests, 1 293 assertions |
+| PHPUnit | 11.5.56 | 292 tests, 1 345 assertions |
 
 ### Frontend
 
@@ -338,6 +338,15 @@ les vingt dernières réponses écartées).
 Les listes à valeurs multiples (genres, pays, studios, noms) sont jugées **valeur par valeur** et non
 en bloc : un film partageant un genre sur trois a quelque chose à dire sur ce genre.
 
+**Donner sa langue au chat** — un bouton commun aux huit jeux, en **mode infini uniquement**. Il
+arrête la partie et ouvre tout ce qu'elle cachait : l'échelle d'indices en entier, la vraie affiche,
+le titre épelé, le bon ordre chronologique avec les années. Pour le duel, la paire **reste sur la
+table** au lieu d'être balayée comme à toute autre fin, et porte enfin les deux notes — c'est la
+seule réponse que ce jeu-là puisse donner. L'issue a son propre statut, distinct d'une défaite :
+rien n'a été raté, la partie a été arrêtée, et le record de série du duel n'en est pas entamé. Le
+mode quotidien n'a pas cette porte du tout — la restriction est portée par la route, pas par une
+vérification — parce qu'il n'y a rien vers quoi enchaîner avant minuit.
+
 Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibliothèque ne peut pas le
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
@@ -438,13 +447,13 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
-| **Jeux** | `GET /games/{game}/{mode}`, `POST .../start`, `POST .../guess`, plus `POST .../letter` (pendu), `.../pick` (duel), `.../order` (chronologie) |
+| **Jeux** | `GET /games/{game}/{mode}`, `POST .../start`, `POST .../guess`, `POST .../reveal` (infini seulement), plus `POST .../letter` (pendu), `.../pick` (duel), `.../order` (chronologie) |
 
 ---
 
 ## Qualité
 
-- **284 tests, 1 293 assertions**, répartis en trois couches : unitaires (logique pure —
+- **292 tests, 1 345 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

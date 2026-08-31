@@ -928,10 +928,10 @@ final class GameControllerTest extends WebTestCase
      *
      * @return list<string>
      */
-    private function timelineSolution(): array
+    private function timelineSolution(GameMode $mode = GameMode::DAILY): array
     {
         $years = [];
-        foreach ($this->timelineBoard() as $id) {
+        foreach ($this->timelineBoard($mode) as $id) {
             $movie = $this->entityManager->find(Movie::class, $id);
             self::assertNotNull($movie);
             $years[$id] = $movie->getReleaseYear();
@@ -940,6 +940,120 @@ final class GameControllerTest extends WebTestCase
         asort($years);
 
         return array_keys($years);
+    }
+
+    /**
+     * Giving up. The move every game shares, and the only one whose whole purpose is to make
+     * the board readable — so what is tested is that it stops the run *and* that the thing
+     * each game was hiding is now there.
+     */
+    public function testGivingUpEndsTheRunAndNamesTheFilm(): void
+    {
+        $this->start('infinite', 'poster');
+
+        $state = $this->reveal('infinite', 'poster');
+
+        self::assertSame('revealed', $state['status'], 'a run that was stopped is not a run that was lost');
+        self::assertSame(
+            $this->answerId(GameMode::INFINITE, GameKind::POSTER),
+            $state['answer']['id'],
+            'the answer is the only reason to press it'
+        );
+    }
+
+    public function testGivingUpOpensEveryLadderTheRunHadNotClimbed(): void
+    {
+        $this->start('infinite', 'clue');
+
+        $state = $this->reveal('infinite', 'clue');
+
+        self::assertCount($state['maxAttempts'], $state['clues'], 'nothing is left locked once the run is over');
+        self::assertSame(self::CLUE_ORDER, array_column($state['clues'], 'label'));
+    }
+
+    public function testGivingUpOnTheHangmanSpellsTheTitleOut(): void
+    {
+        $this->start('infinite', 'hangman');
+
+        $state = $this->reveal('infinite', 'hangman');
+
+        $answer = $this->entityManager->find(Movie::class, $this->answerId(GameMode::INFINITE, GameKind::HANGMAN));
+        self::assertNotNull($answer);
+        self::assertNotContains(null, $state['hangman']['chars'], 'the board still holds blanks');
+        self::assertSame($answer->getTitle(), implode('', $state['hangman']['chars']));
+    }
+
+    public function testGivingUpOnTheDuelLeavesThePairOnTheTableWithItsRatings(): void
+    {
+        $this->start('infinite', 'duel');
+
+        $state = $this->reveal('infinite', 'duel');
+
+        // The answer to "lequel as-tu noté le plus haut" is the two ratings, so unlike every
+        // other ending the pair stays put — clearing it would remove the question instead of
+        // answering it.
+        $cards = $state['duel']['cards'];
+        self::assertCount(2, $cards);
+        self::assertNotNull($cards[0]['rating']);
+        self::assertNotNull($cards[1]['rating']);
+    }
+
+    public function testGivingUpOnTheTimelineShowsTheOrderAndTheYears(): void
+    {
+        $this->start('infinite', 'timeline');
+
+        $state = $this->reveal('infinite', 'timeline');
+
+        self::assertSame($this->timelineSolution(GameMode::INFINITE), $state['timeline']['solution']);
+        self::assertNotContains(null, array_column($state['timeline']['cards'], 'releaseYear'));
+    }
+
+    public function testTheDailyBoardHasNoSuchDoor(): void
+    {
+        $this->start('daily', 'poster');
+
+        $this->client->request('POST', '/api/games/poster/daily/reveal');
+
+        // A 404 rather than a refusal: the route is restricted to the infinite mode, so the
+        // daily puzzle cannot be given up by anyone who guesses the URL either.
+        self::assertResponseStatusCodeSame(Response::HTTP_NOT_FOUND);
+        self::assertSame(
+            'in_progress',
+            $this->state('daily', 'poster')['status'],
+            'the run must be exactly where it was left'
+        );
+    }
+
+    public function testARunThatIsAlreadyOverCannotBeGivenUp(): void
+    {
+        $this->start('infinite', 'poster');
+        $this->reveal('infinite', 'poster');
+
+        $this->client->request('POST', '/api/games/poster/infinite/reveal');
+
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function reveal(string $mode, string $game): array
+    {
+        $this->client->request('POST', "/api/games/{$game}/{$mode}/reveal");
+        self::assertResponseIsSuccessful();
+
+        return $this->json()['session'];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function state(string $mode, string $game): array
+    {
+        $this->client->request('GET', "/api/games/{$game}/{$mode}");
+        self::assertResponseIsSuccessful();
+
+        return $this->json()['session'];
     }
 
     private function start(string $mode, string $game = 'clue'): array

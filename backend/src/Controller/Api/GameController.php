@@ -55,6 +55,33 @@ final class GameController
         return new JsonResponse(['session' => $this->game->toState($session)], Response::HTTP_CREATED);
     }
 
+    /**
+     * "Je donne ma langue au chat" — every game has one, and it is the same move in all
+     * eight: stop the run and let the board say what it was hiding.
+     *
+     * Restricted to the infinite mode in the route rather than checked in the body, so the
+     * daily board simply has no such door: /games/poster/daily/reveal is a 404, not a
+     * refusal, and the button that would post to it is never drawn.
+     */
+    #[Route('/reveal', methods: ['POST'], requirements: ['mode' => 'infinite'])]
+    public function reveal(string $game, string $mode): JsonResponse
+    {
+        $user = $this->profileResolver->getAuthenticatedUser();
+
+        $session = $this->game->current($user, GameKind::from($game), GameMode::from($mode));
+        if (null === $session) {
+            return new JsonResponse(['error' => 'Aucune partie en cours.'], Response::HTTP_NOT_FOUND);
+        }
+
+        try {
+            $session = $this->game->reveal($session);
+        } catch (GameException $exception) {
+            return new JsonResponse(['error' => $exception->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        return new JsonResponse(['session' => $this->game->toState($session)]);
+    }
+
     #[Route('/guess', methods: ['POST'])]
     public function guess(string $game, string $mode, Request $request): JsonResponse
     {

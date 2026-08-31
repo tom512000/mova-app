@@ -102,8 +102,17 @@ final class FilmRatingDuel
             );
         }
 
+        // A run that was given up keeps its pair on the table, and keeping it is the whole
+        // point: the answer to "lequel as-tu noté le plus haut" is the two ratings, so this
+        // is the one state where the cards carry them before a pick. Every other ending
+        // clears the table — there is no next pair, and a dead one left standing invites a
+        // click that cannot land.
+        $givenUp = GameStatus::REVEALED === $session->getStatus();
+
         return new DuelBoardDto(
-            cards: $isOver ? null : $this->cards($user, $session->getBoard(), withRatings: false),
+            cards: $isOver && !$givenUp
+                ? null
+                : $this->cards($user, $session->getBoard(), withRatings: $givenUp),
             history: $history,
             streak: max(0, $streak),
             best: $this->sessions->bestStreak($user, $session->getGame(), $session->getMode()),

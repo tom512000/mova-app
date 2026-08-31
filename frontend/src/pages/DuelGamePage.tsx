@@ -3,17 +3,18 @@ import { Dices, Check, X } from 'lucide-react'
 import { useFilmGame } from '@/hooks/useFilmGame'
 import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { Button } from '@/components/ui/Button'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import { cn } from '@/utils/cn'
-import type { DuelBoard, DuelCard, DuelRound, GameMode } from '@/types/api'
+import type { DuelBoard, DuelCard, DuelRound, GameMode, GameStatus } from '@/types/api'
 
 export function DuelGamePage() {
   const { mode } = useParams<{ mode: string }>()
   const gameMode: GameMode = mode === 'infinite' ? 'infinite' : 'daily'
-  const { session, isLoading, isError, error, start, pick, isOver } = useFilmGame('duel', gameMode)
+  const { session, isLoading, isError, error, start, reveal, pick, isOver } = useFilmGame('duel', gameMode)
 
   const duel = session?.duel ?? null
 
@@ -42,17 +43,29 @@ export function DuelGamePage() {
         />
       )}
 
-      {duel && (
+      {duel && session && (
         <>
           <Scoreboard board={duel} isOver={isOver} />
 
-          {duel.cards && (
-            <Table cards={duel.cards} onPick={(movieId) => pick.mutate(movieId)} isPending={pick.isPending} />
+          {/* Once the run is over the pair below has already been read out by the verdict,
+              with the two ratings on it. Leaving the table up would offer a click that
+              cannot land. */}
+          {duel.cards && !isOver && (
+            <>
+              <Table cards={duel.cards} onPick={(movieId) => pick.mutate(movieId)} isPending={pick.isPending} />
+              <RevealAnswer
+                mode={gameMode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
           {isOver && (
             <Verdict
               board={duel}
+              status={session.status}
               mode={gameMode}
               onReplay={() => start.mutate()}
               isReplaying={start.isPending}
@@ -157,39 +170,60 @@ function Table({
 }
 
 /**
- * How the run ended. A duel has no answer to reveal — only a number and a reason, and the
- * two endings are genuinely different: getting one wrong, or running the library dry.
+ * How the run ended. A duel has no film to reveal — only a number and a reason, and the
+ * three endings are genuinely different: getting one wrong, running the library dry, or
+ * asking which of the two on the table you had rated higher.
  */
 function Verdict({
   board,
+  status,
   mode,
   onReplay,
   isReplaying,
 }: {
   board: DuelBoard
+  status: GameStatus
   mode: GameMode
   onReplay: () => void
   isReplaying: boolean
 }) {
+  const givenUp = status === 'revealed'
   const last = board.history.at(-1)
-  // The only round that can end a run and still be right is the one that emptied the table.
-  const exhausted = last?.correct === true
+  // The only round that can end a run and still be right is the one that emptied the table
+  // — but a run that was given up ends on a round that was never played at all, so the
+  // previous one being right says nothing about how this one finished.
+  const exhausted = !givenUp && last?.correct === true
   // `best` already counts this run, so equality means the record is this one.
   const record = board.streak > 0 && board.streak >= board.best
   const backed = last?.cards.find((card) => card.movieId === last.pickedId)
   const rejected = last?.cards.find((card) => card.movieId !== last.pickedId)
 
+  // Given up: the pair is still on the table and now carries the two ratings, which is the
+  // answer to the only question this game asks.
+  const [left, right] = board.cards ?? []
+  const higher = left && right && (right.rating ?? 0) > (left.rating ?? 0) ? right : left
+  const lower = higher === left ? right : left
+
   return (
     <section className={cn('border p-5 sm:p-6', exhausted ? 'border-ink bg-ink text-paper' : 'border-ink')}>
       <p className="font-mono text-xs uppercase tracking-widest opacity-70">
-        {exhausted ? 'Bibliothèque épuisée' : 'Série interrompue'}
+        {givenUp ? 'Réponse donnée' : exhausted ? 'Bibliothèque épuisée' : 'Série interrompue'}
       </p>
       <p className="mt-2 font-serif text-3xl font-black leading-tight">
         {board.streak} bon{board.streak > 1 ? 's' : ''} choix d'affilée
         {record && ' — ton record'}
       </p>
       <p className="mt-1 font-body text-sm opacity-80">
-        {exhausted ? (
+        {givenUp ? (
+          higher && lower ? (
+            <>
+              Tu avais mis {higher.rating?.toFixed(1) ?? '—'} à «&nbsp;{higher.title}&nbsp;», contre{' '}
+              {lower.rating?.toFixed(1) ?? '—'} pour «&nbsp;{lower.title}&nbsp;».
+            </>
+          ) : (
+            'La paire a quitté la bibliothèque avant que la réponse puisse être lue.'
+          )
+        ) : exhausted ? (
           "Plus aucune paire à te proposer : tu as vu juste jusqu'au bout."
         ) : backed && rejected ? (
           // Naming both films rather than saying "ce film" — the pair has already left the

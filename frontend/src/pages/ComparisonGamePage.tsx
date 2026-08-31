@@ -4,6 +4,7 @@ import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { ComparisonCard, ComparisonLegend } from '@/components/game/ComparisonCard'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
@@ -13,7 +14,7 @@ import type { GameMode } from '@/types/api'
 export function ComparisonGamePage() {
   const { mode } = useParams<{ mode: string }>()
   const gameMode: GameMode = mode === 'infinite' ? 'infinite' : 'daily'
-  const { session, isLoading, isError, error, start, guess, isOver } = useFilmGame('compare', gameMode)
+  const { session, isLoading, isError, error, start, reveal, guess, isOver } = useFilmGame('compare', gameMode)
 
   // Newest first: the card you just earned is the one you are reading.
   const guesses = session ? [...session.guesses].reverse() : []
@@ -39,12 +40,20 @@ export function ComparisonGamePage() {
       {session && (
         <>
           {!isOver && (
-            <GuessInput
-              state={session}
-              onGuess={(movieId) => guess.mutate(movieId)}
-              isPending={guess.isPending}
-              error={guess.isError ? guess.error : null}
-            />
+            <>
+              <GuessInput
+                state={session}
+                onGuess={(movieId) => guess.mutate(movieId)}
+                isPending={guess.isPending}
+                error={guess.isError ? guess.error : null}
+              />
+              <RevealAnswer
+                mode={gameMode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
           {isOver && (

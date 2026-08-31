@@ -16,6 +16,9 @@ export function GameOutcome({
   isReplaying: boolean
 }) {
   const won = state.status === 'won'
+  // Asking for the answer is not the same as running out of tries, and the verdict says so
+  // rather than filing it under "Raté": nothing was got wrong, the run was stopped.
+  const givenUp = state.status === 'revealed'
   const answer = state.answer
 
   return (
@@ -25,17 +28,25 @@ export function GameOutcome({
           <img src={answer.posterUrl} alt="" className="h-40 w-28 shrink-0 border border-current object-cover" />
         )}
         <div className="min-w-0 flex-1">
-          <Badge variant={won ? 'outline' : 'accent'} className={won ? 'border-paper/50 text-paper' : undefined}>
-            {won ? 'Trouvé' : 'Raté'}
+          {/* Accent is reserved for a run that was got wrong. Giving up is neither a win
+              nor a miss, so it stays in the neutral outline. */}
+          <Badge
+            variant={won || givenUp ? 'outline' : 'accent'}
+            className={won ? 'border-paper/50 text-paper' : undefined}
+          >
+            {won ? 'Trouvé' : givenUp ? 'Réponse donnée' : 'Raté'}
           </Badge>
           <p className="mt-2 font-serif text-3xl font-black leading-tight">
             {answer ? answer.title : 'Film inconnu'}{' '}
             {answer?.releaseYear && <span className="font-normal opacity-70">({answer.releaseYear})</span>}
           </p>
           <p className="mt-1 font-mono text-xs uppercase tracking-widest opacity-70">
-            {won
-              ? `En ${state.attemptsUsed} essai${state.attemptsUsed > 1 ? 's' : ''}`
-              : `${state.attemptsUsed} essais, aucun bon`}
+            {won && `En ${state.attemptsUsed} essai${state.attemptsUsed > 1 ? 's' : ''}`}
+            {givenUp &&
+              (state.attemptsUsed > 0
+                ? `Arrêt après ${state.attemptsUsed} essai${state.attemptsUsed > 1 ? 's' : ''}`
+                : 'Arrêt sans avoir proposé de film')}
+            {!won && !givenUp && `${state.attemptsUsed} essais, aucun bon`}
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">

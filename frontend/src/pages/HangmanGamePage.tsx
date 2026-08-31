@@ -5,6 +5,7 @@ import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
 import { Gallows } from '@/components/game/Gallows'
 import { LetterKeyboard } from '@/components/game/LetterKeyboard'
@@ -17,7 +18,7 @@ import type { GameMode, HangmanBoard } from '@/types/api'
 export function HangmanGamePage() {
   const { mode } = useParams<{ mode: string }>()
   const gameMode: GameMode = mode === 'infinite' ? 'infinite' : 'daily'
-  const { session, isLoading, isError, error, start, guess, letter, isOver } = useFilmGame('hangman', gameMode)
+  const { session, isLoading, isError, error, start, reveal, guess, letter, isOver } = useFilmGame('hangman', gameMode)
 
   const board = session?.hangman ?? null
   const canPlay = board !== null && !isOver && !letter.isPending
@@ -99,12 +100,20 @@ export function HangmanGamePage() {
           )}
 
           {!isOver && (
-            <GuessInput
-              state={session}
-              onGuess={(movieId) => guess.mutate(movieId)}
-              isPending={guess.isPending}
-              error={guess.isError ? guess.error : null}
-            />
+            <>
+              <GuessInput
+                state={session}
+                onGuess={(movieId) => guess.mutate(movieId)}
+                isPending={guess.isPending}
+                error={guess.isError ? guess.error : null}
+              />
+              <RevealAnswer
+                mode={gameMode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
           {isOver && <GameOutcome state={session} onReplay={() => start.mutate()} isReplaying={start.isPending} />}

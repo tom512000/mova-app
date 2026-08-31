@@ -5,6 +5,7 @@ import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
+import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
 import { Skeleton } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
@@ -14,7 +15,7 @@ import type { GameMode, GameState } from '@/types/api'
 export function TaglineGamePage() {
   const { mode } = useParams<{ mode: string }>()
   const gameMode: GameMode = mode === 'infinite' ? 'infinite' : 'daily'
-  const { session, isLoading, isError, error, start, guess, isOver } = useFilmGame('tagline', gameMode)
+  const { session, isLoading, isError, error, start, reveal, guess, isOver } = useFilmGame('tagline', gameMode)
 
   return (
     <div className="flex flex-col gap-8">
@@ -44,12 +45,20 @@ export function TaglineGamePage() {
           {session.maxAttempts > 1 && <ClueLadder state={session} />}
 
           {!isOver && (
-            <GuessInput
-              state={session}
-              onGuess={(movieId) => guess.mutate(movieId)}
-              isPending={guess.isPending}
-              error={guess.isError ? guess.error : null}
-            />
+            <>
+              <GuessInput
+                state={session}
+                onGuess={(movieId) => guess.mutate(movieId)}
+                isPending={guess.isPending}
+                error={guess.isError ? guess.error : null}
+              />
+              <RevealAnswer
+                mode={gameMode}
+                onReveal={() => reveal.mutate()}
+                isPending={reveal.isPending}
+                error={reveal.isError ? reveal.error : null}
+              />
+            </>
           )}
 
           {isOver && <GameOutcome state={session} onReplay={() => start.mutate()} isReplaying={start.isPending} />}

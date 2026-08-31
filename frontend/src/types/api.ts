@@ -48,7 +48,7 @@ export type GameKind =
   | 'duel'
   | 'timeline'
 export type GameMode = 'daily' | 'infinite'
-export type GameStatus = 'in_progress' | 'won' | 'lost'
+export type GameStatus = 'in_progress' | 'won' | 'lost' | 'revealed'
 export type FacetMatch = 'exact' | 'close' | 'none' | 'unknown'
 
 export interface GameClue {

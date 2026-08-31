@@ -22,6 +22,15 @@ export async function submitGuess(game: GameKind, mode: GameMode, movieId: strin
 }
 
 /**
+ * Gives up: the run stops and the board says what it was hiding. Infinite only — the
+ * route does not exist on the daily board, so a stray call is a 404 rather than a refusal.
+ */
+export async function revealAnswer(game: GameKind, mode: GameMode): Promise<GameState> {
+  const { data } = await apiClient.post<GameEnvelope>(`/games/${game}/${mode}/reveal`)
+  return data.session as GameState
+}
+
+/**
  * Duel only: one side of the pair on the table.
  *
  * Same payload as a guess and a different route, because it means a different thing — "this
