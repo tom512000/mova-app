@@ -7,6 +7,7 @@ import { ProfileSwitcher } from '@/components/ProfileSwitcher'
 import { NavDropdown, type NavDropdownEntry } from '@/components/NavDropdown'
 import { navItemClass } from '@/layouts/navItemClass'
 import { ShareProfileDialog } from '@/components/ShareProfileDialog'
+import { MovaLogo } from '@/components/MovaLogo'
 
 interface NavLinkItem {
   to: string
@@ -101,8 +102,8 @@ export function AppLayout() {
 
           <div className="flex flex-col items-center gap-3 py-3.5 sm:flex-row sm:justify-between sm:gap-4">
             <div className="flex flex-col items-center sm:items-start">
-              <NavLink to="/" className="font-serif text-3xl font-black tracking-tighter sm:text-4xl">
-                Ciné-Stats
+              <NavLink to="/" aria-label="Mova, retour au dashboard" className="block">
+                <MovaLogo mark="wordmark" className="h-9 w-auto sm:h-11" />
               </NavLink>
               {isViewingOtherProfile && activeProfile && (
                 <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-accent">
@@ -151,8 +152,8 @@ export function AppLayout() {
       </main>
 
       <footer className="mt-16 border-t-4 border-ink">
-        <div className="mx-auto flex max-w-screen-xl flex-col items-center gap-1 px-4 py-6 font-mono text-[10px] uppercase tracking-widest text-subtle sm:flex-row sm:justify-between">
-          <span>Ciné-Stats</span>
+        <div className="mx-auto flex max-w-screen-xl flex-col items-center gap-1 px-4 py-4 font-mono text-[10px] uppercase tracking-widest text-subtle sm:flex-row sm:justify-between">
+          <MovaLogo mark="monogram" className="h-6 w-auto" />
           <span>Vol. I &middot; {new Date().getFullYear()}</span>
         </div>
       </footer>

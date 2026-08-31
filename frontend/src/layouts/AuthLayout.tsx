@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
+import { MovaLogo } from '@/components/MovaLogo'
 
 const EDITION_DATE = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -22,14 +23,16 @@ export function AuthLayout({ subtitle, children }: { subtitle: string; children:
       </header>
 
       <main className="mx-auto flex w-full max-w-md flex-1 flex-col justify-center px-4 py-12">
-        <h1 className="text-center font-serif text-5xl font-black tracking-tighter">Ciné-Stats</h1>
+        <h1 className="flex justify-center">
+          <MovaLogo mark="lockup" className="h-24 w-auto sm:h-28" />
+        </h1>
         <p className="mt-2 text-center font-body text-sm italic text-subtle">{subtitle}</p>
         {children}
       </main>
 
       <footer className="border-t-4 border-ink">
         <div className="mx-auto flex max-w-screen-xl items-center justify-between px-4 py-6 font-mono text-[10px] uppercase tracking-widest text-subtle">
-          <span>Ciné-Stats</span>
+          <MovaLogo mark="monogram" className="h-6 w-auto" />
           <button
             onClick={toggleTheme}
             aria-label={theme === 'dark' ? 'Passer en édition papier (clair)' : 'Passer en édition nuit (sombre)'}
