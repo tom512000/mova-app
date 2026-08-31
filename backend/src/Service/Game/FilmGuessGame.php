@@ -18,6 +18,7 @@ use App\Repository\GameSessionRepository;
 use App\Repository\MovieRepository;
 use App\Repository\WatchRepository;
 use Doctrine\ORM\EntityManagerInterface;
+use Symfony\Component\Uid\Uuid;
 
 /**
  * The engine every game runs on.
@@ -522,8 +523,15 @@ final class FilmGuessGame
             return [];
         }
 
+        // Only what Doctrine can bind. An id that is not a UUID cannot match a film, but
+        // handing it to findBy() does not miss — DBAL throws while converting the parameter
+        // and takes the whole board down with it, which is how every finished infinite run
+        // of the pixel game became a 500 after the identifiers changed shape. Filtering here
+        // turns that into the case the loop below already handles: a guess with no film.
+        $known = array_values(array_filter($ids, static fn (string $id) => Uuid::isValid($id)));
+
         $byId = [];
-        foreach ($this->movies->findBy(['id' => $ids]) as $movie) {
+        foreach ([] === $known ? [] : $this->movies->findBy(['id' => $known]) as $movie) {
             // A Uuid object cannot be an array key, and the stored guesses are strings.
             $byId[(string) $movie->getId()] = $movie;
         }

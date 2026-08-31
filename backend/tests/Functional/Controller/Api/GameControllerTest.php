@@ -462,6 +462,36 @@ final class GameControllerTest extends WebTestCase
         }
     }
 
+    public function testAGuessIdThatIsNotAUuidDoesNotTakeTheWholeBoardDown(): void
+    {
+        $this->start('infinite', 'poster');
+        $this->guess('infinite', $this->aWrongMovieId(GameMode::INFINITE, GameKind::POSTER), 'poster');
+
+        // Exactly what Version20260829181500 left behind. It repointed every column Postgres
+        // knew referred to a film, and `guesses` is a JSON array holding ids as payload, so
+        // nothing repointed it: runs played before it still carry the old integers. Handing
+        // one to findBy() threw during parameter conversion rather than simply missing, and
+        // took the finished run's whole board down with it.
+        $session = $this->sessions->findLatestInfinite($this->player, GameKind::POSTER);
+        self::assertNotNull($session);
+        $this->entityManager->getConnection()->executeStatement(
+            'UPDATE game_session SET guesses = :guesses WHERE id = :id',
+            ['guesses' => '[559]', 'id' => (string) $session->getId()]
+        );
+        $this->entityManager->clear();
+
+        $this->client->request('GET', '/api/games/poster/infinite');
+
+        self::assertResponseIsSuccessful('an unreadable id must read as a missing film, not a 500');
+
+        $state = $this->json()['session'];
+        // The count is what the ladder is built from, so an unresolvable guess still costs
+        // its rung — the run comes back where the player left it rather than reset.
+        self::assertSame(1, $state['attemptsUsed']);
+        self::assertSame(2, $state['artwork']['step']);
+        self::assertSame([], $state['guesses'], 'there is no film to name for an id that resolves to nothing');
+    }
+
     public function testTheAnswerIsOnlyEverAFilmWithArtwork(): void
     {
         $this->start('daily', 'poster');

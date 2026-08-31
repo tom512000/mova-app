@@ -145,7 +145,11 @@ class GameSession
     /** @return list<string> */
     public function getGuesses(): array
     {
-        return $this->guesses;
+        // A JSON column gives back exactly what was written into it, so the list<string>
+        // above is a promise the database cannot keep on its own: rows written before film
+        // ids became UUIDs hold numbers here, and every caller declares a string parameter.
+        // Casting is what makes the annotation true rather than aspirational.
+        return array_map(strval(...), $this->guesses);
     }
 
     public function hasGuessed(string $movieId): bool
