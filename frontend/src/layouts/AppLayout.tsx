@@ -69,7 +69,10 @@ export function AppLayout() {
       <header className="sticky top-0 z-40 border-b-4 border-ink bg-paper">
         <div className="mx-auto max-w-screen-xl px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-ink/15 py-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
-            <span>Vol. I &middot; Édition numérique</span>
+            {/* A masthead names the edition you are holding, and this one is real: it
+                follows the theme, so the strip says something true instead of carrying a
+                volume number that was never going to reach II. */}
+            <span>{'dark' === theme ? 'Édition nuit' : 'Édition papier'}</span>
 
             <div className="flex items-center gap-4">
               <ProfileSwitcher />
@@ -154,7 +157,10 @@ export function AppLayout() {
       <footer className="mt-16 border-t-4 border-ink">
         <div className="mx-auto flex max-w-screen-xl flex-col items-center gap-1 px-4 py-4 font-mono text-[10px] uppercase tracking-widest text-subtle sm:flex-row sm:justify-between">
           <MovaLogo mark="monogram" className="h-6 w-auto" />
-          <span>Vol. I &middot; {new Date().getFullYear()}</span>
+          {/* The colophon: where the pages come from. TMDB asks to be credited for the
+              artwork and metadata this whole library is built out of, and nothing else
+              on the site said so. */}
+          <span>Données Letterboxd &amp; TMDB &middot; {new Date().getFullYear()}</span>
         </div>
       </footer>
 

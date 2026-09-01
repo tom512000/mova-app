@@ -17,7 +17,7 @@ export function AuthLayout({ subtitle, children }: { subtitle: string; children:
     <div className="flex min-h-screen flex-col bg-paper text-ink">
       <header className="border-b-4 border-ink">
         <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between gap-2 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-subtle">
-          <span>Vol. I &middot; Édition numérique</span>
+          <span>{'dark' === theme ? 'Édition nuit' : 'Édition papier'}</span>
           <span>{EDITION_DATE}</span>
         </div>
       </header>
