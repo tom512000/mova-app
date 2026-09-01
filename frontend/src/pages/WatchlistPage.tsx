@@ -11,6 +11,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { Button, buttonVariants } from '@/components/ui/Button'
 import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 import { formatMinutesAsDuration } from '@/utils/format'
+import { scrollToTop } from '@/utils/scroll'
 import { cn } from '@/utils/cn'
 import type { MovieSummary, WatchlistFacets, WatchlistSortField } from '@/types/api'
 import { PageMeta } from '@/components/PageMeta'
@@ -82,6 +83,11 @@ export function WatchlistPage() {
 
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
   const isFiltered = JSON.stringify(filters) !== JSON.stringify(EMPTY_FILTERS)
+
+  function turnTo(next: number) {
+    setPage(next)
+    scrollToTop()
+  }
 
   function change(patch: Partial<Filters>) {
     setFilters((current) => ({ ...current, ...patch }))
@@ -162,13 +168,16 @@ export function WatchlistPage() {
             ))}
           </div>
           <div className="flex items-center justify-center gap-4">
-            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+            {/* Unlike the library, this page number lives in component state rather than
+                in the URL, so paging here is not a navigation and ScrollToTop never hears
+                about it. The scroll has to be asked for on the spot. */}
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => turnTo(page - 1)}>
               Précédent
             </Button>
             <span className="font-mono text-xs uppercase tracking-widest text-subtle">
               Page {page} / {totalPages}
             </span>
-            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => setPage((p) => p + 1)}>
+            <Button variant="secondary" size="sm" disabled={page >= totalPages} onClick={() => turnTo(page + 1)}>
               Suivant
             </Button>
           </div>
