@@ -79,6 +79,13 @@ class MovieRepository extends ServiceEntityRepository
             $params['rating'] = number_format($criteria->rating, 1, '.', '');
         }
 
+        if (null !== $criteria->watchedOn) {
+            // One row of the calendar square, not the film's own aggregate: a rewatch is
+            // what puts a film under a second date, and the square counted that rewatch.
+            $conditions[] = 'EXISTS (SELECT 1 FROM watch wd WHERE wd.movie_id = m.id AND wd.user_id = :userId AND wd.watched_date = :watchedOn)';
+            $params['watchedOn'] = $criteria->watchedOn;
+        }
+
         if (null !== $criteria->mediaType) {
             $conditions[] = 'm.media_type = :mediaType';
             $params['mediaType'] = $criteria->mediaType->value;

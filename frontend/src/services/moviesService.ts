@@ -16,6 +16,8 @@ export interface MovieSearchParams {
   year?: number
   /** An exact half-star note, or 'none' for the films left unrated. */
   rating?: string
+  /** ISO day; keeps films watched that very day, as counted by the activity calendar. */
+  watchedOn?: string
   /** Keeps films this person is credited on, optionally narrowed to one role. */
   personId?: string
   personRole?: CreditRole

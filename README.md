@@ -55,7 +55,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 294 tests, 1 350 assertions |
+| PHPUnit | 11.5.56 | 296 tests, 1 371 assertions |
 
 ### Frontend
 
@@ -108,6 +108,14 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
 - **Filtre par personne** : cliquer sur un nom depuis une fiche ou depuis le dashboard filtre la
   bibliothèque sur ses crédits, avec ou sans restriction de rôle (réalisation, scénario,
   interprétation, création de série).
+- **Filtre par jour de visionnage** : cliquer un carré de la carte de chaleur du dashboard ramène
+  la bibliothèque à ce que ce jour-là a compté. Le filtre porte sur la **ligne de visionnage** et
+  non sur l'agrégat du film, donc un film revu répond à chacune de ses dates. Une date malformée
+  ou simplement impossible — `2026-02-30` se parse sans broncher — ne filtre rien du tout plutôt
+  que de renvoyer une bibliothèque vide.
+- **Pastilles retirables** : personne et jour ne viennent pas de la barre mais d'un clic ailleurs
+  dans l'app — quelques centaines de noms ou de dates ne tiendraient pas dans un menu déroulant.
+  Ils s'affichent donc en pastilles au-dessus des menus, chacune se retirant seule.
 - **Sept tris** : titre, note, année, date de visionnage, date d'ajout, durée, aléatoire. Chacun
   porte sa direction naturelle par défaut (alphabétique croissant, note décroissante…) et la
   direction reste inversable.
@@ -152,6 +160,7 @@ Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire c�
 - **Vus au fil du temps** — courbe du nombre de visionnages, du temps passé et de la note moyenne,
   basculable entre granularité annuelle et mensuelle.
 - **Distribution des notes** — les dix paliers de demi-étoile, avec moyenne, médiane et écart-type.
+  Cliquer un palier ouvre la bibliothèque sur cette note exacte.
 - **Genres les plus regardés** — nombre d'œuvres, de visionnages, note moyenne et temps cumulé par
   genre. Le vocabulaire TV de TMDB (« Action & Adventure », « Sci-Fi & Fantasy ») est fusionné vers
   le vocabulaire film, pour ne pas compter deux fois les mêmes concepts.
@@ -165,7 +174,14 @@ Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire c�
   premier épisode.
 - **Rythme** — jours actifs, amplitude en jours, jour le plus chargé, plus longue série de jours
   consécutifs, répartition par jour de la semaine, et une **carte de chaleur calendaire** avec
-  marqueur du jour courant.
+  marqueur du jour courant. Chaque carré qui a compté quelque chose ouvre la bibliothèque filtrée
+  sur ce jour ; les jours vides restent inertes, un lien vers une liste vide étant une pire réponse
+  que pas de lien. La bande entière ne prend qu'**un seul arrêt de tabulation** — plusieurs
+  centaines de jours actifs en prendraient autant, et traverser le dashboard au clavier deviendrait
+  impraticable —, les flèches déplaçant le focus de jour actif en jour actif. Le déplacement est
+  chronologique et non bidimensionnel : dans une colonne on descend vers plus tard, d'une colonne à
+  l'autre on va vers la droite vers plus tard, donc les quatre flèches partagent une seule liste et
+  chaque pas atterrit sur un carré réellement ouvrable.
 - **Quatre classements de personnes** — réalisateur·rice·s, acteur·rice·s, scénaristes,
   créateur·rice·s de séries. Chacun donne le nombre d'œuvres, la note moyenne, la meilleure et la
   pire note attribuées.
@@ -503,7 +519,7 @@ dans `index.html` avec deux `preconnect`.
 
 ## Qualité
 
-- **294 tests, 1 350 assertions**, répartis en trois couches : unitaires (logique pure —
+- **296 tests, 1 371 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

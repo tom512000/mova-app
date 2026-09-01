@@ -20,6 +20,23 @@ export function formatDate(isoDate: string | null): string {
   return new Date(isoDate).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })
 }
 
+/**
+ * A single day, written out in full: "jeudi 27 août 2026".
+ *
+ * Read as UTC, which is not a detail: an ISO day parses to midnight UTC, and rendering that
+ * in a timezone west of Greenwich lands on the evening before — the label would name the
+ * wrong day, and the calendar square it came from would look mislabelled.
+ */
+export function formatCalendarDay(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString('fr-FR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'UTC',
+  })
+}
+
 export function ratingToStars(rating: number | null): string {
   if (rating === null) return '—'
   const fullStars = Math.floor(rating)

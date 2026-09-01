@@ -1,5 +1,7 @@
-import { Fragment, useMemo } from 'react'
+import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Link } from 'react-router-dom'
 import type { ActivityDay } from '@/types/api'
+import { formatCalendarDay } from '@/utils/format'
 import { cn } from '@/utils/cn'
 
 const WEEKDAY_LABELS = ['Lun', '', 'Mer', '', 'Ven', '', 'Dim']
@@ -14,6 +16,15 @@ const MIN_CELL_PX = 11
  * one pixel the scroll container clips off the last column, and today is often in it.
  */
 const TODAY_MARKER = 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]'
+
+/**
+ * A day you can open. Drawn inwards for the same reason today's marker is — the strip
+ * scrolls, so anything outside the square gets clipped on the first and last columns — and
+ * in paper rather than accent, which is spoken for.
+ */
+const CLICKABLE =
+    'cursor-pointer hover:border-ink hover:shadow-[inset_0_0_0_2px_var(--color-paper)]'
+    + ' focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent'
 
 interface Cell {
   date: Date
@@ -41,6 +52,50 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
 
   const { weeks, monthMarkers, maxCount } = useMemo(() => buildCalendar(data, todayKey), [data, todayKey])
 
+  // The squares that lead somewhere, in the order they happened. A week column reads top to
+  // bottom and the strip reads left to right, and both directions mean "later" — so one
+  // chronological list serves all four arrow keys, and every step lands on a square that can
+  // actually be opened rather than on one of the blanks between them.
+  const days = useMemo(() => weeks.flat().filter((cell) => cell.count > 0), [weeks])
+
+  const gridRef = useRef<HTMLDivElement>(null)
+  const [focusKey, setFocusKey] = useState<string | null>(null)
+  // One tab stop for the whole calendar. Without this every day you have ever watched a film
+  // would be a stop of its own, and reaching the section below would take four hundred
+  // presses. The last active day is the default: it is the end you were looking at.
+  const rovingKey = days.some((cell) => cell.key === focusKey) ? focusKey : (days.at(-1)?.key ?? null)
+
+  const moveFocus = (event: KeyboardEvent<HTMLAnchorElement>, key: string) => {
+    const index = days.findIndex((cell) => cell.key === key)
+    if (index < 0) return
+
+    let target: number
+    switch (event.key) {
+      case 'ArrowRight':
+      case 'ArrowDown':
+        target = index + 1
+        break
+      case 'ArrowLeft':
+      case 'ArrowUp':
+        target = index - 1
+        break
+      case 'Home':
+        target = 0
+        break
+      case 'End':
+        target = days.length - 1
+        break
+      default:
+        return
+    }
+
+    event.preventDefault()
+    const next = days[Math.min(days.length - 1, Math.max(0, target))]
+    if (!next) return
+    setFocusKey(next.key)
+    gridRef.current?.querySelector<HTMLAnchorElement>(`[data-day="${next.key}"]`)?.focus()
+  }
+
   if (weeks.length === 0) {
     return <p className="font-mono text-xs text-subtle">Aucune activité à afficher.</p>
   }
@@ -49,10 +104,12 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
     <div className="flex flex-col gap-1.5">
       <div className="overflow-x-auto">
         <div
+          ref={gridRef}
           // The half-pixel each of seventy-odd 1fr tracks rounds up with has to go
           // somewhere, and against a scroll container that somewhere is the clipped edge —
-          // which shaves the last column. Two pixels of slack absorb it.
-          className="grid w-full gap-[3px] pr-0.5"
+          // which shaves the last column. The padding absorbs it, and on every side, since
+          // a focus ring on an edge square would be clipped the same way.
+          className="grid w-full gap-[3px] p-1"
           style={{
             // A week takes an equal share of whatever width the block has, so the last one
             // lands on the right edge. The floor is what makes it scroll on a narrow screen
@@ -77,19 +134,35 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
               </span>
               {weeks.map((week) => {
                 const cell = week[row]
+                const dayLabel = `${formatCalendarDay(cell.key)} · ${cell.count} visionnage${
+                  cell.count > 1 ? 's' : ''
+                }${cell.key === todayKey ? " · aujourd'hui" : ''}`
+                const box = cn(
+                  // Height follows width, so the cells stay square at every size.
+                  'aspect-square border',
+                  intensityClass(cell.count, maxCount),
+                  cell.key === todayKey && TODAY_MARKER
+                )
+
+                // A day with nothing on it stays a plain square: the link would lead to an
+                // empty list, which is a worse answer than no link at all.
+                if (cell.count === 0) {
+                  return <span key={cell.key} title={dayLabel} className={box} />
+                }
 
                 return (
-                  <span
+                  <Link
                     key={cell.key}
-                    title={`${formatDay(cell.date)} · ${cell.count} visionnage${cell.count > 1 ? 's' : ''}${
-                      cell.key === todayKey ? " · aujourd'hui" : ''
-                    }`}
-                    className={cn(
-                      // Height follows width, so the cells stay square at every size.
-                      'aspect-square border',
-                      intensityClass(cell.count, maxCount),
-                      cell.key === todayKey && TODAY_MARKER
-                    )}
+                    to={`/movies?watchedOn=${cell.key}`}
+                    data-day={cell.key}
+                    tabIndex={cell.key === rovingKey ? 0 : -1}
+                    onFocus={() => setFocusKey(cell.key)}
+                    onKeyDown={(event) => moveFocus(event, cell.key)}
+                    title={dayLabel}
+                    // The square carries no text, so the date and the tally have to be
+                    // said out loud somewhere.
+                    aria-label={dayLabel}
+                    className={cn(box, CLICKABLE)}
                   />
                 )
               })}
@@ -115,6 +188,10 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
           <span>Aujourd'hui</span>
         </span>
       </div>
+
+      <p className="font-mono text-[10px] uppercase tracking-widest text-subtle">
+        Clique un jour pour filtrer les films et séries
+      </p>
     </div>
   )
 }
@@ -129,10 +206,6 @@ function intensityClass(count: number, maxCount: number): string {
   if (ratio <= 0.5) return 'border-ink/30 bg-ink/50'
   if (ratio <= 0.75) return 'border-ink/40 bg-ink/75'
   return 'border-ink bg-ink'
-}
-
-function formatDay(date: Date): string {
-  return date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' })
 }
 
 function pad(value: number): string {

@@ -43,6 +43,9 @@ export function MoviesPage() {
   // answers with the name to label it.
   const personId = params.get('personId') ?? ''
   const personRole = params.get('personRole') as CreditRole | null
+  // Reached by clicking a square of the activity calendar: the day it counted, spelled out
+  // as the ISO date the API filters on.
+  const watchedOn = params.get('watchedOn') ?? ''
 
   const updateParams = useCallback(
     (patch: Record<string, string | null | undefined>) => {
@@ -74,7 +77,7 @@ export function MoviesPage() {
   const facets = useQuery({ queryKey: ['movies', 'facets'], queryFn: fetchMovieFacets, staleTime: 5 * 60 * 1000 })
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole }],
+    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole, watchedOn }],
     queryFn: () =>
       fetchMovies({
         q: q || undefined,
@@ -87,6 +90,7 @@ export function MoviesPage() {
         seed: filters.sort === 'random' ? seed : undefined,
         personId: personId || undefined,
         personRole: personRole ?? undefined,
+        watchedOn: watchedOn || undefined,
         page,
         perPage: PER_PAGE,
       }),
@@ -124,7 +128,8 @@ export function MoviesPage() {
     filters.rating !== '' ||
     filters.year !== '' ||
     q !== '' ||
-    personId !== ''
+    personId !== '' ||
+    watchedOn !== ''
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
 
@@ -148,6 +153,8 @@ export function MoviesPage() {
         onChange={handleFilterChange}
         onSortChange={handleSortChange}
         person={activePerson}
+        watchedOn={watchedOn}
+        onClearWatchedOn={() => updateParams({ watchedOn: null, page: null })}
         onReshuffle={() => updateParams({ seed: newSeed(), page: null })}
         onReset={handleReset}
         onClearPerson={() => updateParams({ personId: null, personRole: null, page: null })}

@@ -250,6 +250,34 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame(['100% Wolf'], $this->titlesFor('genre='.self::COMEDY.'&year=2020'));
     }
 
+    public function testTheWatchedOnFilterAnswersForOneDayOfTheCalendar(): void
+    {
+        self::assertSame(['Amélie'], $this->titlesFor('watchedOn=2024-01-05'));
+
+        // Dune was watched twice, and both of its squares lead back to it — the calendar
+        // counted the rewatch on its own day, so that day has to be able to name it.
+        self::assertSame(['Dune'], $this->titlesFor('watchedOn=2023-12-01'));
+        self::assertSame(['Dune'], $this->titlesFor('watchedOn=2024-04-02'));
+
+        // A day nothing was watched on is empty rather than unfiltered. Only squares that
+        // counted something are clickable, but the address bar is not bound by that.
+        self::assertSame([], $this->titlesFor('watchedOn=2024-01-06'));
+
+        self::assertSame(['Dune'], $this->titlesFor('watchedOn=2024-04-02&genre='.self::SCIFI));
+        self::assertSame([], $this->titlesFor('watchedOn=2024-04-02&genre='.self::COMEDY));
+    }
+
+    public function testAnUnusableWatchedOnIsNoFilterAtAllRatherThanAnEmptyLibrary(): void
+    {
+        $whole = $this->titlesFor('');
+
+        self::assertSame($whole, $this->titlesFor('watchedOn=hier'));
+        self::assertSame($whole, $this->titlesFor('watchedOn=2024-1-5'));
+        // Parses without complaint and matches nothing, which would read as an empty
+        // library instead of as the bad date it is.
+        self::assertSame($whole, $this->titlesFor('watchedOn=2026-02-30'));
+    }
+
     public function testSearchMatchesTheOriginalTitleAndTreatsWildcardsAsLiterals(): void
     {
         self::assertSame(['Amélie'], $this->titlesFor('q=fabuleux'));

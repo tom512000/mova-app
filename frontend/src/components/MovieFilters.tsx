@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, Shuffle, X } from 'lucide-react'
 import type { CreditRole, MovieFacets, MovieSortField } from '@/types/api'
 import { MEDIA_TYPE_OPTIONS, ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
-import { ratingToStars } from '@/utils/format'
+import { formatCalendarDay, ratingToStars } from '@/utils/format'
 import { Button } from '@/components/ui/Button'
 import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 
@@ -10,31 +10,55 @@ interface MovieFiltersProps {
   facets?: MovieFacets
   /** Set while the list is narrowed to one person; the name arrives with the listing. */
   person: { name: string; role: CreditRole | null } | null
+  /** Set while the list is narrowed to one day of the activity calendar; '' otherwise. */
+  watchedOn: string
   isDirty: boolean
   onChange: (patch: Partial<MovieFilterState>) => void
   onSortChange: (sort: MovieSortField) => void
   onReshuffle: () => void
   onReset: () => void
   onClearPerson: () => void
+  onClearWatchedOn: () => void
 }
 
 export function MovieFilters({
   state,
   facets,
   person,
+  watchedOn,
   isDirty,
   onChange,
   onSortChange,
   onReshuffle,
   onReset,
   onClearPerson,
+  onClearWatchedOn,
 }: MovieFiltersProps) {
   const isRandom = state.sort === 'random'
   const directionLabel = state.direction === 'asc' ? 'Croissant' : 'Décroissant'
 
   return (
     <div className="flex flex-col gap-4 border border-ink p-4">
-      {person && <PersonChip person={person} onClear={onClearPerson} />}
+      {(person || watchedOn !== '') && (
+        <div className="flex flex-wrap items-center gap-3 border-b border-muted pb-4">
+          {person && (
+            <Chip
+              prefix={person.role ? ROLE_PREFIX[person.role] : null}
+              label={person.name}
+              clearLabel={`Retirer le filtre ${person.name}`}
+              onClear={onClearPerson}
+            />
+          )}
+          {watchedOn !== '' && (
+            <Chip
+              prefix="Vu le"
+              label={formatCalendarDay(watchedOn)}
+              clearLabel={`Retirer le filtre du ${formatCalendarDay(watchedOn)}`}
+              onClear={onClearWatchedOn}
+            />
+          )}
+        </div>
+      )}
 
       <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
         <FilterSelect
@@ -141,36 +165,36 @@ export function MovieFilters({
 }
 
 /**
- * A person is picked from the dashboard, never from a dropdown — a few hundred names would
- * not fit one — so it shows up as a removable line above the selects instead.
+ * A filter picked somewhere other than this bar — a name or a day on the dashboard, neither
+ * of which would fit in a dropdown — so it shows up as a removable line above the selects
+ * instead. The prefix turns the chip into a sentence: "Réalisé par Quentin Dupieux",
+ * "Vu le jeudi 27 août 2026".
  */
-function PersonChip({
-  person,
+function Chip({
+  prefix,
+  label,
+  clearLabel,
   onClear,
 }: {
-  person: { name: string; role: CreditRole | null }
+  prefix: string | null
+  label: string
+  clearLabel: string
   onClear: () => void
 }) {
   return (
-    <div className="flex items-center gap-3 border-b border-muted pb-4">
-      <span className="inline-flex items-center gap-2.5 border border-ink bg-ink py-1.5 pl-3 pr-1.5 text-paper">
-        {person.role && (
-          <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">
-            {ROLE_PREFIX[person.role]}
-          </span>
-        )}
-        <span className="font-serif text-sm font-bold">{person.name}</span>
-        <button
-          type="button"
-          onClick={onClear}
-          aria-label={`Retirer le filtre ${person.name}`}
-          title="Retirer ce filtre"
-          className="p-1 text-paper/70 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
-        >
-          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-        </button>
-      </span>
-    </div>
+    <span className="inline-flex items-center gap-2.5 border border-ink bg-ink py-1.5 pl-3 pr-1.5 text-paper">
+      {prefix && <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">{prefix}</span>}
+      <span className="font-serif text-sm font-bold">{label}</span>
+      <button
+        type="button"
+        onClick={onClear}
+        aria-label={clearLabel}
+        title="Retirer ce filtre"
+        className="p-1 text-paper/70 transition-colors hover:text-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-paper"
+      >
+        <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+      </button>
+    </span>
   )
 }
 

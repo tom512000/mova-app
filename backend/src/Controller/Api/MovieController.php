@@ -120,6 +120,9 @@ final class MovieController
             year: $query->has('year') && '' !== $query->get('year') ? (int) $query->get('year') : null,
             rating: !$unratedOnly && '' !== $rating ? $this->clampRating((float) $rating) : null,
             unratedOnly: $unratedOnly,
+            // Clicked off a square of the activity calendar, so it always arrives as a
+            // plain ISO day.
+            watchedOn: $this->isoDateOrNull($query->get('watchedOn')),
             // Only a well-formed UUID reaches the query; anything else is read as no
             // filter at all, the same forgiving treatment the other parameters get.
             personId: $this->uuidOrNull($query->get('personId')),
@@ -151,6 +154,22 @@ final class MovieController
         return null === $person
             ? null
             : new PersonFilterDto((string) $person->getId(), $person->getName(), $criteria->personRole);
+    }
+
+    /**
+     * A calendar day, or nothing at all. Rejects both the malformed and the merely
+     * impossible: 2026-02-30 parses without complaint and would then silently match no
+     * film, which reads as an empty library rather than as the bad date it is.
+     */
+    private function isoDateOrNull(mixed $value): ?string
+    {
+        if (!\is_string($value) || 1 !== preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return null;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+
+        return false !== $date && $date->format('Y-m-d') === $value ? $value : null;
     }
 
     private function uuidOrNull(mixed $value): ?string
