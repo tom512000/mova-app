@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { LogOut, Moon, Share2, Sun, UserRound } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
@@ -8,6 +8,8 @@ import { NavDropdown, type NavDropdownEntry } from '@/components/NavDropdown'
 import { navItemClass } from '@/layouts/navItemClass'
 import { ShareProfileDialog } from '@/components/ShareProfileDialog'
 import { MovaLogo } from '@/components/MovaLogo'
+import { PageMeta } from '@/components/PageMeta'
+import { Skeleton } from '@/components/Skeleton'
 
 interface NavLinkItem {
   to: string
@@ -66,6 +68,11 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen bg-paper text-ink">
+      {/* Everything behind the login is off limits to search engines, and saying so once
+          here covers every page the layout wraps — including any added later, which is the
+          whole reason it lives at the layout rather than on each screen. */}
+      <PageMeta noindex />
+
       <header className="sticky top-0 z-40 border-b-4 border-ink bg-paper">
         <div className="mx-auto max-w-screen-xl px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-ink/15 py-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
@@ -157,7 +164,12 @@ export function AppLayout() {
       </header>
 
       <main className="mx-auto max-w-screen-xl px-4 py-10 sm:py-12">
-        <Outlet />
+        {/* One boundary, and it sits inside the chrome rather than around it: the masthead
+            and the nav stay put while a route's chunk arrives. A boundary per route would
+            flash this again on every hop between chunks already downloaded. */}
+        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+          <Outlet />
+        </Suspense>
       </main>
 
       <footer className="mt-16 border-t-4 border-ink">

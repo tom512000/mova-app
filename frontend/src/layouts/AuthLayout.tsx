@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { MovaLogo } from '@/components/MovaLogo'
+import { PageMeta } from '@/components/PageMeta'
 
 const EDITION_DATE = new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -10,11 +11,23 @@ const EDITION_DATE = new Date().toLocaleDateString('fr-FR', { weekday: 'long', d
  * profile switcher, the share button and the main nav, none of which mean anything before
  * there is a session.
  */
-export function AuthLayout({ subtitle, children }: { subtitle: string; children: ReactNode }) {
+export function AuthLayout({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string
+  subtitle: string
+  children: ReactNode
+}) {
   const { theme, toggleTheme } = useTheme()
 
   return (
     <div className="flex min-h-screen flex-col bg-paper text-ink">
+      {/* No noindex here, unlike AppLayout: these two are the only pages of the whole
+          application meant to be found. */}
+      <PageMeta title={title} />
+
       <header className="border-b-4 border-ink">
         <div className="mx-auto flex max-w-screen-xl flex-wrap items-center justify-between gap-2 px-4 py-2 font-mono text-[10px] uppercase tracking-widest text-subtle">
           <span>

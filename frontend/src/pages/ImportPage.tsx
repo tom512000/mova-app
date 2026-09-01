@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import type { ImportBatch } from '@/types/api'
 import { cn } from '@/utils/cn'
+import { PageMeta } from '@/components/PageMeta'
 
 export function ImportPage() {
   const [dragOver, setDragOver] = useState(false)
@@ -35,6 +36,7 @@ export function ImportPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <PageMeta title="Import" />
       <div className="border-b-4 border-ink pb-6">
         <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">Import</h1>
         <p className="mt-2 max-w-xl font-body text-sm text-subtle">

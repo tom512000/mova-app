@@ -6,6 +6,7 @@ import { acceptShareLink } from '@/services/profileService'
 import { useSession } from '@/hooks/useSession'
 import { Button } from '@/components/ui/Button'
 import type { ProfileSummary } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 type State =
   | { status: 'loading' }
@@ -52,6 +53,7 @@ export function SharePage() {
 
   return (
     <div className="mx-auto max-w-xl py-8">
+      <PageMeta title="Profil partagé" />
       {state.status === 'loading' && <p className="font-mono text-sm text-subtle">Validation du lien…</p>}
 
       {state.status === 'error' && (

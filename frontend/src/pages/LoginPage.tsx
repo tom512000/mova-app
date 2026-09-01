@@ -40,7 +40,7 @@ export function LoginPage() {
   }
 
   return (
-    <AuthLayout subtitle="Connectez-vous pour retrouver votre journal de visionnage.">
+    <AuthLayout title="Connexion" subtitle="Connectez-vous pour retrouver votre journal de visionnage.">
       <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-4 border border-ink bg-paper p-6">
         <TextField
           label="Email"

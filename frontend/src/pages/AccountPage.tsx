@@ -6,6 +6,7 @@ import { changePassword } from '@/services/authService'
 import { Button } from '@/components/ui/Button'
 import { TextField } from '@/components/ui/TextField'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiError'
+import { PageMeta } from '@/components/PageMeta'
 
 const MIN_PASSWORD_LENGTH = 8
 
@@ -53,6 +54,7 @@ export function AccountPage() {
 
   return (
     <div className="mx-auto max-w-xl">
+      <PageMeta title="Mon compte" />
       <div className="mb-8 border-b-2 border-ink pb-4">
         <h1 className="font-serif text-4xl font-black tracking-tighter sm:text-5xl">Mon compte</h1>
         <p className="mt-2 font-body text-sm italic text-subtle">

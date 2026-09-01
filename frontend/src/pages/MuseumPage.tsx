@@ -9,6 +9,7 @@ import { EmptyState } from '@/components/EmptyState'
 import { MEDIA_TYPE_OPTIONS, SORT_OPTIONS, defaultDirectionFor } from '@/utils/movieSort'
 import { cn } from '@/utils/cn'
 import type { MediaType, MoviePoster, MovieSortField } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 export function MuseumPage() {
   const [sort, setSort] = useState<MovieSortField>('added')
@@ -35,6 +36,7 @@ export function MuseumPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta title="Le musée" />
       <div className="flex flex-wrap items-end justify-between gap-x-6 gap-y-4 border-b-4 border-ink pb-6">
         <div>
           <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Le musée</h1>

@@ -1,0 +1,48 @@
+# Serving the built SPA. Used by Dockerfile.prod only — the dev container still runs
+# `vite dev` and none of this touches it.
+{
+	auto_https off
+	admin off
+}
+
+:80 {
+	root * /srv
+	encode zstd gzip
+
+	# Hashed filenames, so the file at a given URL can never change. A year is the maximum
+	# the specification allows and the correct answer whenever the name carries the hash.
+	@immutable path /assets/*
+	header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+	# The opposite case: index.html is what points at the hashed files, so a cached copy of
+	# it pins a visitor to the previous deploy.
+	@html path / /index.html
+	header @html Cache-Control "no-cache"
+
+	header {
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		# A share link carries a 32-character token in its path. This is already the browser
+		# default, but it is stated rather than inherited: cross-origin requests — every TMDB
+		# poster on the page — then send only the origin, never the path holding the token.
+		X-Frame-Options "DENY"
+		-Server
+	}
+
+	# The share tokens again, from the other side. These pages are reachable only with the
+	# token, but a header costs nothing and does not depend on the client running our JS.
+	@private path /share/* /account /import
+	header @private X-Robots-Tag "noindex, nofollow"
+
+	# The SPA fallback: any path that is not a file on disk gets index.html, and the router
+	# decides what it means.
+	#
+	# It answers 200 even for an address that matches no route, which is the "soft 404" a
+	# search engine dislikes. The fix would be to list every known route here and 404 the
+	# rest — and that is deliberately not done: the list would be a second copy of App.tsx,
+	# and the day the two drift a real page starts returning 404 in production only. A silent
+	# outage is a worse bug than a soft 404, especially when NotFoundPage already carries a
+	# noindex tag, which is what actually keeps the address out of an index.
+	try_files {path} /index.html
+	file_server
+}

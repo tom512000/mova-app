@@ -116,6 +116,30 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         }
     }
 
+    public function testEveryApiResponseRefusesToBeIndexed(): void
+    {
+        // Symfony sets this header itself, but only while kernel.debug is on — so it is
+        // present through every local run and absent in the one environment where a search
+        // engine could reach the endpoint. Asserting it here is what makes the production
+        // behaviour observable, since the test suite runs with debug on and would pass
+        // either way if it only looked at whether the header existed at all.
+        $this->client->request('GET', '/api/stats/overview');
+
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    }
+
+    public function testAFailedResponseCarriesItToo(): void
+    {
+        // The responses a crawler is most likely to collect are the ones no controller
+        // returned — a 401 from the firewall, a 404 from the router. Listening on
+        // kernel.response rather than sitting in a base controller is what covers them, and
+        // this is the assertion that says so.
+        $this->client->request('GET', '/api/movies/01920000-0000-7000-8000-000000000000');
+
+        self::assertResponseStatusCodeSame(404);
+        self::assertResponseHeaderSame('X-Robots-Tag', 'noindex, nofollow, noarchive');
+    }
+
     private function seed(): void
     {
         $this->user = new User(self::EMAIL, 'Smoke');

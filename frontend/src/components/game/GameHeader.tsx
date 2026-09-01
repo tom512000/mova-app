@@ -3,6 +3,7 @@ import type { ReactNode } from 'react'
 import { formatDate } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import type { GameKind, GameMode } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 const MODES: { value: GameMode; label: string; blurb: string }[] = [
   { value: 'daily', label: 'Quotidien', blurb: 'Un film par jour, une seule partie.' },
@@ -28,6 +29,7 @@ export function GameHeader({
 }) {
   return (
     <div className="border-b-4 border-ink pb-6">
+      <PageMeta title={title} />
       <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">{title}</h1>
       <p className="mt-2 max-w-xl font-body text-sm text-subtle">{rules}</p>
 

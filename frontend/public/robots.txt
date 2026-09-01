@@ -1,0 +1,37 @@
+# Mova
+#
+# Everything in this application is behind a login, so there is nothing to crawl past the
+# front door. The default is therefore "no", with the three public pages named explicitly —
+# the opposite of the usual allow-list, and deliberately so: a route added later is private
+# until someone decides otherwise, rather than public until someone remembers.
+#
+# /share/ matters most. A share link is a 32-character token in the URL, and a token that
+# reaches a crawler — pasted in a tweet, carried in a browser sync — would put somebody's
+# library in a search index. Crawling it is refused before that can happen.
+#
+# Note this stops crawling, not indexing: a URL linked from elsewhere can still be listed
+# without being fetched. The pages that must never be listed also carry a noindex tag, which
+# is what actually keeps them out. See PageMeta and ApiRobotsSubscriber.
+
+User-agent: *
+Disallow: /
+
+Allow: /$
+Allow: /login
+Allow: /register
+
+# Static assets, so the public pages can be rendered and their preview image fetched.
+Allow: /favicon.ico
+Allow: /apple-touch-icon.png
+Allow: /mova-
+Allow: /og-mova.png
+
+# Named rather than left to the catch-all above, because these are the ones worth being
+# explicit about if the rules are ever loosened.
+Disallow: /share/
+Disallow: /account
+Disallow: /import
+Disallow: /api/
+
+# Sitemap: add this line once the domain is known. A sitemap pointing at the wrong host is
+# worse than no sitemap at all, and three linked pages are found without one anyway.

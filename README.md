@@ -35,6 +35,7 @@ partage.
   - [Identité visuelle](#12-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
+- [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
 - [Qualité](#qualité)
 
 ---
@@ -54,7 +55,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 292 tests, 1 345 assertions |
+| PHPUnit | 11.5.56 | 294 tests, 1 350 assertions |
 
 ### Frontend
 
@@ -451,9 +452,58 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 
 ---
 
+## Référencement et mise en ligne
+
+La surface publique de Mova, c'est **trois adresses** : `/`, `/login`, `/register`. Tout le reste
+est derrière un compte, y compris `/share/<token>`. Le travail de référencement consiste donc
+autant à empêcher l'indexation qu'à la permettre.
+
+**Ce qui est refusé aux moteurs**
+- `robots.txt` en liste blanche : tout est interdit, les trois pages publiques sont nommées. Une
+  route ajoutée plus tard est privée par défaut, plutôt que publique jusqu'à ce que quelqu'un y
+  pense.
+- `X-Robots-Tag: noindex, nofollow, noarchive` sur toute réponse `/api/`, posé par
+  `ApiRobotsSubscriber` — Symfony pose déjà cet en-tête, mais **uniquement quand `kernel.debug`
+  est actif**, donc jamais dans le seul environnement où ça compte.
+- `<meta name="robots" content="noindex, nofollow">` sur tout ce que `AppLayout` enveloppe, écrit
+  une seule fois au niveau du layout et non page par page.
+- Une vraie page 404. Sans elle, une adresse inconnue ne correspondait à aucune route et affichait
+  une page blanche — servie avec un code 200 une fois le site en statique, ce qui est le « soft
+  404 » que les moteurs sanctionnent.
+
+**Ce qui est offert aux moteurs et aux aperçus de lien**
+
+Les robots qui construisent les aperçus — Facebook, WhatsApp, Slack, Discord, LinkedIn, iMessage —
+**n'exécutent pas de JavaScript**. Tout ce qu'ils verront un jour se trouve donc en dur dans
+`index.html` : titre, description, Open Graph, carte Twitter, et une image `og-mova.png` en
+1200 × 630. Les titres par page, eux, sont posés par `PageMeta` pour le confort de navigation.
+
+> Deux balises manquent volontairement : `og:url` et `<link rel="canonical">`. Elles exigent le
+> domaine réel, et une canonique pointant vers le mauvais hôte fait plus de dégâts que son absence.
+> Même chose pour le `sitemap.xml` — trois pages liées entre elles se trouvent sans.
+
+**Performance de chargement**
+
+Le paquet initial est passé de **857 kB (253 kB gzip) en un seul morceau** à **291 kB (90 kB
+gzip)**, soit −64 %. Les huit jeux, le musée, l'import et le compte sont découpés en `React.lazy`,
+et le dashboard aussi — Recharts pèse à lui seul 396 kB et n'a aucune raison d'être téléchargé par
+quelqu'un qui arrive sur l'écran de connexion. La frontière `Suspense` est posée à l'intérieur du
+gabarit, autour de l'`<Outlet />`, pour que le bandeau et la navigation ne clignotent pas.
+
+Les polices étaient chargées par un `@import` en tête de `index.css` : la pire chaîne possible,
+quatre allers-retours en série avant le premier caractère peint. Elles sont désormais déclarées
+dans `index.html` avec deux `preconnect`.
+
+**Servir en production**
+
+`docker/frontend/Dockerfile.prod` construit le SPA et le sert derrière Caddy
+(`docker/frontend/Caddyfile`) : compression, `immutable` sur les fichiers hashés, `no-cache` sur
+`index.html`, en-têtes de sécurité, et repli SPA. Le conteneur de développement continue de lancer
+`vite dev`, inchangé.
+
 ## Qualité
 
-- **292 tests, 1 345 assertions**, répartis en trois couches : unitaires (logique pure —
+- **294 tests, 1 350 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

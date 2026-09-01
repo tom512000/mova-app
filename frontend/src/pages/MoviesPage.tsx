@@ -12,6 +12,7 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import { ratingToStars } from '@/utils/format'
 import { SORT_OPTIONS, defaultDirectionFor, type MovieFilterState } from '@/utils/movieSort'
 import type { CreditRole, MediaType, MovieSortField, SortDirection } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 const PER_PAGE = 24
 
@@ -129,6 +130,7 @@ export function MoviesPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <PageMeta title="Films et séries" />
       <div className="flex flex-col gap-4 border-b-4 border-ink pb-6 sm:flex-row sm:items-end sm:justify-between">
         <h1 className="text-balance font-serif text-5xl font-black tracking-tighter sm:text-6xl">Films et séries</h1>
         <input

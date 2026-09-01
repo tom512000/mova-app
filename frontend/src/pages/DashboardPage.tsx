@@ -28,6 +28,7 @@ import { ActivityHeatmap } from '@/charts/ActivityHeatmap'
 import { buttonVariants } from '@/components/ui/Button'
 import { formatMinutesAsDays, formatMinutesAsDuration, formatRating } from '@/utils/format'
 import { cn } from '@/utils/cn'
+import { PageMeta } from '@/components/PageMeta'
 
 export function DashboardPage() {
   const [granularity, setGranularity] = useState<'month' | 'year'>('year')
@@ -68,6 +69,7 @@ export function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-10">
+      <PageMeta title="Dashboard" />
       <div className="border-b-4 border-ink pb-6">
         <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Dashboard</h1>
         <p className="mt-2 font-body text-sm italic text-subtle">Vue d'ensemble de ton activité cinéphile.</p>

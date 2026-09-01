@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 import { formatDate, formatMinutesAsDuration } from '@/utils/format'
 import type { Credit, CreditRole, MovieDetail, Watch } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 /**
  * A film has one release year; a series has a span. Collapses to a single year when the
@@ -59,6 +60,7 @@ export function MovieDetailPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <PageMeta title={movie.title} />
       <Link
         to="/movies"
         className="inline-flex w-fit items-center gap-1.5 font-mono text-xs uppercase tracking-widest text-subtle transition-colors hover:text-accent"

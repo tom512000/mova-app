@@ -56,7 +56,7 @@ export function RegisterPage() {
   }
 
   return (
-    <AuthLayout subtitle="Créez un compte pour importer et suivre vos visionnages.">
+    <AuthLayout title="Inscription" subtitle="Créez un compte pour importer et suivre vos visionnages.">
       <form onSubmit={handleSubmit} className="mt-10 flex flex-col gap-4 border border-ink bg-paper p-6">
         <TextField
           label="Nom affiché"

@@ -13,6 +13,7 @@ import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 import { formatMinutesAsDuration } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import type { MovieSummary, WatchlistFacets, WatchlistSortField } from '@/types/api'
+import { PageMeta } from '@/components/PageMeta'
 
 /**
  * The evening's budget, as it would be said out loud rather than as a number of minutes.
@@ -100,6 +101,7 @@ export function WatchlistPage() {
 
   return (
     <div className="flex flex-col gap-8">
+      <PageMeta title="Watchlist" />
       <div className="flex flex-col gap-4 border-b-4 border-ink pb-6 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="font-serif text-5xl font-black tracking-tighter sm:text-6xl">Watchlist</h1>
