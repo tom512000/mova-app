@@ -72,7 +72,14 @@ export function AppLayout() {
             {/* A masthead names the edition you are holding, and this one is real: it
                 follows the theme, so the strip says something true instead of carrying a
                 volume number that was never going to reach II. */}
-            <span>{'dark' === theme ? 'Édition nuit' : 'Édition papier'}</span>
+            <span>
+              {'dark' === theme ? 'Édition nuit' : 'Édition papier'}
+              {/* The date rides with the edition rather than sitting at the far end of
+                  the strip: together they are one masthead line. The separator travels
+                  inside the same span as the date it separates, so the narrow layout
+                  that drops the date does not leave a dot dangling. */}
+              <span className="hidden sm:inline"> &middot; {EDITION_DATE}</span>
+            </span>
 
             <div className="flex items-center gap-4">
               <ProfileSwitcher />
@@ -99,7 +106,6 @@ export function AppLayout() {
                 <LogOut className="h-3 w-3" strokeWidth={2} />
                 Déconnexion
               </button>
-              <span className="hidden sm:inline">{EDITION_DATE}</span>
             </div>
           </div>
 
