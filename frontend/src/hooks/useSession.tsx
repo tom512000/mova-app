@@ -10,6 +10,13 @@ import { fetchProfiles } from '@/services/profileService'
 import { setActiveProfileId } from '@/services/apiClient'
 import type { AuthUser, ProfileSummary } from '@/types/api'
 
+/**
+ * The two queries the shell is itself built on. Everything else is read through the active
+ * profile and has to go on a switch, but dropping these would sign the user out and unmount
+ * the picker they just used.
+ */
+const SHELL_QUERY_ROOTS = ['auth', 'profiles']
+
 interface SessionValue {
   user: AuthUser | null
   isLoading: boolean
@@ -63,7 +70,15 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       setActiveProfileIdState(isSelf ? null : profileId)
       // Every cached film, stat and watchlist page belongs to the profile that was active
       // when it was fetched, so none of it survives the switch.
-      void queryClient.invalidateQueries()
+      //
+      // reset, not invalidate: invalidating refetches but leaves the old answer in place
+      // until the new one lands, and a query that still has data is not loading — so every
+      // skeleton on the page stayed unrendered and Tom's numbers sat there until Camille's
+      // quietly replaced them. Resetting empties them first, which is what the sentence
+      // above claims and what puts the pages back into their loading state.
+      void queryClient.resetQueries({
+        predicate: (query) => !SHELL_QUERY_ROOTS.includes(query.queryKey[0] as string),
+      })
     },
     [profileList, queryClient]
   )
