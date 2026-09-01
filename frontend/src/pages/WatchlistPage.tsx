@@ -5,7 +5,7 @@ import { Dices, RotateCcw } from 'lucide-react'
 import { fetchWatchlist, fetchWatchlistFacets, pickFromWatchlist } from '@/services/watchlistService'
 import type { WatchlistSearchParams } from '@/services/watchlistService'
 import { MovieCard } from '@/components/MovieCard'
-import { SkeletonGrid } from '@/components/Skeleton'
+import { SkeletonMovieGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { Button, buttonVariants } from '@/components/ui/Button'
@@ -133,7 +133,7 @@ export function WatchlistPage() {
 
       {picked !== null && <Pick movie={picked} onRedraw={() => void draw()} isPicking={isPicking} />}
 
-      {isLoading && <SkeletonGrid count={12} />}
+      {isLoading && <SkeletonMovieGrid count={12} />}
       {isError && <ErrorState message={(error as Error).message} />}
 
       {data && data.items.length === 0 && (

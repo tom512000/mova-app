@@ -6,7 +6,7 @@ import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
 import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonGameBoard } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import type { GameMode, GameState } from '@/types/api'
@@ -26,7 +26,7 @@ export function ClueGamePage() {
         puzzleDate={session?.puzzleDate}
       />
 
-      {isLoading && <Skeleton className="h-64 w-full" />}
+      {isLoading && <SkeletonGameBoard height={300} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {start.isError && <ErrorState message={apiErrorMessage(start.error, 'Impossible de lancer la partie.')} />}
 

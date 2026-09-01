@@ -4,7 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { fetchMovieFacets, fetchMovies } from '@/services/moviesService'
 import { MovieCard } from '@/components/MovieCard'
 import { MovieFilters } from '@/components/MovieFilters'
-import { SkeletonGrid } from '@/components/Skeleton'
+import { SkeletonMovieGrid } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { Button } from '@/components/ui/Button'
@@ -162,7 +162,7 @@ export function MoviesPage() {
         </p>
       )}
 
-      {isLoading && <SkeletonGrid count={12} />}
+      {isLoading && <SkeletonMovieGrid count={12} />}
       {isError && <ErrorState message={(error as Error).message} />}
 
       {data && data.items.length === 0 && (

@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/Badge'
 import type { ImportBatch } from '@/types/api'
 import { cn } from '@/utils/cn'
 import { PageMeta } from '@/components/PageMeta'
+import { SkeletonImportHistory, SkeletonSyncPanel } from '@/components/Skeleton'
 
 export function ImportPage() {
   const [dragOver, setDragOver] = useState(false)
@@ -87,6 +88,10 @@ export function ImportPage() {
 
       <section className="flex flex-col gap-3">
         <h2 className="font-serif text-2xl font-bold">Historique des imports</h2>
+        {history.isLoading && <SkeletonImportHistory />}
+        {/* There was no error branch here either: a failed fetch left the heading standing
+            over nothing at all, indistinguishable from an account that has never imported. */}
+        {history.isError && <ErrorState message={(history.error as Error).message} />}
         {history.data && history.data.length === 0 && <p className="text-sm text-subtle">Aucun import pour l'instant.</p>}
         {history.data?.map((batch) => <ImportBatchRow key={batch.id} initial={batch} />)}
       </section>
@@ -111,7 +116,10 @@ function LetterboxdRssSyncSection() {
     },
   })
 
-  if (isLoading || !syncState) return null
+  // Returning null while loading made the whole panel pop in at the bottom of the page,
+  // shifting everything above it once the request landed.
+  if (isLoading) return <SkeletonSyncPanel />
+  if (!syncState) return null
 
   return (
     <section className="border border-ink p-5 sm:p-6">

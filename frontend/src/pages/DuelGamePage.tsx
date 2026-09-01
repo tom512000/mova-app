@@ -5,7 +5,7 @@ import { GameHeader } from '@/components/game/GameHeader'
 import { GameStartPanel } from '@/components/game/GameStartPanel'
 import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { Button } from '@/components/ui/Button'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonDuelTable } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import { cn } from '@/utils/cn'
@@ -28,7 +28,7 @@ export function DuelGamePage() {
         puzzleDate={session?.puzzleDate}
       />
 
-      {isLoading && <Skeleton className="h-96 w-full" />}
+      {isLoading && <SkeletonDuelTable />}
       {isError && <ErrorState message={(error as Error).message} />}
       {start.isError && <ErrorState message={apiErrorMessage(start.error, 'Impossible de lancer la partie.')} />}
       {pick.isError && <ErrorState message={apiErrorMessage(pick.error, 'Choix refusé.')} />}

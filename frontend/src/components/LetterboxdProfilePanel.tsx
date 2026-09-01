@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { ExternalLink } from 'lucide-react'
 import { fetchLetterboxdProfile } from '@/services/profileService'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonProfilePanel } from '@/components/Skeleton'
 import { formatDate } from '@/utils/format'
 import type { FavouriteFilm, LetterboxdProfile } from '@/types/api'
 
@@ -23,7 +23,7 @@ export function LetterboxdProfilePanel() {
     <section className="border border-ink p-5 sm:p-6">
       <h2 className="font-serif text-2xl font-bold">Profil Letterboxd</h2>
 
-      {isLoading && <Skeleton className="mt-5 h-48 w-full" />}
+      {isLoading && <SkeletonProfilePanel />}
 
       {isError && (
         <p className="mt-4 font-mono text-xs text-accent">Impossible de charger le profil Letterboxd.</p>

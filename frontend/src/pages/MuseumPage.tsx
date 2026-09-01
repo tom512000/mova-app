@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchPosterWall } from '@/services/moviesService'
 import { PosterWall } from '@/components/museum/PosterWall'
 import { StarRating } from '@/components/ui/StarRating'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonMuseumWall } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { MEDIA_TYPE_OPTIONS, SORT_OPTIONS, defaultDirectionFor } from '@/utils/movieSort'
@@ -96,7 +96,7 @@ export function MuseumPage() {
         </div>
       </div>
 
-      {isLoading && <Skeleton className="h-[62vh] w-full" />}
+      {isLoading && <SkeletonMuseumWall />}
       {isError && <ErrorState message={(error as Error).message} />}
 
       {data && data.length === 0 && (

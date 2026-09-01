@@ -6,7 +6,7 @@ import { GameOutcome } from '@/components/game/GameOutcome'
 import { GuessInput } from '@/components/game/GuessInput'
 import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { ComparisonCard, ComparisonLegend } from '@/components/game/ComparisonCard'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonGameBoard } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import type { GameMode } from '@/types/api'
@@ -29,7 +29,7 @@ export function ComparisonGamePage() {
         puzzleDate={session?.puzzleDate}
       />
 
-      {isLoading && <Skeleton className="h-64 w-full" />}
+      {isLoading && <SkeletonGameBoard height={200} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {start.isError && <ErrorState message={apiErrorMessage(start.error, 'Impossible de lancer la partie.')} />}
 

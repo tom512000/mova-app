@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Link, useParams } from 'react-router-dom'
 import { ArrowLeft } from 'lucide-react'
 import { fetchMovie } from '@/services/moviesService'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonMovieDetail } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
@@ -45,13 +45,7 @@ export function MovieDetailPage() {
   })
 
   if (isLoading) {
-    return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-64 w-full" />
-        <Skeleton className="h-8 w-1/2" />
-        <Skeleton className="h-4 w-1/3" />
-      </div>
-    )
+    return <SkeletonMovieDetail />
   }
 
   if (isError || !movie) return <ErrorState message={(error as Error)?.message} />

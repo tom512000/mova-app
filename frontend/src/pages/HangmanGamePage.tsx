@@ -9,7 +9,7 @@ import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
 import { Gallows } from '@/components/game/Gallows'
 import { LetterKeyboard } from '@/components/game/LetterKeyboard'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonGameBoard } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import { cn } from '@/utils/cn'
@@ -54,7 +54,7 @@ export function HangmanGamePage() {
         puzzleDate={session?.puzzleDate}
       />
 
-      {isLoading && <Skeleton className="h-64 w-full" />}
+      {isLoading && <SkeletonGameBoard height={280} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {start.isError && <ErrorState message={apiErrorMessage(start.error, 'Impossible de lancer la partie.')} />}
 

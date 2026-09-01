@@ -16,7 +16,15 @@ import {
 } from '@/services/statsService'
 import type { CreditRole, PersonStat, ReleaseWindowStats } from '@/types/api'
 import { StatCard } from '@/components/StatCard'
-import { SkeletonGrid } from '@/components/Skeleton'
+import {
+  SkeletonChart,
+  SkeletonDonut,
+  SkeletonHeatmap,
+  SkeletonPageHeader,
+  SkeletonPersonGrid,
+  SkeletonReleaseWindow,
+  SkeletonStatGrid,
+} from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { EmptyState } from '@/components/EmptyState'
 import { TimelineChart } from '@/charts/TimelineChart'
@@ -48,7 +56,18 @@ export function DashboardPage() {
   const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats })
   const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
 
-  if (overview.isLoading) return <SkeletonGrid count={8} />
+  // The whole page, not just the cards: this branch replaces the masthead too, and a
+  // grid of small boxes floating where a 60-pixel title belongs reads as a broken page.
+  if (overview.isLoading)
+    return (
+      <div className="flex flex-col gap-10">
+        <SkeletonPageHeader />
+        <SkeletonStatGrid count={8} />
+        <div className="border border-ink p-5 sm:p-6">
+          <SkeletonChart />
+        </div>
+      </div>
+    )
   if (overview.isError) return <ErrorState message={(overview.error as Error).message} />
 
   const stats = overview.data!
@@ -80,7 +99,6 @@ export function DashboardPage() {
           <StatCard
             label="Films & séries"
             value={stats.totalMovies}
-            hint={stats.totalRewatches > 0 ? `${stats.totalWatches} visionnages · ${stats.totalRewatches} rewatch${stats.totalRewatches > 1 ? 'es' : ''}` : undefined}
           />
         </Link>
         <Link to="/watchlist" className="block">
@@ -131,7 +149,7 @@ export function DashboardPage() {
         <p className="mb-4 text-xs text-subtle">
           Basé sur la date de journal quand elle existe, sinon la date d'ajout de la note/du visionnage sur Letterboxd.
         </p>
-        {timeline.isLoading && <SkeletonGrid count={1} />}
+        {timeline.isLoading && <SkeletonChart height={280} />}
         {timeline.data && <TimelineChart data={timeline.data} />}
       </section>
 
@@ -144,7 +162,7 @@ export function DashboardPage() {
               {ratings.data.standardDeviation?.toFixed(2) ?? '—'}
             </p>
           )}
-          {ratings.isLoading && <SkeletonGrid count={1} />}
+          {ratings.isLoading && <SkeletonChart height={260} bars={10} />}
           {ratings.data && (
             <>
               <RatingDistributionChart
@@ -171,7 +189,7 @@ export function DashboardPage() {
               cumulées
             </p>
           )}
-          {genres.isLoading && <SkeletonGrid count={1} />}
+          {genres.isLoading && <SkeletonChart height={320} bars={10} />}
           {genres.data && genres.data.length > 0 ? (
             <>
               <GenreBarChart
@@ -192,7 +210,7 @@ export function DashboardPage() {
           <p className="mb-4 font-mono text-xs text-subtle">
             Une coproduction compte pour chaque pays : les parts portent sur les crédits, pas sur les films
           </p>
-          {countries.isLoading && <SkeletonGrid count={1} />}
+          {countries.isLoading && <SkeletonDonut />}
           {countries.data && <CountryDonutChart data={countries.data} />}
         </section>
 
@@ -201,7 +219,7 @@ export function DashboardPage() {
           <p className="mb-4 font-mono text-xs text-subtle">
             Découverts dans le mois suivant leur sortie
           </p>
-          {atRelease.isLoading && <SkeletonGrid count={1} />}
+          {atRelease.isLoading && <SkeletonReleaseWindow />}
           {atRelease.data && <ReleaseWindowPanel stats={atRelease.data} />}
         </section>
       </div>
@@ -221,7 +239,7 @@ export function DashboardPage() {
             </span>
           </p>
         )}
-        {activity.isLoading && <SkeletonGrid count={1} />}
+        {activity.isLoading && <SkeletonHeatmap />}
         {activity.data && (
           <div className="mt-5 flex flex-col gap-8">
             <ActivityHeatmap data={activity.data.calendar} />
@@ -353,7 +371,7 @@ function PersonStatSection({
   return (
     <section className="border border-ink p-5 sm:p-6">
       <h2 className="mb-4 font-serif text-2xl font-bold">{title}</h2>
-      {isLoading && <SkeletonGrid count={3} />}
+      {isLoading && <SkeletonPersonGrid count={6} />}
       {data && data.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {data.map((p) => (

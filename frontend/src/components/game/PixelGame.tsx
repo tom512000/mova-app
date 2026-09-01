@@ -7,7 +7,7 @@ import { GuessInput } from '@/components/game/GuessInput'
 import { RevealAnswer } from '@/components/game/RevealAnswer'
 import { GuessList } from '@/components/game/GuessList'
 import { PixelArtwork } from '@/components/game/PixelArtwork'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonGameBoard } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { apiErrorMessage } from '@/utils/apiError'
 import { cn } from '@/utils/cn'
@@ -46,7 +46,7 @@ export function PixelGame({
     <div className="flex flex-col gap-8">
       <GameHeader game={game} mode={mode} title={title} rules={rules} puzzleDate={session?.puzzleDate} />
 
-      {isLoading && <Skeleton className="h-96 w-full" />}
+      {isLoading && <SkeletonGameBoard height={360} />}
       {isError && <ErrorState message={(error as Error).message} />}
       {start.isError && <ErrorState message={apiErrorMessage(start.error, 'Impossible de lancer la partie.')} />}
 

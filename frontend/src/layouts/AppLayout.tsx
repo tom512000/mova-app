@@ -9,7 +9,7 @@ import { navItemClass } from '@/layouts/navItemClass'
 import { ShareProfileDialog } from '@/components/ShareProfileDialog'
 import { MovaLogo } from '@/components/MovaLogo'
 import { PageMeta } from '@/components/PageMeta'
-import { Skeleton } from '@/components/Skeleton'
+import { SkeletonPage } from '@/components/Skeleton'
 
 interface NavLinkItem {
   to: string
@@ -167,7 +167,7 @@ export function AppLayout() {
         {/* One boundary, and it sits inside the chrome rather than around it: the masthead
             and the nav stay put while a route's chunk arrives. A boundary per route would
             flash this again on every hop between chunks already downloaded. */}
-        <Suspense fallback={<Skeleton className="h-96 w-full" />}>
+        <Suspense fallback={<SkeletonPage />}>
           <Outlet />
         </Suspense>
       </main>
