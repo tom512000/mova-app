@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 333 tests, 1 458 assertions |
+| PHPUnit | 11.5.56 | 341 tests, 1 478 assertions |
 
 ### Frontend
 
@@ -151,16 +151,16 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
 
 ### 3. Dashboard statistique
 
-Treize agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+Quatorze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
-Un bouton **Vue détaillée** en tête de page replie les trois blocs les plus fins — la
-divergence avec le public, les décennies et le rythme — pour ne garder que la lecture
-d'ensemble. Le choix est retenu dans
+Un bouton **Vue détaillée** en tête de page replie les quatre blocs les plus fins — la
+divergence avec le public, les décennies, les budgets et le rythme — pour ne garder que la
+lecture d'ensemble. Le choix est retenu dans
 `localStorage` plutôt que dans l'URL : c'est une préférence de lecture propre à ce navigateur, et
 un lien de profil partagé doit arriver dans l'état où son destinataire a laissé le dashboard, pas
 dans celui de l'expéditeur. Il est **actif par défaut** : ces blocs existaient avant le réglage, et
 les voir disparaître au premier chargement après un déploiement se lirait comme une panne. Repliés,
-leurs trois requêtes ne partent pas du tout.
+leurs quatre requêtes ne partent pas du tout.
 
 **Cartes de synthèse**
 - Nombre d'œuvres distinctes, avec le total de visionnages et de rewatches en sous-titre.
@@ -216,6 +216,20 @@ leurs trois requêtes ne partent pas du tout.
   1950 à 1980 se lit comme « pas grand-chose entre les deux » alors qu'il veut dire « rien du
   tout » —, et leur note vaut `null`, jamais zéro : zéro est une note exécrable, une absence
   n'en est pas une.
+- **Blockbusters contre petits films** — la note moyenne par tranche de budget, sur la même
+  rangée que les décennies. Les deux se lisent ensemble et se contredisent : plus le budget
+  monte mieux la note monte, alors que plus le film est récent moins bien il est noté — or les
+  gros budgets sont surtout récents. C'est précisément pourquoi il faut les deux : côte à côte
+  ils montrent que ni la date ni l'argent n'expliquent seuls les notes.
+  - **Quatre tranches larges**, pas davantage. Les budgets TMDB sont saisis par la communauté
+    et les petits sont les moins fiables du lot ; une grille plus fine tracerait une courbe
+    d'apparence précise sur des chiffres qui ne la méritent pas.
+  - Un budget à zéro est lu comme **« non renseigné »** et non comme « tourné sans argent »,
+    ce qu'il signifie en pratique sur TMDB. Ces œuvres sont comptées à part et leur nombre est
+    affiché sous le graphe : un bloc calculé sur trois quarts de la bibliothèque doit le dire
+    plutôt que laisser les barres suggérer qu'elles la couvrent.
+  - Les bornes hautes sont **exclusives** : un film à exactement cinq millions ouvre la
+    deuxième tranche au lieu de fermer la première.
 - **Rythme** — jours actifs, amplitude en jours, jour le plus chargé, plus longue série de jours
   consécutifs, répartition par jour de la semaine, et une **carte de chaleur calendaire** avec
   marqueur du jour courant. Chaque carré qui a compté quelque chose ouvre la bibliothèque filtrée
@@ -541,7 +555,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/studios`, `/divergence`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -755,7 +769,7 @@ plus.
 
 ## Qualité
 
-- **333 tests, 1 458 assertions**, répartis en trois couches : unitaires (logique pure —
+- **341 tests, 1 478 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

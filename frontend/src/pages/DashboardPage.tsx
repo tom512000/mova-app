@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   fetchActivityStats,
   fetchActorStats,
+  fetchBudgetStats,
   fetchCountryStats,
   fetchDecadeStats,
   fetchDivergenceStats,
@@ -45,6 +46,7 @@ import { CountryDonutChart } from '@/charts/CountryDonutChart'
 import { WeekdayChart } from '@/charts/WeekdayChart'
 import { ActivityHeatmap } from '@/charts/ActivityHeatmap'
 import { DecadeChart } from '@/charts/DecadeChart'
+import { BudgetChart } from '@/charts/BudgetChart'
 import { buttonVariants } from '@/components/ui/Button'
 import { formatMinutesAsDays, formatMinutesAsDuration, formatRating } from '@/utils/format'
 import { cn } from '@/utils/cn'
@@ -67,6 +69,7 @@ export function DashboardPage() {
   // cost two requests to render nothing, and react-query keeps the answers once the
   // reader turns them back on.
   const decades = useQuery({ queryKey: ['stats', 'decades'], queryFn: fetchDecadeStats, enabled: detailed })
+  const budgets = useQuery({ queryKey: ['stats', 'budgets'], queryFn: fetchBudgetStats, enabled: detailed })
   const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats, enabled: detailed })
   const divergence = useQuery({ queryKey: ['stats', 'divergence'], queryFn: fetchDivergenceStats, enabled: detailed })
   const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
@@ -273,28 +276,52 @@ export function DashboardPage() {
             {divergence.data && <DivergencePanel stats={divergence.data} />}
           </section>
 
-          <section className="newsprint-texture border border-ink p-5 sm:p-6">
-            <h2 className="mb-1 font-serif text-2xl font-bold">Décennies</h2>
-            <p className="mb-4 font-mono text-xs text-subtle">
-              Barre : films sortis dans la décennie · chiffre au-dessus : ta note moyenne
-            </p>
-            {decades.isLoading && <SkeletonChart height={300} />}
-            {decades.isError && <ErrorState message={(decades.error as Error).message} />}
-            {decades.data &&
-              (decades.data.length > 0 ? (
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <section className="newsprint-texture border border-ink p-5 sm:p-6">
+              <h2 className="mb-1 font-serif text-2xl font-bold">Décennies</h2>
+              <p className="mb-4 font-mono text-xs text-subtle">
+                Barre : films sortis dans la décennie · chiffre au-dessus : ta note moyenne
+              </p>
+              {decades.isLoading && <SkeletonChart height={300} />}
+              {decades.isError && <ErrorState message={(decades.error as Error).message} />}
+              {decades.data &&
+                (decades.data.length > 0 ? (
+                  <>
+                    <DecadeChart data={decades.data} />
+                    {/* Said out loud because the chart cannot say it: a decade represented by a
+                        handful of films has an average that moves a full star on one viewing. */}
+                    <p className="mt-3 border-t border-ink/20 pt-3 text-xs text-subtle">
+                      Une décennie représentée par quelques films a une moyenne fragile — la hauteur de
+                      la barre dit combien de films portent le chiffre au-dessus d'elle.
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-sm text-subtle">Pas encore d'année de sortie dans la bibliothèque.</p>
+                ))}
+            </section>
+
+            <section className="newsprint-texture border border-ink p-5 sm:p-6">
+              <h2 className="mb-1 font-serif text-2xl font-bold">Blockbusters contre petits films</h2>
+              <p className="mb-4 font-mono text-xs text-subtle">
+                Barre : films de la tranche · chiffre au-dessus : ta note moyenne
+              </p>
+              {budgets.isLoading && <SkeletonChart height={300} />}
+              {budgets.isError && <ErrorState message={(budgets.error as Error).message} />}
+              {budgets.data && (
                 <>
-                  <DecadeChart data={decades.data} />
-                  {/* Said out loud because the chart cannot say it: a decade represented by a
-                      handful of films has an average that moves a full star on one viewing. */}
+                  <BudgetChart data={budgets.data.bands} />
+                  {/* The denominator, out loud. TMDB records a budget for barely three
+                      quarters of the library, and bars that cover part of it must not be
+                      read as covering all of it. */}
                   <p className="mt-3 border-t border-ink/20 pt-3 text-xs text-subtle">
-                    Une décennie représentée par quelques films a une moyenne fragile — la hauteur de
-                    la barre dit combien de films portent le chiffre au-dessus d'elle.
+                    {budgets.data.worksWithoutBudget} œuvres vues n'ont pas de budget chez TMDB et ne
+                    sont dans aucune tranche. Un budget bas y est souvent une estimation, pas un
+                    chiffre relevé — la tranche la plus basse est la moins fiable des quatre.
                   </p>
                 </>
-              ) : (
-                <p className="text-sm text-subtle">Pas encore d'année de sortie dans la bibliothèque.</p>
-              ))}
-          </section>
+              )}
+            </section>
+          </div>
 
           <section className="border border-ink p-5 sm:p-6">
             <h2 className="font-serif text-2xl font-bold">Rythme</h2>

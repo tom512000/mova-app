@@ -1,6 +1,7 @@
 import { apiClient } from '@/services/apiClient'
 import type {
   ActivityStats,
+  BudgetStats,
   CountryStat,
   DecadeStat,
   DivergenceStats,
@@ -25,6 +26,12 @@ export async function fetchTimelineStats(granularity: 'month' | 'year'): Promise
 
 export async function fetchRatingStats(): Promise<RatingStats> {
   const { data } = await apiClient.get<RatingStats>('/stats/ratings')
+  return data
+}
+
+/** A zero budget means "not recorded" on TMDB - see BudgetStatsService on the backend. */
+export async function fetchBudgetStats(): Promise<BudgetStats> {
+  const { data } = await apiClient.get<BudgetStats>('/stats/budgets')
   return data
 }
 

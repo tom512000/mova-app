@@ -336,6 +336,21 @@ export interface RatingStats {
   distribution: RatingDistributionPoint[]
 }
 
+export interface BudgetBand {
+  /** Inclusive, in US dollars; 0 on the first bracket. */
+  minBudget: number
+  /** Exclusive; null on the last bracket, which is open-ended. */
+  maxBudget: number | null
+  movieCount: number
+  averageRating: number | null
+}
+
+export interface BudgetStats {
+  bands: BudgetBand[]
+  /** Watched works TMDB has no budget for - what the bands were NOT computed from. */
+  worksWithoutBudget: number
+}
+
 export interface DecadeStat {
   /** The decade's first year: 1970 for the 1970s. */
   decade: number

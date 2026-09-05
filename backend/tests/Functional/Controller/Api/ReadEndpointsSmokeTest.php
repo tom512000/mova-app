@@ -94,6 +94,7 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'stats decades' => ['/api/stats/decades'];
         yield 'stats studios' => ['/api/stats/studios'];
         yield 'stats divergence' => ['/api/stats/divergence'];
+        yield 'stats budgets' => ['/api/stats/budgets'];
         yield 'stats countries' => ['/api/stats/countries'];
         yield 'stats activity' => ['/api/stats/activity'];
         yield 'stats at release' => ['/api/stats/at-release'];

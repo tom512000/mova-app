@@ -7,6 +7,7 @@ namespace App\Controller\Api;
 use App\Entity\Enum\CreditRole;
 use App\Service\Profile\ViewedProfileResolver;
 use App\Service\Stats\ActivityStatsService;
+use App\Service\Stats\BudgetStatsService;
 use App\Service\Stats\CountryStatsService;
 use App\Service\Stats\DecadeStatsService;
 use App\Service\Stats\DivergenceStatsService;
@@ -51,6 +52,16 @@ final class StatsController
     public function ratings(RatingStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getRatingStats($this->profileResolver->getViewedUser()));
+    }
+
+    /**
+     * Ratings against what the film cost. Works TMDB has no budget for are counted apart
+     * and reported with the bands - see BudgetStatsService.
+     */
+    #[Route('/budgets', methods: ['GET'])]
+    public function budgets(BudgetStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getBudgetStats($this->profileResolver->getViewedUser()));
     }
 
     /**
