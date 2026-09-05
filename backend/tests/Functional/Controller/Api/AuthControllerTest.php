@@ -33,6 +33,14 @@ final class AuthControllerTest extends WebTestCase
         $this->entityManager = self::getContainer()->get(EntityManagerInterface::class);
         $this->entityManager->getConnection()->beginTransaction();
 
+        // Two limiters guard this controller - five registrations an hour per address,
+        // and the firewall's login_throttling - and both count in a cache pool that
+        // outlives the process. The transaction rolled back below cannot undo that, so a
+        // second run of the suite within the hour used to fail on 429s that had nothing to
+        // do with the code under test. Emptying the pool is one line and covers both,
+        // where resetting each limiter by hand means knowing every key they build.
+        $this->resetRateLimiters();
+
         $this->createUser(self::EXISTING_EMAIL, self::EXISTING_PASSWORD);
     }
 
@@ -43,6 +51,31 @@ final class AuthControllerTest extends WebTestCase
             $connection->rollBack();
         }
         parent::tearDown();
+    }
+
+    public function testRegistrationIsCappedPerAddress(): void
+    {
+        // Openness is the point - a share link has to be self-service - so the endpoint is
+        // public, writes a row and hashes a password. The cap is what keeps that from being
+        // free to abuse, and until now nothing checked it was wired at all.
+        for ($attempt = 1; $attempt <= 5; ++$attempt) {
+            $this->postJson('/api/auth/register', [
+                'email' => "cap-{$attempt}@example.com",
+                'displayName' => 'Cap',
+                'password' => 'un-mot-de-passe-valide',
+            ]);
+            self::assertResponseIsSuccessful("attempt {$attempt} is within the allowance");
+        }
+
+        $this->postJson('/api/auth/register', [
+            'email' => 'cap-6@example.com',
+            'displayName' => 'Cap',
+            'password' => 'un-mot-de-passe-valide',
+        ]);
+
+        self::assertResponseStatusCodeSame(Response::HTTP_TOO_MANY_REQUESTS);
+        // A well-behaved client is told how long to wait rather than left to guess.
+        self::assertTrue($this->client->getResponse()->headers->has('Retry-After'));
     }
 
     public function testRegisterCreatesTheAccountAndSignsItIn(): void
@@ -158,6 +191,11 @@ final class AuthControllerTest extends WebTestCase
     {
         $this->postJson('/api/auth/login', ['email' => $email, 'password' => $password]);
         self::assertResponseIsSuccessful();
+    }
+
+    private function resetRateLimiters(): void
+    {
+        self::getContainer()->get('cache.rate_limiter')->clear();
     }
 
     private function createUser(string $email, string $plainPassword): User
