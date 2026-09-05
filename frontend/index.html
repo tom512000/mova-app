@@ -24,18 +24,27 @@
       property="og:description"
       content="Tes statistiques de cinéma à partir de ton export Letterboxd : genres, réalisateurs, pays, temps passé, et huit jeux tirés des films que tu as vus."
     />
+    <meta property="og:url" content="https://mova.tomsikora.dev/" />
     <!--
-      TODO at deploy: make this absolute (https://votre-domaine/og-mova.png) and add
-      <meta property="og:url"> plus <link rel="canonical">. Several crawlers resolve a
-      relative image against the page, but the specification wants an absolute URL and the
-      strict ones simply drop the card. Neither tag can be written before the domain exists,
-      and a canonical pointing at the wrong host is worse than none.
+      Absolute, because the specification asks for it. Several crawlers do resolve a relative
+      image against the page they found it on, but the strict ones simply drop the card - and
+      a link preview that silently loses its image is the kind of thing nobody notices until
+      somebody shares the site.
     -->
-    <meta property="og:image" content="/og-mova.png" />
+    <meta property="og:image" content="https://mova.tomsikora.dev/og-mova.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta property="og:image:alt" content="Mova — Stats. Films. You." />
     <meta name="twitter:card" content="summary_large_image" />
+
+    <!--
+      The homepage, which is the right answer for any crawler that does not run JavaScript:
+      robots.txt lets it fetch three addresses and this is the one worth ranking. PageMeta
+      rewrites this same element's href on every navigation, so a crawler that does render
+      gets the address it is actually looking at. One element either way - never two, which
+      is a canonical nobody can resolve.
+    -->
+    <link rel="canonical" href="https://mova.tomsikora.dev/" />
 
     <link rel="icon" href="/favicon.ico" sizes="16x16 24x24 32x32 48x48 64x64 128x128 256x256" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

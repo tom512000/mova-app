@@ -508,9 +508,30 @@ Les robots qui construisent les aperçus — Facebook, WhatsApp, Slack, Discord,
 `index.html` : titre, description, Open Graph, carte Twitter, et une image `og-mova.png` en
 1200 × 630. Les titres par page, eux, sont posés par `PageMeta` pour le confort de navigation.
 
-> Deux balises manquent volontairement : `og:url` et `<link rel="canonical">`. Elles exigent le
-> domaine réel, et une canonique pointant vers le mauvais hôte fait plus de dégâts que son absence.
-> Même chose pour le `sitemap.xml` — trois pages liées entre elles se trouvent sans.
+Le site vit sur **`mova.tomsikora.dev`**, ce qui débloque les trois balises qui attendaient un
+domaine.
+
+- **`og:url`** et une **`og:image` absolue**. Plusieurs robots résolvent bien une image relative
+  contre la page où ils l'ont trouvée, mais les stricts abandonnent la carte — et un aperçu qui
+  perd silencieusement son image ne se remarque que le jour où quelqu'un partage le lien.
+- **La canonique** existe en un seul exemplaire, jamais deux : `index.html` en porte une vers la
+  page d'accueil, et `PageMeta` réécrit le `href` de ce même élément à chaque navigation. Deux
+  balises canoniques sur une page, c'est une canonique qu'aucun moteur ne peut trancher.
+  Elle est construite à partir de `window.location.origin`, pas d'une constante : c'est la seule
+  façon qu'elle ne puisse jamais nommer le mauvais hôte, l'erreur qu'une canonique pardonne le
+  moins. Le chemin seul, jamais la requête — `/movies?genre=Comédie` est une vue de la
+  bibliothèque, pas une page à elle.
+- **`sitemap.xml`** liste les trois adresses publiques, sans `lastmod`. Il faudrait l'écrire à la
+  main et il commencerait à mentir dès le lendemain ; un `lastmod` périmé est pire qu'absent,
+  il apprend au moteur que les dates de ce fichier ne veulent rien dire. Ni `priority` ni
+  `changefreq` non plus : Google les ignore et le dit.
+
+> **`.dev` est HTTPS obligatoire.** Le TLD entier est sur la liste HSTS préchargée des
+> navigateurs, donc il n'existe aucun repli en HTTP : si Caddy n'obtient pas son certificat, le
+> site n'est pas dégradé, il est injoignable. Le port 80 doit rester ouvert — c'est par là que
+> passe le défi ACME, pas la navigation. L'en-tête HSTS servi ici est volontairement sans
+> `includeSubDomains` : il n'engage que `mova.tomsikora.dev` et ne peut rien imposer aux autres
+> sous-domaines de `tomsikora.dev`.
 
 **Performance de chargement**
 
@@ -656,7 +677,9 @@ plus.
 
 ### Ce qui reste
 
-- `og:url`, `<link rel="canonical">` et `sitemap.xml` attendent le domaine réel.
+- Un enregistrement `A` pour `mova` vers l'IP du VPS, et le volume `caddy_data` qui doit
+  persister : sans lui, chaque redémarrage redemande un certificat et finit sur la limite
+  hebdomadaire de Let's Encrypt.
 - Aucun collecteur d'erreurs. Monolog écrit du JSON sur stderr, ce qui convient — à condition que
   quelque chose le ramasse.
 - Le préchargement opcache (`opcache.preload`) reste à gagner. Écarté pour un premier déploiement :

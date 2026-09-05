@@ -54,9 +54,16 @@ services:
       APP_SECRET: "${APP_SECRET:?set APP_SECRET - generate one with openssl rand -hex 32}"
       DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?serverVersion=16&charset=utf8"
       MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
-      # Same origin in this stack, so CORS never comes into play. Kept pinned to the real
-      # site anyway: it is what refuses a credentialed request from somebody else's page.
-      CORS_ALLOW_ORIGIN: "${CORS_ALLOW_ORIGIN:-^https://${SITE_ADDRESS}$$}"
+      # Deny every cross-origin caller by default: ^$ can only match an empty string, and a
+      # browser never sends an empty Origin. That is the correct policy here, because the
+      # SPA is served from this very host — nelmio skips CORS entirely when the Origin
+      # equals the request's own scheme and host, so the app never needs a rule.
+      #
+      # It used to default to ^https://${SITE_ADDRESS}$$, which was both unnecessary and
+      # slightly wrong: unescaped dots in a hostname are regex wildcards, so a site called
+      # movaXtomsikoraYdev would have matched. Split the SPA and the API across two domains
+      # and you set this explicitly, escaping the dots yourself.
+      CORS_ALLOW_ORIGIN: "${CORS_ALLOW_ORIGIN:-^$$}"
       TMDB_API_KEY: "${TMDB_API_KEY:?set TMDB_API_KEY}"
       TMDB_API_BASE_URL: "https://api.themoviedb.org/3"
       TMDB_IMAGE_BASE_URL: "https://image.tmdb.org/t/p"

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Three addresses, which is the entire public surface: everything else in Mova is behind a
+  login and is refused to crawlers by robots.txt.
+
+  No <lastmod>. It would have to be written by hand and would start lying the day after this
+  file was saved, and a stale lastmod is worse than none - it teaches a crawler that the
+  dates here mean nothing. No <priority> or <changefreq> either: Google has ignored both for
+  years and says so.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://mova.tomsikora.dev/</loc></url>
+  <url><loc>https://mova.tomsikora.dev/login</loc></url>
+  <url><loc>https://mova.tomsikora.dev/register</loc></url>
+</urlset>

@@ -25,6 +25,7 @@ Allow: /favicon.ico
 Allow: /apple-touch-icon.png
 Allow: /mova-
 Allow: /og-mova.png
+Allow: /sitemap.xml
 
 # Named rather than left to the catch-all above, because these are the ones worth being
 # explicit about if the rules are ever loosened.
@@ -33,5 +34,5 @@ Disallow: /account
 Disallow: /import
 Disallow: /api/
 
-# Sitemap: add this line once the domain is known. A sitemap pointing at the wrong host is
-# worse than no sitemap at all, and three linked pages are found without one anyway.
+# Absolute, as the specification requires - a relative path here is ignored.
+Sitemap: https://mova.tomsikora.dev/sitemap.xml
