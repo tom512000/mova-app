@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 341 tests, 1 478 assertions |
+| PHPUnit | 11.5.56 | 343 tests, 1 489 assertions |
 
 ### Frontend
 
@@ -346,6 +346,15 @@ drapeau recopient quelque chose que Letterboxd a déclaré — la colonne `Rewat
 de `reviews.csv`, l'entrée RSS. Une date de notation qui bouge ne déclare rien : compter ces
 lignes comme des visionnages posait un carré sur une journée sans film, carré désormais cliquable
 qui aurait ouvert une liste vide.
+
+Elles sont également exclues des **deux agrégats de date** dont dépendent les tris « vus
+récemment » et « ajoutés récemment », donc du mur du musée comme du classement de la
+bibliothèque. Une seule note révisée suffisait à renvoyer une œuvre en tête d'affiche alors
+qu'elle n'avait pas été revue depuis un an — c'est ainsi que le défaut a été trouvé. La
+**moyenne des notes**, elle, continue de les compter : une renotation est exactement ce qu'une
+note est. C'est pourquoi ce sont les agrégats de date qui sont filtrés, et non la ligne qui est
+écartée. Les deux peuvent désormais valoir `null`, d'où le `NULLS LAST` sur chaque tri qui les
+lit.
 
 Conséquence : **la base est la seule à détenir cet historique**, et un repartir-de-zéro depuis un zip
 unique le perdrait définitivement.
@@ -769,7 +778,7 @@ plus.
 
 ## Qualité
 
-- **341 tests, 1 478 assertions**, répartis en trois couches : unitaires (logique pure —
+- **343 tests, 1 489 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

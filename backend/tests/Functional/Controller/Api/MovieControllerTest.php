@@ -112,6 +112,47 @@ final class MovieControllerTest extends WebTestCase
         );
     }
 
+    public function testARevisedRatingDoesNotMakeAWorkLookFreshlyWatched(): void
+    {
+        // Revising a note months later - after somebody else's review, or a change of heart -
+        // is a real rating, but it is not an evening spent in front of the film. Counted in
+        // the date aggregate, a single revision was enough to send a work back to the front
+        // of the museum wall and to the top of "vus récemment", which is how this surfaced.
+        //
+        // Dune rather than 100% Wolf: the tie-break is alphabetical, so a film that already
+        // sorts first would pass this test with the bug still in place.
+        $this->revise('Dune', 0.5);
+
+        // Last watched 2024-04-02, behind Zone Blanche. A note moved in 2026 must not
+        // overtake it.
+        self::assertSame(
+            ['Zone Blanche', 'Dune', 'Brazil', 'Casablanca', 'Amélie', '100% Wolf'],
+            $this->titlesFor('sort=watched')
+        );
+
+        // Every seeded viewing is inserted in one flush, so added_at is tied across the
+        // library and the alphabetical tie-break decides. The revision carries a later
+        // timestamp of its own, so without the filter Dune would head this list.
+        self::assertSame(
+            '100% Wolf',
+            $this->titlesFor('sort=added&direction=desc')[0],
+            'nor does a revised note count as having just been added'
+        );
+    }
+
+    public function testARevisedRatingStillCountsTowardsTheScore(): void
+    {
+        // The other half of the rule, and why the two dates are filtered rather than the
+        // whole row skipped: a revision is exactly what a rating is.
+        $this->revise('Dune', 0.5);
+
+        $this->client->request('GET', '/api/movies?q=Dune');
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        // Rated 2.0 and 5.0, then revised to 0.5.
+        self::assertSame(2.5, $payload['items'][0]['myAverageRating']);
+    }
+
     public function testRatingFilterMatchesAWatchRatherThanTheAverage(): void
     {
         self::assertSame(['Amélie'], $this->titlesFor('rating=4.5'));
@@ -611,6 +652,21 @@ final class MovieControllerTest extends WebTestCase
         $watch->setWatchedDate(new \DateTimeImmutable($date));
         $watch->setRating($rating);
         $this->entityManager->persist($watch);
+    }
+
+    /** A note moved later on, without the film being watched again. */
+    private function revise(string $title, float $rating): void
+    {
+        $movie = $this->entityManager->getRepository(Movie::class)->findOneBy(['title' => $title]);
+        $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => self::EMAIL]);
+        self::assertNotNull($movie);
+        self::assertNotNull($user);
+
+        $revision = new Watch($user, $movie, WatchSource::CSV_RERATING);
+        $revision->setWatchedDate(new \DateTimeImmutable('2026-09-01'));
+        $revision->setRating($rating);
+        $this->entityManager->persist($revision);
+        $this->entityManager->flush();
     }
 
     private function login(): void

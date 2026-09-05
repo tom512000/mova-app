@@ -11,6 +11,7 @@ use App\Entity\Enum\EnrichmentStatus;
 use App\Entity\Enum\GameKind;
 use App\Entity\Enum\MediaType;
 use App\Entity\Enum\MovieSortField;
+use App\Entity\Enum\WatchSource;
 use App\Entity\Movie;
 use App\Entity\User;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
@@ -47,7 +48,10 @@ class MovieRepository extends ServiceEntityRepository
      */
     public function search(User $user, MovieSearchCriteria $criteria): array
     {
-        $params = ['userId' => (string) $user->getId()];
+        $params = [
+            'userId' => (string) $user->getId(),
+            'deducedSource' => WatchSource::CSV_RERATING->value,
+        ];
         $conditions = [];
 
         if (null !== $criteria->query && '' !== $criteria->query) {
@@ -387,7 +391,10 @@ class MovieRepository extends ServiceEntityRepository
      */
     public function posterWall(User $user, MovieSearchCriteria $criteria): array
     {
-        $params = ['userId' => (string) $user->getId()];
+        $params = [
+            'userId' => (string) $user->getId(),
+            'deducedSource' => WatchSource::CSV_RERATING->value,
+        ];
         if (MovieSortField::RANDOM === $criteria->sort) {
             $params['seed'] = $criteria->seed ?? '';
         }
@@ -411,6 +418,15 @@ class MovieRepository extends ServiceEntityRepository
     /**
      * The catalogue narrowed to what this profile has watched, with its per-film aggregates.
      * The join is what does the narrowing, which is why it is never a LEFT one.
+     *
+     * The two dates skip the rows deduced from a moved rating; the average does not. Revising
+     * a note months later is a real rating - it belongs in the score - but it is not an
+     * evening spent in front of the film, so it must not make the film look freshly watched.
+     * Left in, a single revised note was enough to send a film back to the front of the
+     * museum wall and to the top of "vus récemment", which is precisely how the bug showed up.
+     *
+     * Both aggregates can now come back null, for a film whose every row was deduced, which
+     * is why every ordering that reads them says NULLS LAST.
      */
     private function watchedByProfile(): string
     {
@@ -418,8 +434,8 @@ class MovieRepository extends ServiceEntityRepository
             JOIN (
                 SELECT w.movie_id,
                     AVG(w.rating) AS average_rating,
-                    MAX(w.watched_date) AS last_watched_date,
-                    MAX(w.created_at) AS added_at
+                    MAX(w.watched_date) FILTER (WHERE w.source <> :deducedSource) AS last_watched_date,
+                    MAX(w.created_at) FILTER (WHERE w.source <> :deducedSource) AS added_at
                 FROM watch w
                 WHERE w.user_id = :userId
                 GROUP BY w.movie_id
@@ -441,7 +457,7 @@ class MovieRepository extends ServiceEntityRepository
             MovieSortField::RATING => "agg.average_rating {$direction} NULLS LAST, {$tieBreak}",
             MovieSortField::YEAR => "m.release_year {$direction} NULLS LAST, {$tieBreak}",
             MovieSortField::WATCHED => "agg.last_watched_date {$direction} NULLS LAST, {$tieBreak}",
-            MovieSortField::ADDED => "agg.added_at {$direction}, {$tieBreak}",
+            MovieSortField::ADDED => "agg.added_at {$direction} NULLS LAST, {$tieBreak}",
             MovieSortField::RUNTIME => "m.runtime_minutes {$direction} NULLS LAST, {$tieBreak}",
             // Hashing the seed together with the id gives each seed its own stable
             // permutation, so paging through a shuffle neither repeats nor skips a film.
