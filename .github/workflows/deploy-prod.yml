@@ -68,8 +68,20 @@ jobs:
               # old PEM one - silently missed every key generated in the last decade.
               echo "-> Cle protegee par passphrase. Une Action ne peut pas la saisir :"
               echo "   genere une cle de deploiement dediee et sans passphrase."
+            elif head -n 1 ~/.ssh/id_ed25519 | grep -q '^b3BlbnNzaC1rZXktdjEA'; then
+              # That base64 decodes to "openssh-key-v1", the magic every OpenSSH private
+              # key body opens with. Seeing it on line 1 means the body survived and only
+              # the two -----BEGIN/END----- lines were lost - a paste that dropped the
+              # first and last line, not a truncated key.
+              #
+              # Deliberately not repaired by re-adding the armour: the secret would stay
+              # wrong, the next person to rotate it would hit this again, and a body that
+              # IS short would get wrapped into a key that fails further downstream.
+              echo "-> Armure absente. Le corps de la cle est la, mais les lignes"
+              echo "   -----BEGIN OPENSSH PRIVATE KEY----- et -----END----- manquent."
+              echo "   Le collage a perdu la premiere et la derniere ligne du fichier."
             elif ! head -n 1 ~/.ssh/id_ed25519 | grep -q 'BEGIN .*PRIVATE KEY'; then
-              echo "-> En-tete absent. Le secret a probablement ete tronque ou reformate."
+              echo "-> En-tete non reconnu. Le secret n'est pas une cle privee."
             else
               echo "-> En-tete correct mais corps illisible : le collage a altere le base64."
             fi
@@ -85,7 +97,30 @@ jobs:
 
       - name: Deploy Mova
         run: |
+          # The quoted heredoc delimiter matters: unquoted, the runner would expand $VAR
+          # here and send the result, so the remote shell would receive values from the
+          # wrong machine. Quoted, every line travels verbatim.
           ssh \
             -o BatchMode=yes \
             -T \
-            ubuntu@vps-93991c4a.vps.ovh.net
+            ubuntu@vps-93991c4a.vps.ovh.net <<'REMOTE'
+          set -euo pipefail
+
+          cd /opt/apps/mova
+
+          # reset --hard rather than pull: a deploy should land on exactly what is on the
+          # branch, not on a merge of it with whatever state the server drifted into.
+          # .env.prod is gitignored, so the one file that IS edited on the server survives
+          # this untouched - which is the only reason it is safe here.
+          git fetch --prune origin
+          git reset --hard origin/prod
+
+          # --build because the images are the deploy unit; the migrate service runs the
+          # migrations once and the others wait for it to succeed.
+          docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+          # Old image layers pile up fast with a rebuild on every push.
+          docker image prune -f
+
+          docker compose -f docker-compose.prod.yml --env-file .env.prod ps
+          REMOTE
