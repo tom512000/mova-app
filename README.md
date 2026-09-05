@@ -188,10 +188,19 @@ Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire c�
   chronologique et non bidimensionnel : dans une colonne on descend vers plus tard, d'une colonne à
   l'autre on va vers la droite vers plus tard, donc les quatre flèches partagent une seule liste et
   chaque pas atterrit sur un carré réellement ouvrable.
-- **Cinq classements de personnes** — réalisateur·rice·s, acteur·rice·s, scénaristes,
-  créateur·rice·s de séries, producteur·rice·s. Chacun donne le nombre d'œuvres, la note moyenne,
-  la meilleure et la pire note attribuées. Cliquer un nom filtre la bibliothèque sur ses crédits
-  dans ce rôle.
+- **Les gens, en un seul bloc** — cinq classements (réalisation, interprétation, scénario,
+  création de séries, production) derrière un sélecteur segmenté, neuf noms à la fois. Chacun
+  donne le nombre d'œuvres et la note moyenne ; cliquer un nom filtre la bibliothèque sur ses
+  crédits dans ce rôle.
+  - C'étaient cinq sections empilées, soit beaucoup de page pour cinq variantes de la même
+    liste que seul leur titre distinguait. Regroupées, le choix devient la partie intéressante.
+  - Le sélecteur nomme le **métier** et non les personnes — « Réalisation », pas
+    « Réalisateur·rice·s les plus vu·e·s » : cinq pluriels inclusifs côte à côte sont illisibles
+    à cette taille, et le titre juste au-dessus dit déjà qui est compté. C'est un vrai
+    `tablist` : un seul arrêt de tabulation, flèches pour circuler, `Home`/`End` aux extrémités.
+  - **Seul le classement affiché est demandé.** Cinq requêtes partaient à chaque ouverture du
+    dashboard pour remplir cinq blocs ; il n'en part plus qu'une, et react-query garde les
+    autres une fois consultées.
   - **Producteur·rice·s** ne compte que le crédit `Producer` de TMDB, jamais `Executive
     Producer`, `Co-Producer`, `Associate Producer` ni `Line Producer`. Ces intitulés ne désignent
     pas le même travail : une production exécutive est très souvent un montage financier ou un

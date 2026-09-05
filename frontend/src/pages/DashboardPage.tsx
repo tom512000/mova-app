@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
+import { useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   fetchActivityStats,
@@ -47,11 +47,6 @@ export function DashboardPage() {
   const timeline = useQuery({ queryKey: ['stats', 'timeline', granularity], queryFn: () => fetchTimelineStats(granularity) })
   const ratings = useQuery({ queryKey: ['stats', 'ratings'], queryFn: fetchRatingStats })
   const genres = useQuery({ queryKey: ['stats', 'genres'], queryFn: fetchGenreStats })
-  const directors = useQuery({ queryKey: ['stats', 'directors'], queryFn: () => fetchDirectorStats(6) })
-  const actors = useQuery({ queryKey: ['stats', 'actors'], queryFn: () => fetchActorStats(6) })
-  const writers = useQuery({ queryKey: ['stats', 'writers'], queryFn: () => fetchWriterStats(6) })
-  const creators = useQuery({ queryKey: ['stats', 'creators'], queryFn: () => fetchCreatorStats(6) })
-  const producers = useQuery({ queryKey: ['stats', 'producers'], queryFn: () => fetchProducerStats(6) })
   // Every country, not a top twelve: the donut groups the tail into "Autres", and that
   // wedge is only honest if it really covers everything else.
   const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(100) })
@@ -253,52 +248,7 @@ export function DashboardPage() {
         )}
       </section>
 
-      <PersonStatSection
-        role="director"
-        title="Réalisateur·rice·s les plus vu·e·s"
-        isLoading={directors.isLoading}
-        data={directors.data}
-        emptyMessage="Pas encore de réalisateur·rice·s enrichi·e·s via TMDB."
-      />
-
-      <PersonStatSection
-        role="actor"
-        title="Acteur·rice·s les plus vu·e·s"
-        isLoading={actors.isLoading}
-        data={actors.data}
-        emptyMessage="Pas encore d'acteur·rice·s enrichi·e·s via TMDB."
-      />
-
-      <PersonStatSection
-        role="writer"
-        title="Scénaristes les plus vu·e·s"
-        isLoading={writers.isLoading}
-        data={writers.data}
-        emptyMessage="Pas encore de scénaristes enrichi·e·s via TMDB."
-      />
-
-      <PersonStatSection
-        role="creator"
-        title="Créateur·rice·s de séries les plus vu·e·s"
-        isLoading={creators.isLoading}
-        data={creators.data}
-        // "séries" and not "films": counting a series as a film is the exact mislabelling
-        // the creator role exists to undo.
-        unit="série"
-        emptyMessage="Aucune série dans la bibliothèque pour l'instant."
-      />
-
-      <PersonStatSection
-        role="producer"
-        title="Producteur·rice·s les plus vu·e·s"
-        isLoading={producers.isLoading}
-        data={producers.data}
-        // Only the plain "Producer" credit counts, never executive producer — that one is
-        // often a financing arrangement rather than a job, and counting it would fill this
-        // list with studio executives. Said here because the block gives no other clue.
-        note="Producteur·rice·s crédité·e·s comme tel·le·s, hors production exécutive"
-        emptyMessage="Pas encore de producteur·rice·s enrichi·e·s via TMDB."
-      />
+      <PeopleRankings />
     </div>
   )
 }
@@ -366,50 +316,200 @@ function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
   )
 }
 
-function PersonStatSection({
-  role,
-  title,
-  isLoading,
-  data,
-  emptyMessage,
-  note,
-  unit = 'film',
-}: {
+/**
+ * The five rankings of people, in one block rather than five stacked ones.
+ *
+ * Five sections one after another was a lot of page for five variations on the same list,
+ * and nothing but the heading distinguished them. Folded together, the choice becomes the
+ * interesting part and the page gets four sections shorter.
+ *
+ * The selector names the craft rather than the people - "Réalisation", not
+ * "Réalisateur·rice·s les plus vu·e·s". Five inclusive plurals side by side are unreadable at
+ * this size, and the heading right above already says who is being counted.
+ *
+ * Only the visible ranking is fetched. Five queries used to fire on every dashboard load to
+ * fill five blocks; now one does, and react-query keeps the others once they have been asked
+ * for, so coming back to a tab is instant.
+ */
+interface Ranking {
   role: CreditRole
+  /** The craft, not the people: five inclusive plurals side by side do not fit a segment. */
+  tab: string
   title: string
-  isLoading: boolean
-  data: PersonStat[] | undefined
-  emptyMessage: string
-  /** Says what a credit had to be to land here, where the title alone would overpromise. */
-  note?: string
+  fetch: (limit?: number) => Promise<PersonStat[]>
   /** What one credit counts as. Everything here is a film except a series creator's work. */
   unit?: 'film' | 'série'
-}) {
+  /** Says what a credit had to be to land here, where the title alone would overpromise. */
+  note?: string
+  empty: string
+}
+
+// Typed rather than `as const satisfies`: the latter narrows every entry to its own literal
+// shape, so `note` and `unit` vanish from the union for the four entries that omit them.
+const RANKINGS: readonly Ranking[] = [
+  {
+    role: 'director',
+    tab: 'Réalisation',
+    title: 'Réalisateur·rice·s les plus vu·e·s',
+    fetch: fetchDirectorStats,
+    empty: 'Pas encore de réalisateur·rice·s enrichi·e·s via TMDB.',
+  },
+  {
+    role: 'actor',
+    tab: 'Interprétation',
+    title: 'Acteur·rice·s les plus vu·e·s',
+    fetch: fetchActorStats,
+    empty: "Pas encore d'acteur·rice·s enrichi·e·s via TMDB.",
+  },
+  {
+    role: 'writer',
+    tab: 'Scénario',
+    title: 'Scénaristes les plus vu·e·s',
+    fetch: fetchWriterStats,
+    empty: 'Pas encore de scénaristes enrichi·e·s via TMDB.',
+  },
+  {
+    role: 'creator',
+    tab: 'Création',
+    title: 'Créateur·rice·s de séries les plus vu·e·s',
+    fetch: fetchCreatorStats,
+    // "séries" and not "films": counting a series as a film is the exact mislabelling the
+    // creator role exists to undo.
+    unit: 'série',
+    empty: "Aucune série dans la bibliothèque pour l'instant.",
+  },
+  {
+    role: 'producer',
+    tab: 'Production',
+    title: 'Producteur·rice·s les plus vu·e·s',
+    fetch: fetchProducerStats,
+    // Only the plain "Producer" credit counts, never executive producer - that one is often
+    // a financing arrangement rather than a job, and counting it would fill this list with
+    // studio executives. Said here because the block gives no other clue.
+    note: 'Producteur·rice·s crédité·e·s comme tel·le·s, hors production exécutive',
+    empty: 'Pas encore de producteur·rice·s enrichi·e·s via TMDB.',
+  },
+]
+
+/** Three rows of three. A block of its own can carry more than a stacked one could. */
+const PEOPLE_SHOWN = 9
+
+function PeopleRankings() {
+  const [active, setActive] = useState<CreditRole>('director')
+  const listRef = useRef<HTMLDivElement>(null)
+
+  const ranking = RANKINGS.find((r) => r.role === active) ?? RANKINGS[0]
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['stats', 'people', active],
+    queryFn: () => ranking.fetch(PEOPLE_SHOWN),
+  })
+
+  const move = (event: KeyboardEvent<HTMLButtonElement>) => {
+    const index = RANKINGS.findIndex((r) => r.role === active)
+    let target: number
+    switch (event.key) {
+      case 'ArrowRight':
+        target = index + 1
+        break
+      case 'ArrowLeft':
+        target = index - 1
+        break
+      case 'Home':
+        target = 0
+        break
+      case 'End':
+        target = RANKINGS.length - 1
+        break
+      default:
+        return
+    }
+
+    event.preventDefault()
+    // Wraps around: five segments read as a loop, and a strip that simply stops at the end
+    // feels broken rather than bounded.
+    const next = RANKINGS[(target + RANKINGS.length) % RANKINGS.length]
+    setActive(next.role)
+    listRef.current?.querySelector<HTMLButtonElement>(`[data-role="${next.role}"]`)?.focus()
+  }
+
   return (
     <section className="border border-ink p-5 sm:p-6">
-      <h2 className={cn('font-serif text-2xl font-bold', undefined === note && 'mb-4')}>{title}</h2>
-      {note && <p className="mb-4 mt-1 font-mono text-xs text-subtle">{note}</p>}
-      {isLoading && <SkeletonPersonGrid count={6} />}
-      {data && data.length > 0 ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {data.map((p) => (
-            // Each card is the entry point to that person's films in the library.
-            <Link
-              key={p.personId}
-              to={`/movies?personId=${p.personId}&personRole=${role}`}
-              className="hard-shadow-hover group block border border-ink/30 p-4"
-            >
-              <p className="font-serif text-lg font-bold group-hover:text-accent">{p.name}</p>
-              <p className="mt-0.5 font-mono text-xs text-subtle">
-                {p.movieCount} {unit}
-                {p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
-              </p>
-            </Link>
-          ))}
+      <h2 className={cn('font-serif text-2xl font-bold', undefined === ranking.note && 'mb-4')}>
+        {ranking.title}
+      </h2>
+      {ranking.note && <p className="mb-4 mt-1 font-mono text-xs text-subtle">{ranking.note}</p>}
+
+      {/* Scrolls rather than wraps: five segments do not fit a phone, and a second row of
+          them would read as two controls instead of one. The focus ring is drawn inside each
+          segment for the same reason today's square is on the heatmap — anything outside the
+          box is what this scroll container clips off the first and last of them. */}
+      <div className="overflow-x-auto">
+        <div
+          ref={listRef}
+          role="tablist"
+          aria-label="Type de crédit"
+          className="inline-flex divide-x divide-ink border border-ink"
+        >
+          {RANKINGS.map((entry) => {
+            const selected = entry.role === active
+
+            return (
+              <button
+                key={entry.role}
+                type="button"
+                role="tab"
+                id={`people-tab-${entry.role}`}
+                data-role={entry.role}
+                aria-selected={selected}
+                aria-controls="people-panel"
+                // One tab stop for the whole strip, arrows move inside it - the pattern a
+                // screen reader announces and therefore the one it expects.
+                tabIndex={selected ? 0 : -1}
+                onClick={() => setActive(entry.role)}
+                onKeyDown={move}
+                className={cn(
+                  'whitespace-nowrap px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors',
+                  'focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-accent',
+                  selected ? 'bg-ink text-paper' : 'hover:bg-ink/10'
+                )}
+              >
+                {entry.tab}
+              </button>
+            )
+          })}
         </div>
-      ) : (
-        data && <p className="text-sm text-subtle">{emptyMessage}</p>
-      )}
+      </div>
+
+      <div
+        id="people-panel"
+        role="tabpanel"
+        aria-labelledby={`people-tab-${active}`}
+        tabIndex={-1}
+        className="mt-5"
+      >
+        {isLoading && <SkeletonPersonGrid count={PEOPLE_SHOWN} />}
+        {isError && <ErrorState message={(error as Error).message} />}
+        {data && data.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.map((p) => (
+              // Each card is the entry point to that person's films in the library.
+              <Link
+                key={p.personId}
+                to={`/movies?personId=${p.personId}&personRole=${active}`}
+                className="hard-shadow-hover group block border border-ink/30 p-4"
+              >
+                <p className="font-serif text-lg font-bold group-hover:text-accent">{p.name}</p>
+                <p className="mt-0.5 font-mono text-xs text-subtle">
+                  {p.movieCount} {ranking.unit ?? 'film'}
+                  {p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
+                </p>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          data && <p className="text-sm text-subtle">{ranking.empty}</p>
+        )}
+      </div>
     </section>
   )
 }
