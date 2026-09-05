@@ -100,6 +100,19 @@ final class StatsController
         ));
     }
 
+    /**
+     * Producers only, never executive producers - see CreditRole::PRODUCER.
+     */
+    #[Route('/producers', methods: ['GET'])]
+    public function producers(Request $request, PersonStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getStats(
+            $this->profileResolver->getViewedUser(),
+            CreditRole::PRODUCER,
+            $this->limitFrom($request),
+        ));
+    }
+
     #[Route('/countries', methods: ['GET'])]
     public function countries(Request $request, CountryStatsService $service): JsonResponse
     {

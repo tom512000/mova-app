@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Unit\Mapper;
 
+use App\Entity\Enum\CreditRole;
+use App\Entity\Movie;
 use App\Mapper\TmdbMovieMapper;
 use App\Repository\CountryRepository;
 use App\Repository\GenreRepository;
@@ -111,6 +113,81 @@ final class TmdbMovieMapperTest extends TestCase
         ]);
 
         self::assertSame('2025-05-21', $date?->format('Y-m-d'));
+    }
+
+    public function testOnlyThePlainProducerJobCounts(): void
+    {
+        $movie = new Movie('test-producers', 'Test');
+
+        $this->mapper()->mapProducers($movie, [
+            ['id' => 1, 'name' => 'Vraie Productrice', 'job' => 'Producer'],
+            ['id' => 2, 'name' => 'Financier', 'job' => 'Executive Producer'],
+            ['id' => 3, 'name' => 'Adjoint', 'job' => 'Associate Producer'],
+            ['id' => 4, 'name' => 'Coproducteur', 'job' => 'Co-Producer'],
+            ['id' => 5, 'name' => 'Directrice de production', 'job' => 'Line Producer'],
+            ['id' => 6, 'name' => 'Realisatrice', 'job' => 'Director'],
+        ]);
+
+        // One name out of six. The neighbouring Production-department jobs are left out on
+        // purpose - an executive producer credit is very often a financing arrangement, and
+        // counting those would fill a "most-watched producers" ranking with people who were
+        // never on a set. See CreditRole::PRODUCER.
+        self::assertSame(['Vraie Productrice'], $this->producerNames($movie));
+    }
+
+    public function testASeriesCrewMemberIsReadFromItsJobsArray(): void
+    {
+        $movie = new Movie('test-producers-series', 'Test');
+
+        // aggregate_credits shapes a crew member differently: one row per person, carrying
+        // every job they held across the run rather than a single job string.
+        $this->mapper()->mapProducers($movie, [
+            ['id' => 10, 'name' => 'Productrice', 'jobs' => [
+                ['job' => 'Executive Producer', 'episode_count' => 8],
+                ['job' => 'Producer', 'episode_count' => 3],
+            ]],
+            ['id' => 11, 'name' => 'Seulement Executive', 'jobs' => [
+                ['job' => 'Executive Producer', 'episode_count' => 8],
+            ]],
+        ]);
+
+        self::assertSame(['Productrice'], $this->producerNames($movie));
+    }
+
+    public function testTheSamePersonIsCreditedOnce(): void
+    {
+        $movie = new Movie('test-producers-dedup', 'Test');
+
+        $this->mapper()->mapProducers($movie, [
+            ['id' => 20, 'name' => 'Productrice', 'job' => 'Producer'],
+            ['id' => 20, 'name' => 'Productrice', 'job' => 'Producer'],
+        ]);
+
+        self::assertSame(['Productrice'], $this->producerNames($movie));
+    }
+
+    public function testAnEmptyCrewCreditsNobody(): void
+    {
+        $movie = new Movie('test-producers-empty', 'Test');
+
+        $this->mapper()->mapProducers($movie, []);
+
+        self::assertSame([], $this->producerNames($movie));
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function producerNames(Movie $movie): array
+    {
+        $names = [];
+        foreach ($movie->getCredits() as $credit) {
+            if (CreditRole::PRODUCER === $credit->getRole()) {
+                $names[] = $credit->getPerson()->getName();
+            }
+        }
+
+        return $names;
     }
 
     /**

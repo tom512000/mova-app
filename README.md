@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 302 tests, 1 386 assertions |
+| PHPUnit | 11.5.56 | 307 tests, 1 392 assertions |
 
 ### Frontend
 
@@ -188,9 +188,18 @@ Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire c�
   chronologique et non bidimensionnel : dans une colonne on descend vers plus tard, d'une colonne à
   l'autre on va vers la droite vers plus tard, donc les quatre flèches partagent une seule liste et
   chaque pas atterrit sur un carré réellement ouvrable.
-- **Quatre classements de personnes** — réalisateur·rice·s, acteur·rice·s, scénaristes,
-  créateur·rice·s de séries. Chacun donne le nombre d'œuvres, la note moyenne, la meilleure et la
-  pire note attribuées.
+- **Cinq classements de personnes** — réalisateur·rice·s, acteur·rice·s, scénaristes,
+  créateur·rice·s de séries, producteur·rice·s. Chacun donne le nombre d'œuvres, la note moyenne,
+  la meilleure et la pire note attribuées. Cliquer un nom filtre la bibliothèque sur ses crédits
+  dans ce rôle.
+  - **Producteur·rice·s** ne compte que le crédit `Producer` de TMDB, jamais `Executive
+    Producer`, `Co-Producer`, `Associate Producer` ni `Line Producer`. Ces intitulés ne désignent
+    pas le même travail : une production exécutive est très souvent un montage financier ou un
+    nom attaché pour ouvrir des portes, et les compter remplirait le classement de cadres de
+    studio qui n'ont jamais mis les pieds sur un plateau. C'est le même raisonnement qui garde
+    `CREATOR` séparé de `DIRECTOR` — un classement ne vaut d'être lu que si chaque ligne y est
+    arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
+    rien ne la signalerait.
 
 ### 4. Le musée
 
@@ -473,7 +482,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -687,7 +696,7 @@ plus.
 
 ## Qualité
 
-- **302 tests, 1 386 assertions**, répartis en trois couches : unitaires (logique pure —
+- **307 tests, 1 392 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

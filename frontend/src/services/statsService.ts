@@ -51,6 +51,12 @@ export async function fetchWriterStats(limit = 25): Promise<PersonStat[]> {
   return data
 }
 
+/** Producers only, never executive producers — see CreditRole::PRODUCER on the backend. */
+export async function fetchProducerStats(limit = 25): Promise<PersonStat[]> {
+  const { data } = await apiClient.get<PersonStat[]>('/stats/producers', { params: { limit } })
+  return data
+}
+
 export async function fetchCountryStats(limit = 12): Promise<CountryStat[]> {
   const { data } = await apiClient.get<CountryStat[]>('/stats/countries', { params: { limit } })
   return data

@@ -6,6 +6,7 @@ import {
   fetchActorStats,
   fetchCountryStats,
   fetchCreatorStats,
+  fetchProducerStats,
   fetchDirectorStats,
   fetchGenreStats,
   fetchOverviewStats,
@@ -50,6 +51,7 @@ export function DashboardPage() {
   const actors = useQuery({ queryKey: ['stats', 'actors'], queryFn: () => fetchActorStats(6) })
   const writers = useQuery({ queryKey: ['stats', 'writers'], queryFn: () => fetchWriterStats(6) })
   const creators = useQuery({ queryKey: ['stats', 'creators'], queryFn: () => fetchCreatorStats(6) })
+  const producers = useQuery({ queryKey: ['stats', 'producers'], queryFn: () => fetchProducerStats(6) })
   // Every country, not a top twelve: the donut groups the tail into "Autres", and that
   // wedge is only honest if it really covers everything else.
   const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(100) })
@@ -285,6 +287,18 @@ export function DashboardPage() {
         unit="série"
         emptyMessage="Aucune série dans la bibliothèque pour l'instant."
       />
+
+      <PersonStatSection
+        role="producer"
+        title="Producteur·rice·s les plus vu·e·s"
+        isLoading={producers.isLoading}
+        data={producers.data}
+        // Only the plain "Producer" credit counts, never executive producer — that one is
+        // often a financing arrangement rather than a job, and counting it would fill this
+        // list with studio executives. Said here because the block gives no other clue.
+        note="Producteur·rice·s crédité·e·s comme tel·le·s, hors production exécutive"
+        emptyMessage="Pas encore de producteur·rice·s enrichi·e·s via TMDB."
+      />
     </div>
   )
 }
@@ -358,6 +372,7 @@ function PersonStatSection({
   isLoading,
   data,
   emptyMessage,
+  note,
   unit = 'film',
 }: {
   role: CreditRole
@@ -365,12 +380,15 @@ function PersonStatSection({
   isLoading: boolean
   data: PersonStat[] | undefined
   emptyMessage: string
+  /** Says what a credit had to be to land here, where the title alone would overpromise. */
+  note?: string
   /** What one credit counts as. Everything here is a film except a series creator's work. */
   unit?: 'film' | 'série'
 }) {
   return (
     <section className="border border-ink p-5 sm:p-6">
-      <h2 className="mb-4 font-serif text-2xl font-bold">{title}</h2>
+      <h2 className={cn('font-serif text-2xl font-bold', undefined === note && 'mb-4')}>{title}</h2>
+      {note && <p className="mb-4 mt-1 font-mono text-xs text-subtle">{note}</p>}
       {isLoading && <SkeletonPersonGrid count={6} />}
       {data && data.length > 0 ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">

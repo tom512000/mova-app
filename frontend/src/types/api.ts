@@ -205,7 +205,7 @@ export interface TimelineBoard {
  * 'creator' is who a series is *by*, which is not the job 'director' names — TMDB keeps them
  * apart too, and so does the ranking of most-watched directors.
  */
-export type CreditRole = 'director' | 'creator' | 'writer' | 'actor'
+export type CreditRole = 'director' | 'creator' | 'writer' | 'actor' | 'producer'
 
 /** The person a listing was narrowed to, resolved server-side from the id in the URL. */
 export interface PersonFilter {

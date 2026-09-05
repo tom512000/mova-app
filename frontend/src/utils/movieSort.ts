@@ -37,6 +37,7 @@ export const ROLE_PREFIX: Record<CreditRole, string> = {
   creator: 'Créé par',
   actor: 'Avec',
   writer: 'Écrit par',
+  producer: 'Produit par',
 }
 
 export interface MovieFilterState {

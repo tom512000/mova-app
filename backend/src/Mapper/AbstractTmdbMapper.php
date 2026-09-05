@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Mapper;
 
 use App\Entity\Country;
+use App\Entity\Credit;
+use App\Entity\Enum\CreditRole;
 use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\Person;
@@ -43,6 +45,12 @@ abstract class AbstractTmdbMapper
      */
     private array $personCache = [];
 
+    /**
+     * The one TMDB job that counts as producing - see CreditRole::PRODUCER for why the
+     * neighbouring Production-department jobs are left out.
+     */
+    private const PRODUCER_JOB = 'Producer';
+
     public function __construct(
         private readonly GenreRepository $genreRepository,
         private readonly CountryRepository $countryRepository,
@@ -52,7 +60,16 @@ abstract class AbstractTmdbMapper
     ) {
     }
 
-    protected function resetPersonCache(): void
+    /**
+     * Public because a caller that clears the entity manager has to say so.
+     *
+     * The cache holds managed Person entities, and a clear() detaches every one of them.
+     * Reusing it afterwards attaches a Credit to an entity Doctrine no longer knows, which
+     * fails at the next flush with a message about cascade persist that names the wrong
+     * culprit. map() resets it on its own; anything driving mapProducers() in a batch has
+     * to do it by hand, because only that caller knows when it cleared.
+     */
+    public function resetPersonCache(): void
     {
         $this->personCache = [];
     }
@@ -127,6 +144,53 @@ abstract class AbstractTmdbMapper
             }
             $movie->addStudio($studio);
         }
+    }
+
+    /**
+     * The producers in a TMDB crew list, whatever shape that list arrives in.
+     *
+     * A film's crew entry carries one `job` string; a series' aggregate_credits entry
+     * carries a `jobs` array covering the whole run. Both are read here rather than in each
+     * mapper, because the job filter is the interesting part and having it in two places is
+     * how the two quietly start disagreeing.
+     *
+     * Deduplicated by person: somebody credited as producer on a series across two separate
+     * jobs entries is one producer, not two.
+     *
+     * @param array<int, array<string, mixed>> $crew
+     */
+    public function mapProducers(Movie $movie, array $crew): void
+    {
+        $seen = [];
+
+        foreach ($crew as $crewMember) {
+            if (!$this->isProducer($crewMember) || isset($seen[$crewMember['id']])) {
+                continue;
+            }
+            $seen[$crewMember['id']] = true;
+
+            $movie->addCredit(new Credit($movie, $this->findOrCreatePerson($crewMember), CreditRole::PRODUCER));
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $crewMember
+     */
+    private function isProducer(array $crewMember): bool
+    {
+        // A film: one job per crew row.
+        if (isset($crewMember['job'])) {
+            return self::PRODUCER_JOB === $crewMember['job'];
+        }
+
+        // A series: every job this person held across the run.
+        foreach ($crewMember['jobs'] ?? [] as $job) {
+            if (self::PRODUCER_JOB === ($job['job'] ?? '')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

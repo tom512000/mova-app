@@ -111,6 +111,8 @@ final class TmdbSeriesMapper extends AbstractTmdbMapper
             $movie->addCredit(new Credit($movie, $this->findOrCreatePerson($crewMember), CreditRole::WRITER));
         }
 
+        $this->mapProducers($movie, $credits['crew'] ?? []);
+
         $cast = \array_slice($credits['cast'] ?? [], 0, self::MAX_CAST_CREDITS);
         foreach ($cast as $castMember) {
             $credit = new Credit($movie, $this->findOrCreatePerson($castMember), CreditRole::ACTOR);
