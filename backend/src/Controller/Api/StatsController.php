@@ -8,6 +8,7 @@ use App\Entity\Enum\CreditRole;
 use App\Service\Profile\ViewedProfileResolver;
 use App\Service\Stats\ActivityStatsService;
 use App\Service\Stats\CountryStatsService;
+use App\Service\Stats\DecadeStatsService;
 use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
@@ -48,6 +49,16 @@ final class StatsController
     public function ratings(RatingStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getRatingStats($this->profileResolver->getViewedUser()));
+    }
+
+    /**
+     * Release decades, and how each one is rated. Empty decades inside the range come back
+     * with a zero count - see DecadeStatsService.
+     */
+    #[Route('/decades', methods: ['GET'])]
+    public function decades(DecadeStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getDecadeStats($this->profileResolver->getViewedUser()));
     }
 
     #[Route('/genres', methods: ['GET'])]

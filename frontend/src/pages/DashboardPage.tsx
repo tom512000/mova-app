@@ -5,6 +5,7 @@ import {
   fetchActivityStats,
   fetchActorStats,
   fetchCountryStats,
+  fetchDecadeStats,
   fetchCreatorStats,
   fetchProducerStats,
   fetchDirectorStats,
@@ -34,13 +35,16 @@ import { GenreBarChart } from '@/charts/GenreBarChart'
 import { CountryDonutChart } from '@/charts/CountryDonutChart'
 import { WeekdayChart } from '@/charts/WeekdayChart'
 import { ActivityHeatmap } from '@/charts/ActivityHeatmap'
+import { DecadeChart } from '@/charts/DecadeChart'
 import { buttonVariants } from '@/components/ui/Button'
 import { formatMinutesAsDays, formatMinutesAsDuration, formatRating } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { PageMeta } from '@/components/PageMeta'
+import { useDetailedStats } from '@/hooks/useDetailedStats'
 
 export function DashboardPage() {
   const [granularity, setGranularity] = useState<'month' | 'year'>('year')
+  const { detailed, toggleDetailed } = useDetailedStats()
   const navigate = useNavigate()
 
   const overview = useQuery({ queryKey: ['stats', 'overview'], queryFn: fetchOverviewStats })
@@ -50,7 +54,11 @@ export function DashboardPage() {
   // Every country, not a top twelve: the donut groups the tail into "Autres", and that
   // wedge is only honest if it really covers everything else.
   const countries = useQuery({ queryKey: ['stats', 'countries'], queryFn: () => fetchCountryStats(100) })
-  const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats })
+  // Both are skipped entirely while the detailed blocks are hidden. Fetching them would
+  // cost two requests to render nothing, and react-query keeps the answers once the
+  // reader turns them back on.
+  const decades = useQuery({ queryKey: ['stats', 'decades'], queryFn: fetchDecadeStats, enabled: detailed })
+  const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats, enabled: detailed })
   const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
 
   // The whole page, not just the cards: this branch replaces the masthead too, and a
@@ -86,9 +94,24 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-10">
       <PageMeta title="Dashboard" />
-      <div className="border-b-4 border-ink pb-6">
-        <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Dashboard</h1>
-        <p className="mt-2 font-body text-sm italic text-subtle">Vue d'ensemble de ton activité cinéphile.</p>
+      <div className="flex flex-wrap items-end justify-between gap-4 border-b-4 border-ink pb-6">
+        <div>
+          <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Dashboard</h1>
+          <p className="mt-2 font-body text-sm italic text-subtle">Vue d'ensemble de ton activité cinéphile.</p>
+        </div>
+        {/* aria-pressed rather than a checkbox: it is one control with an on and an off
+            state, and that is exactly what a screen reader announces for a toggle button. */}
+        <button
+          type="button"
+          onClick={toggleDetailed}
+          aria-pressed={detailed}
+          className={cn(
+            'border border-ink px-4 py-2 font-mono text-[11px] uppercase tracking-widest transition-colors duration-200',
+            detailed ? 'bg-ink text-paper' : 'text-ink hover:bg-surface'
+          )}
+        >
+          Vue détaillée
+        </button>
       </div>
 
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -221,32 +244,59 @@ export function DashboardPage() {
         </section>
       </div>
 
-      <section className="border border-ink p-5 sm:p-6">
-        <h2 className="font-serif text-2xl font-bold">Rythme</h2>
-        {activity.data && (
-          <p className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-subtle">
-            <span>
-              <b className="text-ink">{activity.data.activeDays}</b> jours actifs sur {activity.data.spanDays}
-            </span>
-            <span>
-              Plus longue série <b className="text-ink">{activity.data.longestStreakDays}</b> jours
-            </span>
-            <span>
-              Record <b className="text-ink">{activity.data.busiestDayCount}</b> films en un jour
-            </span>
-          </p>
-        )}
-        {activity.isLoading && <SkeletonHeatmap />}
-        {activity.data && (
-          <div className="mt-5 flex flex-col gap-8">
-            <ActivityHeatmap data={activity.data.calendar} />
-            <div>
-              <h3 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-subtle">Jours de la semaine</h3>
-              <WeekdayChart data={activity.data.weekdays} />
-            </div>
-          </div>
-        )}
-      </section>
+      {detailed && (
+        <>
+          <section className="newsprint-texture border border-ink p-5 sm:p-6">
+            <h2 className="mb-1 font-serif text-2xl font-bold">Décennies</h2>
+            <p className="mb-4 font-mono text-xs text-subtle">
+              Barre : films sortis dans la décennie · chiffre au-dessus : ta note moyenne
+            </p>
+            {decades.isLoading && <SkeletonChart height={300} />}
+            {decades.isError && <ErrorState message={(decades.error as Error).message} />}
+            {decades.data &&
+              (decades.data.length > 0 ? (
+                <>
+                  <DecadeChart data={decades.data} />
+                  {/* Said out loud because the chart cannot say it: a decade represented by a
+                      handful of films has an average that moves a full star on one viewing. */}
+                  <p className="mt-3 border-t border-ink/20 pt-3 text-xs text-subtle">
+                    Une décennie représentée par quelques films a une moyenne fragile — la hauteur de
+                    la barre dit combien de films portent le chiffre au-dessus d'elle.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-subtle">Pas encore d'année de sortie dans la bibliothèque.</p>
+              ))}
+          </section>
+
+          <section className="border border-ink p-5 sm:p-6">
+            <h2 className="font-serif text-2xl font-bold">Rythme</h2>
+            {activity.data && (
+              <p className="mt-1 flex flex-wrap gap-x-6 gap-y-1 font-mono text-xs text-subtle">
+                <span>
+                  <b className="text-ink">{activity.data.activeDays}</b> jours actifs sur {activity.data.spanDays}
+                </span>
+                <span>
+                  Plus longue série <b className="text-ink">{activity.data.longestStreakDays}</b> jours
+                </span>
+                <span>
+                  Record <b className="text-ink">{activity.data.busiestDayCount}</b> films en un jour
+                </span>
+              </p>
+            )}
+            {activity.isLoading && <SkeletonHeatmap />}
+            {activity.data && (
+              <div className="mt-5 flex flex-col gap-8">
+                <ActivityHeatmap data={activity.data.calendar} />
+                <div>
+                  <h3 className="mb-2 font-mono text-[10px] uppercase tracking-widest text-subtle">Jours de la semaine</h3>
+                  <WeekdayChart data={activity.data.weekdays} />
+                </div>
+              </div>
+            )}
+          </section>
+        </>
+      )}
 
       <PeopleRankings />
     </div>

@@ -329,6 +329,14 @@ export interface RatingStats {
   distribution: RatingDistributionPoint[]
 }
 
+export interface DecadeStat {
+  /** The decade's first year: 1970 for the 1970s. */
+  decade: number
+  movieCount: number
+  watchCount: number
+  averageRating: number | null
+}
+
 export interface GenreStat {
   genreName: string
   movieCount: number

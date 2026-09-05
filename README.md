@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 307 tests, 1 392 assertions |
+| PHPUnit | 11.5.56 | 314 tests, 1 406 assertions |
 
 ### Frontend
 
@@ -151,7 +151,15 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
 
 ### 3. Dashboard statistique
 
-Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+Douze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+
+Un bouton **Vue détaillée** en tête de page replie les deux blocs les plus fins — les
+décennies et le rythme — pour ne garder que la lecture d'ensemble. Le choix est retenu dans
+`localStorage` plutôt que dans l'URL : c'est une préférence de lecture propre à ce navigateur, et
+un lien de profil partagé doit arriver dans l'état où son destinataire a laissé le dashboard, pas
+dans celui de l'expéditeur. Il est **actif par défaut** : ces blocs existaient avant le réglage, et
+les voir disparaître au premier chargement après un déploiement se lirait comme une panne. Repliés,
+leurs deux requêtes ne partent pas du tout.
 
 **Cartes de synthèse**
 - Nombre d'œuvres distinctes, avec le total de visionnages et de rewatches en sous-titre.
@@ -178,6 +186,17 @@ Onze agrégations, toutes calculées en SQL sur la base et jamais en mémoire c�
   question a un sens). Mesuré depuis la **sortie française en salles** quand TMDB la connaît, avec
   repli sur la sortie primaire sinon. Films uniquement : la date d'une série est celle de son
   premier épisode.
+- **Décennies** — un histogramme des films par décennie de sortie, la note moyenne étant
+  imprimée **au-dessus de sa propre barre** plutôt que tracée en seconde série sur un axe de
+  droite. Deux axes laisseraient l'échelle décider de l'ampleur de la tendance — un domaine
+  étroit et un dixième d'étoile devient une falaise —, et un chiffre posé sur sa barre ne peut
+  pas être mis à l'échelle pour dire autre chose. C'est aussi la seule disposition où l'effectif
+  et la note se lisent ensemble, ce qui est indispensable ici : une décennie représentée par cinq
+  films a une moyenne qui bouge d'une étoile entière à chaque visionnage. Les décennies vides
+  **à l'intérieur** de l'intervalle sont rendues à zéro plutôt qu'omises — un axe qui saute de
+  1950 à 1980 se lit comme « pas grand-chose entre les deux » alors qu'il veut dire « rien du
+  tout » —, et leur note vaut `null`, jamais zéro : zéro est une note exécrable, une absence
+  n'en est pas une.
 - **Rythme** — jours actifs, amplitude en jours, jour le plus chargé, plus longue série de jours
   consécutifs, répartition par jour de la semaine, et une **carte de chaleur calendaire** avec
   marqueur du jour courant. Chaque carré qui a compté quelque chose ouvre la bibliothèque filtrée
@@ -491,7 +510,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -705,7 +724,7 @@ plus.
 
 ## Qualité
 
-- **307 tests, 1 392 assertions**, répartis en trois couches : unitaires (logique pure —
+- **314 tests, 1 406 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

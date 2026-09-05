@@ -2,6 +2,7 @@ import { apiClient } from '@/services/apiClient'
 import type {
   ActivityStats,
   CountryStat,
+  DecadeStat,
   GenreStat,
   OverviewStats,
   PersonStat,
@@ -22,6 +23,12 @@ export async function fetchTimelineStats(granularity: 'month' | 'year'): Promise
 
 export async function fetchRatingStats(): Promise<RatingStats> {
   const { data } = await apiClient.get<RatingStats>('/stats/ratings')
+  return data
+}
+
+/** Decades with no film in them still come back, at zero - see DecadeStatsService. */
+export async function fetchDecadeStats(): Promise<DecadeStat[]> {
+  const { data } = await apiClient.get<DecadeStat[]>('/stats/decades')
   return data
 }
 
