@@ -60,6 +60,8 @@ final class Version20260829181500 extends AbstractMigration
         'import_batch' => 'created_at',
         'import_row_error' => 'created_at',
         'profile_share_link' => 'created_at',
+        'letterboxd_profile' => 'imported_at',
+        'favourite_film' => null,
         'letterboxd_sync_state' => null,
         'profile_access' => null,
         'credit' => null,
@@ -76,6 +78,10 @@ final class Version20260829181500 extends AbstractMigration
         'game_session' => ['movie_id' => 'movie', 'user_id' => 'app_user'],
         'import_batch' => ['user_id' => 'app_user'],
         'import_row_error' => ['import_batch_id' => 'import_batch'],
+        'letterboxd_profile' => ['user_id' => 'app_user'],
+        // Ordered after its parent for readability only — the shadow columns for every table
+        // are minted before any foreign key is resolved, so the map order does not matter.
+        'favourite_film' => ['profile_id' => 'letterboxd_profile', 'movie_id' => 'movie'],
         'letterboxd_sync_state' => ['user_id' => 'app_user'],
         'movie_country' => ['movie_id' => 'movie', 'country_id' => 'country'],
         'movie_genre' => ['movie_id' => 'movie', 'genre_id' => 'genre'],

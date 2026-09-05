@@ -36,6 +36,10 @@ partage.
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
+- [Mise en production](#mise-en-production)
+  - [Sauvegardes](#sauvegardes)
+  - [Ce que la mise en production a révélé](#ce-que-la-mise-en-production-a-révélé)
+  - [Sécurité](#sécurité)
 - [Qualité](#qualité)
 
 ---
@@ -473,6 +477,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
+| **Santé** | `GET /health` — la seule route publique sous `/api`, pour la sonde du conteneur |
 | **Jeux** | `GET /games/{game}/{mode}`, `POST .../start`, `POST .../guess`, `POST .../reveal` (infini seulement), plus `POST .../letter` (pendu), `.../pick` (duel), `.../order` (chronologie) |
 
 ---
@@ -521,10 +526,141 @@ dans `index.html` avec deux `preconnect`.
 
 **Servir en production**
 
-`docker/frontend/Dockerfile.prod` construit le SPA et le sert derrière Caddy
-(`docker/frontend/Caddyfile`) : compression, `immutable` sur les fichiers hashés, `no-cache` sur
-`index.html`, en-têtes de sécurité, et repli SPA. Le conteneur de développement continue de lancer
+`docker/frontend/Dockerfile.prod` construit le SPA et le sert derrière Caddy, qui relaie aussi
+`/api` — voir **Mise en production** plus bas. Le conteneur de développement continue de lancer
 `vite dev`, inchangé.
+
+---
+
+## Mise en production
+
+`docker-compose.prod.yml`, un VPS, et une commande :
+
+```
+docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+```
+
+Rien n'y est monté en bind et rien n'est publié sauf Caddy : les images sont l'unité de déploiement,
+et la seule porte d'entrée est le port 443. Postgres n'expose aucun port, contrairement au fichier
+de développement qui publie 5432 pour Adminer — exactement ce qui ne doit pas arriver sur une
+machine ayant une adresse publique.
+
+**Une seule origine.** Caddy sert le SPA et relaie `/api` vers le backend. Cette décision à elle
+seule supprime toute une classe de problèmes : pas de prévol CORS, pas de `SameSite=None`, pas de
+second certificat, et une image frontend qui n'est liée à aucun nom d'hôte puisque le bundle ne
+demande jamais qu'un `/api` relatif. `SITE_ADDRESS` décide seul du schéma : un nom d'hôte obtient
+un certificat Let's Encrypt, `localhost` en obtient un de l'autorité interne de Caddy — ce qui
+permet d'essayer la stack de production sur sa propre machine.
+
+**Les services**
+
+| Service | Rôle |
+|---|---|
+| `web` | Caddy : TLS, SPA, relais `/api`, en-têtes de sécurité. Le seul service publié. |
+| `migrate` | Tourne une fois et sort. Migrations Doctrine **puis** `messenger:setup-transports`. |
+| `backend` | FrankenPHP. Attend que `migrate` ait réussi. |
+| `backend-worker` | Messenger + Scheduler. Attend la même chose. |
+| `postgres` | Aucun port publié. |
+| `backup` | `pg_dump` périodique, vérifié. Ne partage ni image ni runtime avec l'app. |
+
+`migrate` est un service à part parce que `backend` et `backend-worker` démarrent de la même
+image : si l'un des deux lançait les migrations dans son entrypoint, les deux le feraient en même
+temps à chaque déploiement, et Doctrine ne pose aucun verrou. Un job unique supprime la course au
+lieu de la rétrécir.
+
+### Sauvegardes
+
+C'est le point le plus important du dossier, et pas pour des raisons de sécurité : **l'historique
+de renotation n'existe que là**. Un export Letterboxd ne porte jamais que la valeur courante d'une
+note, donc une ancienne note écrasée a disparu de tous les exports futurs. C'est le seul travail de
+la stack dont l'échec ne se rattrape pas en relançant quelque chose.
+
+Le job (`docker/backup/`) tourne toutes les 24 h par défaut et fait trois choses que l'on saute
+souvent :
+
+- **il écrit d'abord en `.part`**, pour qu'un dump interrompu ne puisse jamais passer pour bon ;
+- **il relit ce qu'il vient d'écrire** avec `pg_restore --list`. Un dump que personne n'a lu n'est
+  pas une sauvegarde : un fichier tronqué échoue ici plutôt que le soir où on en a besoin ;
+- **il n'élague qu'après** un dump vérifié. Une exécution ratée ne peut pas emporter la dernière
+  copie valide avec elle.
+
+Il refuse aussi de démarrer s'il ne peut pas écrire, plutôt que de se signaler sain dans
+`docker ps` en répétant le même échec toutes les nuits depuis le déploiement.
+
+La restauration est un script, `docker/backup/restore.sh`, à lire **avant** d'en avoir besoin :
+
+```
+docker compose -f docker-compose.prod.yml stop backend backend-worker
+docker compose -f docker-compose.prod.yml run --rm backup restore.sh /backups/mova-....dump
+docker compose -f docker-compose.prod.yml up -d
+```
+
+Le cycle complet a été vérifié sur une stack jetable : six comptes détruits, six récupérés.
+
+> `BACKUP_PATH` doit pointer vers un répertoire hôte lui-même synchronisé hors de la machine. Une
+> sauvegarde vivant dans un volume sur le même disque que la base survit à une mauvaise migration
+> et à rien d'autre — ni à un disque mort, ni à ce VPS qui disparaît.
+
+### Ce que la mise en production a révélé
+
+Monter la stack à froid a trouvé quatre choses qu'aucun test ne pouvait voir, la première étant
+un bloquant complet.
+
+**La chaîne de migrations ne passait pas sur une base vierge.** `Version20260829181500`, la
+conversion vers UUID, porte un numéro de version tardif mais a été **exécutée en premier** sur la
+base de développement — la table `doctrine_migration_versions` en garde la trace. `Version20260829173520`
+a donc été écrite en supposant que `movie.id` était déjà un UUID. Lancée dans l'ordre des numéros,
+comme le fait toute installation neuve, sa clé étrangère pointe vers un `movie.id` encore entier et
+Postgres la refuse. Les deux fichiers ont été remis d'accord ; le schéma obtenu à froid a ensuite
+été comparé colonne par colonne à celui de la base existante : **148 colonnes, zéro écart**.
+
+**Chaque requête anonyme écrivait une session.** Symfony range le chemin de retour après connexion
+(`_security.api.target_path`) en session avant de répondre 401 — inutile pour une API JSON qui ne
+redirige jamais. Avec le stockage en base, c'était une ligne écrite par sonde de healthcheck,
+toutes les trente secondes, et une par tentative de connexion ratée. Trois correctifs : une route
+`/api/health` publique pour que la sonde n'ait pas à s'authentifier, un `X-Requested-With` posé par
+axios, et un `hasPreviousSession()` dans `JsonAuthenticationHandler`. Vérifié : six requêtes
+anonymes, zéro ligne.
+
+**Le worker se déclarait malade en fonctionnant.** Il hérite du healthcheck HTTP de l'image et ne
+sert aucun HTTP. Désactivé : sa vraie garde est `--time-limit` plus `restart: unless-stopped`.
+
+**Et deux conteneurs refusaient de démarrer** — un `email` Caddy vide (la substitution
+`{$VAR:default}` ne se replie que si la variable est *absente*, or compose la pose toujours), et
+`messenger_messages` qu'aucune migration ne crée et que le DSN, en `auto_setup=0`, ne crée pas non
+plus.
+
+### Sécurité
+
+- **Connexion** : `login_throttling`, cinq tentatives par quart d'heure, comptées par IP *et* par
+  identifiant — un compte ne peut pas être usé depuis un botnet, une adresse ne peut pas balayer une
+  liste de comptes. Un refus renvoie 429 et non 401 : cela ne dit rien de l'existence du compte, et
+  répondre « mot de passe incorrect » à quelqu'un de simplement limité l'enverrait vérifier un mot
+  de passe qui n'a jamais été le problème.
+- **Inscription** : ouverte — c'est ce qui garde les liens de partage autonomes, puisque accepter un
+  lien exige déjà un compte — mais plafonnée à cinq par heure et par adresse.
+- **L'adresse du client** est celle du visiteur et non celle du proxy : `trusted_proxies:
+  private_ranges` côté Symfony, et un `header_up X-Forwarded-For {remote_host}` côté Caddy qui
+  écrase ce que le client prétend. Sans le premier, tous les visiteurs de la planète partageraient
+  un seul seau de limitation ; sans le second, l'en-tête serait une limite dont on sort en changeant
+  une chaîne de caractères. Les deux ont été vérifiés en tentant l'usurpation.
+- **Sessions en Postgres**, cookie `Secure` + `HttpOnly` + `SameSite=Lax`. Les fichiers ne marchent
+  que pour un conteneur qui ne redémarre jamais : un redéploiement déconnecte tout le monde, et un
+  second réplica ne voit pas les sessions du premier.
+- **`APP_ENV=prod`, `APP_DEBUG=0`** figés dans le compose, pas des valeurs par défaut. Le fichier de
+  développement retombe sur `dev`/`1` : déployé tel quel, il exposerait le profiler et les traces
+  complètes sur chaque 500.
+- **`opcache.validate_timestamps=0`** : le code d'une image ne peut pas changer pendant que le
+  conteneur tourne. C'est le plus gros écart entre un déploiement PHP réglé et un autre, et c'est
+  aussi pourquoi il faut reconstruire l'image pour déployer, jamais corriger sur place.
+
+### Ce qui reste
+
+- `og:url`, `<link rel="canonical">` et `sitemap.xml` attendent le domaine réel.
+- Aucun collecteur d'erreurs. Monolog écrit du JSON sur stderr, ce qui convient — à condition que
+  quelque chose le ramasse.
+- Le préchargement opcache (`opcache.preload`) reste à gagner. Écarté pour un premier déploiement :
+  un préchargement qui échoue est un conteneur qui ne démarre pas.
 
 ## Qualité
 

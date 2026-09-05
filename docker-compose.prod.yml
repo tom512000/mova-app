@@ -1,0 +1,159 @@
+# Production stack. Nothing here is bind-mounted and nothing but the edge is published:
+# the images are the deploy unit, and the only way in is Caddy.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# Read docker/backup/restore.sh before you need it, not while you need it.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: "${POSTGRES_USER:?set POSTGRES_USER}"
+      POSTGRES_PASSWORD: "${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}"
+      POSTGRES_DB: "${POSTGRES_DB:?set POSTGRES_DB}"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    # No `ports`. The database is reachable from the compose network and from nowhere else;
+    # the development file publishes 5432 for Adminer, and that is exactly what must not
+    # happen on a machine with a public address.
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # Runs the migrations once and exits. Everything else waits for it to succeed.
+  #
+  # This is a service of its own because both `backend` and `backend-worker` start from the
+  # same image: if either ran migrations in its entrypoint they would both run them at once
+  # on every deploy, and Doctrine takes no lock. A one-shot job removes the race rather than
+  # narrowing it.
+  migrate:
+    image: mova-backend:prod
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.prod
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # Both steps, in this order, in the one place that runs once. messenger_messages is not
+    # part of the ORM schema so no migration creates it, and the transport DSN carries
+    # auto_setup=0 — without this line the worker starts, finds no table, and restart-loops.
+    command:
+      - sh
+      - -c
+      - >-
+        php bin/console doctrine:migrations:migrate --no-interaction --allow-no-migration &&
+        php bin/console messenger:setup-transports --no-interaction
+    environment: &backend_env
+      APP_ENV: prod
+      APP_DEBUG: 0
+      APP_SECRET: "${APP_SECRET:?set APP_SECRET - generate one with openssl rand -hex 32}"
+      DATABASE_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?serverVersion=16&charset=utf8"
+      MESSENGER_TRANSPORT_DSN: "doctrine://default?auto_setup=0"
+      # Same origin in this stack, so CORS never comes into play. Kept pinned to the real
+      # site anyway: it is what refuses a credentialed request from somebody else's page.
+      CORS_ALLOW_ORIGIN: "${CORS_ALLOW_ORIGIN:-^https://${SITE_ADDRESS}$$}"
+      TMDB_API_KEY: "${TMDB_API_KEY:?set TMDB_API_KEY}"
+      TMDB_API_BASE_URL: "https://api.themoviedb.org/3"
+      TMDB_IMAGE_BASE_URL: "https://image.tmdb.org/t/p"
+      LETTERBOXD_USERNAME: ${LETTERBOXD_USERNAME:-}
+      LETTERBOXD_RSS_SYNC_ENABLED: ${LETTERBOXD_RSS_SYNC_ENABLED:-false}
+
+  backend:
+    image: mova-backend:prod
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    environment: *backend_env
+    volumes:
+      # var/imports holds an upload only for as long as it takes to parse it, but it is
+      # shared with the worker, which is the process that actually reads it.
+      - backend_imports:/app/var/imports
+      - backend_share:/app/var/share
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+  backend-worker:
+    image: mova-backend:prod
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    command: ["php", "bin/console", "messenger:consume", "async", "scheduler_default", "--time-limit=3600", "--memory-limit=256M"]
+    # The image ships an HTTP healthcheck, and this container serves no HTTP: left alone it
+    # fails every probe forever and reports itself unhealthy while working perfectly. Its
+    # real liveness guard is --time-limit plus restart: unless-stopped, which recycles the
+    # process every hour whether or not anything has gone wrong.
+    healthcheck:
+      disable: true
+    environment: *backend_env
+    volumes:
+      - backend_imports:/app/var/imports
+      - backend_share:/app/var/share
+
+  # The edge: the built SPA, and /api proxied to the backend. The only published service.
+  web:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile.prod
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      # A hostname gets a Let's Encrypt certificate, `localhost` gets one from Caddy's
+      # internal CA, and a bare `:80` stays on plain HTTP. Note that the prod session cookie
+      # is Secure, so `:80` cannot hold a login — it is for a stack behind another proxy.
+      SITE_ADDRESS: "${SITE_ADDRESS:?set SITE_ADDRESS - a hostname, or localhost to try it out}"
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      # Certificates live here. Losing this volume means re-issuing on every restart, which
+      # is how a deploy walks into Let's Encrypt's rate limit.
+      - caddy_data:/data
+      - caddy_config:/config
+
+  backup:
+    build:
+      context: .
+      dockerfile: docker/backup/Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_DB: ${POSTGRES_DB}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      # Point BACKUP_PATH at a host directory that is itself synced off the machine. A backup
+      # living in a volume on the same disk as the database survives a bad migration and
+      # nothing else — not a failed disk, and not this VPS disappearing.
+      - ${BACKUP_PATH:-mova_backups}:/backups
+
+volumes:
+  postgres_data:
+  backend_imports:
+  backend_share:
+  caddy_data:
+  caddy_config:
+  mova_backups:

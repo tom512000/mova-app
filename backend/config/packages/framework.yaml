@@ -8,6 +8,55 @@ framework:
     #esi: true
     #fragments: true
 
+    rate_limiter:
+        # Registration is open to anybody, which is what keeps a share link self-service: a
+        # grant records who it was given to, so the recipient has to be able to create an
+        # account. The cost of that openness is a public endpoint that writes a row and
+        # hashes a password, so it is capped per address.
+        #
+        # Five an hour is generous for a person and useless for a script. Login has its own
+        # limiter, configured on the firewall as login_throttling.
+        registration:
+            policy: sliding_window
+            limit: 5
+            interval: '1 hour'
+
+when@prod:
+    framework:
+        # Caddy terminates TLS and proxies /api here, so every request arrives from the
+        # docker network and carries the caller's real address in X-Forwarded-For. Without
+        # this, Request::getClientIp() returns the proxy's address — which would put every
+        # visitor on the planet into a single rate-limiter bucket, and quietly turn the
+        # registration cap into a global one.
+        trusted_proxies: 'private_ranges'
+        trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port']
+
+        session:
+            # In Postgres rather than on the container's filesystem. Files work for exactly
+            # one container that never restarts: a redeploy signs everyone out, and a second
+            # replica cannot see the first one's sessions at all, so logging in lands you on
+            # a machine that has never heard of you.
+            handler_id: Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler
+            # Refused over plain HTTP. 'auto' is right in development, where there is none.
+            cookie_secure: true
+            cookie_samesite: lax
+            # A month of not visiting is a session worth ending.
+            gc_maxlifetime: 2592000
+
+    services:
+        Symfony\Component\HttpFoundation\Session\Storage\Handler\PdoSessionHandler:
+            arguments:
+                # The same URL Doctrine uses, parsed independently: the handler opens its own
+                # PDO connection on purpose. Sharing Doctrine's would put session writes
+                # inside whatever transaction the request happens to have open, and a
+                # rolled-back request would take the login with it.
+                - '%env(resolve:DATABASE_URL)%'
+                # Advisory locks rather than the transactional default. Postgres advisory
+                # locks are held on the connection, not on a row, so two tabs of the same
+                # session serialise without either one sitting in an open transaction for the
+                # length of the request.
+                - { lock_mode: 1 }
+
 when@test:
     framework:
         test: true

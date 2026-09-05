@@ -10,6 +10,7 @@ use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
+use Symfony\Component\Security\Core\Exception\TooManyLoginAttemptsAuthenticationException;
 use Symfony\Component\Security\Http\Authentication\AuthenticationFailureHandlerInterface;
 use Symfony\Component\Security\Http\Authentication\AuthenticationSuccessHandlerInterface;
 use Symfony\Component\Security\Http\EntryPoint\AuthenticationEntryPointInterface;
@@ -40,7 +41,24 @@ final class JsonAuthenticationHandler implements
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        $request->getSession()->remove(SecurityRequestAttributes::AUTHENTICATION_ERROR);
+        // Only when the caller already had a session, which is the only case where there is
+        // a stale error to clear. Calling getSession() unconditionally starts one, and with
+        // the session store in Postgres that means a written row for every failed login —
+        // handing anyone who wants it a way to grow the table one wrong password at a time.
+        if ($request->hasPreviousSession()) {
+            $request->getSession()->remove(SecurityRequestAttributes::AUTHENTICATION_ERROR);
+        }
+
+        // Throttling is worth saying out loud. It reveals nothing about whether the account
+        // exists — the limiter counts the attempt either way — and answering "wrong
+        // password" to someone who is simply rate-limited would send an honest person back
+        // to check a password that was never the problem.
+        if ($exception instanceof TooManyLoginAttemptsAuthenticationException) {
+            return new JsonResponse(
+                ['message' => 'Trop de tentatives de connexion. Réessaie dans quelques minutes.'],
+                Response::HTTP_TOO_MANY_REQUESTS
+            );
+        }
 
         // Never echo $exception->getMessage(): it distinguishes "unknown email" from
         // "wrong password", which turns the login form into an account-enumeration oracle.

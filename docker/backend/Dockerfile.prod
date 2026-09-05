@@ -1,0 +1,53 @@
+# The production backend image. Separate from Dockerfile rather than a stage bolted onto it,
+# so `docker compose up` keeps starting the development container exactly as before.
+#
+# Three things make it different from the development image, and all three matter:
+#   - dependencies are installed without require-dev and with an authoritative classmap;
+#   - the source is COPYed in, never bind-mounted, so the image is the deploy unit;
+#   - opcache stops checking file timestamps, which it can only do because of the above.
+
+FROM dunglas/frankenphp:php8.3-alpine AS vendor
+
+RUN install-php-extensions pdo_pgsql intl zip opcache apcu gd
+
+ENV COMPOSER_ALLOW_SUPERUSER=1
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
+
+WORKDIR /app
+
+COPY backend/composer.json backend/composer.lock backend/symfony.lock ./
+# --no-scripts because the Symfony scripts want the full application, which is not here yet.
+RUN composer install --no-dev --no-scripts --no-autoloader --prefer-dist --no-interaction
+
+COPY backend/ .
+# classmap-authoritative: every class is in the map, so the autoloader never touches the
+# filesystem looking for one. Safe here and only here — nothing is generated at runtime.
+RUN composer dump-autoload --no-dev --optimize --classmap-authoritative
+
+
+FROM dunglas/frankenphp:php8.3-alpine
+
+RUN install-php-extensions pdo_pgsql intl zip opcache apcu gd
+
+ENV SERVER_NAME=:80
+ENV APP_ENV=prod
+ENV APP_DEBUG=0
+
+WORKDIR /app
+
+COPY --from=vendor /app /app
+
+# Warmed at build time so the first request after a deploy is not the one that pays for it.
+# The placeholders exist because the warmup reads the env; nothing connects to them, and
+# nothing from here survives into the running container, which gets the real values.
+RUN APP_SECRET=build-time-placeholder \
+    DATABASE_URL="postgresql://build:build@127.0.0.1:5432/build?serverVersion=16&charset=utf8" \
+    php bin/console cache:warmup --env=prod --no-debug \
+    && mkdir -p var/log var/share var/imports
+
+COPY docker/backend/php-prod.ini /usr/local/etc/php/conf.d/zz-mova.ini
+COPY docker/backend/docker-entrypoint-prod.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+
+ENTRYPOINT ["docker-entrypoint.sh"]
+CMD ["frankenphp", "run", "--config", "/etc/caddy/Caddyfile"]

@@ -34,6 +34,13 @@ security:
                 # falls back to a 302 that axios follows into an HTML page.
                 invalidate_session: true
             entry_point: App\Security\JsonAuthenticationHandler
+            # Five wrong passwords in fifteen minutes and this client waits. Symfony counts
+            # per IP *and* per username, so one account cannot be ground down from a botnet
+            # and one address cannot sweep a list of accounts either. The limiter sits in
+            # front of json_login, so a throttled attempt never reaches the password hasher.
+            login_throttling:
+                max_attempts: 5
+                interval: '15 minutes'
 
     access_control:
         # Login and registration are the only public doors. Accepting a share link is
@@ -42,6 +49,9 @@ security:
         # Only the first matching rule applies, so the specific path has to come first.
         - { path: ^/api/auth/login$, roles: PUBLIC_ACCESS }
         - { path: ^/api/auth/register$, roles: PUBLIC_ACCESS }
+        # Public so a container probe never authenticates — see HealthController for why
+        # that is worth a route of its own.
+        - { path: ^/api/health$, roles: PUBLIC_ACCESS }
         - { path: ^/api, roles: ROLE_USER }
 
 when@test:

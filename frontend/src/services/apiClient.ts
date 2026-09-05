@@ -5,6 +5,13 @@ export const apiClient = axios.create({
   // The session lives in a cookie, and axios drops cookies on cross-origin requests unless
   // asked; the SPA (:5173) and the API (:8000) are different origins in development.
   withCredentials: true,
+  headers: {
+    // Every call from here is an XHR, and saying so is not cosmetic: without it Symfony
+    // treats an anonymous request to a protected route as a browser that should be sent
+    // back where it came from after logging in, and stores that path in a brand new
+    // session. On a session store in Postgres that is a written row per rejected request.
+    'X-Requested-With': 'XMLHttpRequest',
+  },
 })
 
 /**

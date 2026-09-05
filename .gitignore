@@ -1,5 +1,6 @@
-# Root env (real secrets) — .env.example is the committed template
+# Root env (real secrets) — .env.example and .env.prod.example are the committed templates
 /.env
+/.env.prod
 
 # Editor / OS
 .vscode/

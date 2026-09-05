@@ -1,48 +1,82 @@
-# Serving the built SPA. Used by Dockerfile.prod only — the dev container still runs
-# `vite dev` and none of this touches it.
+# The edge. Serves the built SPA and proxies the API, so both live on one origin.
+#
+# That single fact removes a whole class of problems: no CORS preflight, no SameSite=None,
+# no second TLS certificate, and a frontend image that is not tied to one API hostname
+# because the bundle only ever asks for a relative /api.
+#
+# SITE_ADDRESS decides the scheme by itself. A real hostname gets a Let's Encrypt
+# certificate; `localhost` gets one from Caddy's internal CA; a bare `:80` stays on HTTP.
 {
-	auto_https off
 	admin off
+
+	# Uncomment with a real address to get expiry warnings from Let's Encrypt. It is left out
+	# rather than driven by an environment variable because Caddy's {$VAR:default} only falls
+	# back when the variable is *unset*, and compose always sets it — an empty value then
+	# reaches Caddy as a bare `email` directive, which is a parse error and a container that
+	# will not boot. Certificates renew without it either way.
+	# email you@example.com
 }
 
-:80 {
+{$SITE_ADDRESS::80} {
 	root * /srv
 	encode zstd gzip
 
-	# Hashed filenames, so the file at a given URL can never change. A year is the maximum
-	# the specification allows and the correct answer whenever the name carries the hash.
-	@immutable path /assets/*
-	header @immutable Cache-Control "public, max-age=31536000, immutable"
+	# The API, before any static handling: /api is not a file on disk and must never fall
+	# through to the SPA fallback below, or a mistyped endpoint would answer with index.html
+	# and a 200 instead of the backend's 404.
+	handle /api/* {
+		reverse_proxy backend:80 {
+			# Overwrite rather than append. Caddy already discards a client-supplied
+			# X-Forwarded-For when it has no trusted_proxies of its own, and this pins that
+			# behaviour instead of depending on it: the backend rate-limits per client
+			# address, so a header the caller controls would be a limiter the caller can
+			# step out of by changing one string.
+			header_up X-Forwarded-For {remote_host}
+		}
+	}
 
-	# The opposite case: index.html is what points at the hashed files, so a cached copy of
-	# it pins a visitor to the previous deploy.
-	@html path / /index.html
-	header @html Cache-Control "no-cache"
+	handle {
+		# Hashed filenames, so the file at a given URL can never change. A year is the
+		# maximum the specification allows and the correct answer whenever the name carries
+		# the hash.
+		@immutable path /assets/*
+		header @immutable Cache-Control "public, max-age=31536000, immutable"
+
+		# The opposite case: index.html is what points at the hashed files, so a cached copy
+		# of it pins a visitor to the previous deploy.
+		@html path / /index.html
+		header @html Cache-Control "no-cache"
+
+		# The share tokens, from the client's side. These pages are reachable only with the
+		# token, but a header costs nothing and does not depend on the client running our JS.
+		@private path /share/* /account /import
+		header @private X-Robots-Tag "noindex, nofollow"
+
+		# The SPA fallback: any path that is not a file on disk gets index.html, and the
+		# router decides what it means.
+		#
+		# It answers 200 even for an address that matches no route, which is the "soft 404" a
+		# search engine dislikes. The fix would be to list every known route here and 404 the
+		# rest — and that is deliberately not done: the list would be a second copy of
+		# App.tsx, and the day the two drift a real page starts returning 404 in production
+		# only. A silent outage is a worse bug than a soft 404, especially when NotFoundPage
+		# already carries a noindex tag, which is what actually keeps the address out of an
+		# index.
+		try_files {path} /index.html
+		file_server
+	}
 
 	header {
 		X-Content-Type-Options "nosniff"
-		Referrer-Policy "strict-origin-when-cross-origin"
 		# A share link carries a 32-character token in its path. This is already the browser
 		# default, but it is stated rather than inherited: cross-origin requests — every TMDB
 		# poster on the page — then send only the origin, never the path holding the token.
+		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
+		# Only meaningful once the site is actually on HTTPS, which SITE_ADDRESS decides.
+		# Six months, and deliberately without preload: preload is close to irreversible and
+		# is not a decision to make from a config file on a first deploy.
+		Strict-Transport-Security "max-age=15768000"
 		-Server
 	}
-
-	# The share tokens again, from the other side. These pages are reachable only with the
-	# token, but a header costs nothing and does not depend on the client running our JS.
-	@private path /share/* /account /import
-	header @private X-Robots-Tag "noindex, nofollow"
-
-	# The SPA fallback: any path that is not a file on disk gets index.html, and the router
-	# decides what it means.
-	#
-	# It answers 200 even for an address that matches no route, which is the "soft 404" a
-	# search engine dislikes. The fix would be to list every known route here and 404 the
-	# rest — and that is deliberately not done: the list would be a second copy of App.tsx,
-	# and the day the two drift a real page starts returning 404 in production only. A silent
-	# outage is a worse bug than a soft 404, especially when NotFoundPage already carries a
-	# noindex tag, which is what actually keeps the address out of an index.
-	try_files {path} /index.html
-	file_server
 }

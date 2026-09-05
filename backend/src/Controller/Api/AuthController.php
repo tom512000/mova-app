@@ -14,8 +14,10 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\SecurityBundle\Security;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Response;
+use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpKernel\Attribute\MapRequestPayload;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Attribute\Route;
 
 #[Route('/api/auth')]
@@ -28,6 +30,9 @@ final class AuthController
         private readonly UserPasswordHasherInterface $passwordHasher,
         private readonly EntityManagerInterface $entityManager,
         private readonly Security $security,
+        // Named after the `registration` limiter in framework.yaml - the argument name is
+        // what binds the two together, so renaming one renames the other.
+        private readonly RateLimiterFactoryInterface $registrationLimiter,
     ) {
     }
 
@@ -52,8 +57,21 @@ final class AuthController
     }
 
     #[Route('/register', name: 'api_auth_register', methods: ['POST'])]
-    public function register(#[MapRequestPayload] RegisterRequest $request): JsonResponse
+    public function register(Request $httpRequest, #[MapRequestPayload] RegisterRequest $request): JsonResponse
     {
+        // Per client address. Anyone may sign up - that is what keeps a share link usable by
+        // the person it was sent to - but this endpoint hashes a password and writes a row,
+        // so it is not left free to call in a loop.
+        $limit = $this->registrationLimiter->create($httpRequest->getClientIp())->consume();
+        if (!$limit->isAccepted()) {
+            return new JsonResponse(
+                ['error' => 'Trop de tentatives d\'inscription. Réessaie plus tard.'],
+                Response::HTTP_TOO_MANY_REQUESTS,
+                // Tells a well-behaved client how long to wait instead of making it guess.
+                ['Retry-After' => max(1, $limit->getRetryAfter()->getTimestamp() - time())]
+            );
+        }
+
         // Emails are compared case-insensitively by every mail system, so normalising here
         // stops "Tom@x.com" and "tom@x.com" becoming two accounts that look identical.
         $email = mb_strtolower(trim($request->email));
