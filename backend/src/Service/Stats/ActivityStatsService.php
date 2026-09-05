@@ -7,6 +7,7 @@ namespace App\Service\Stats;
 use App\DTO\Stats\ActivityDayDto;
 use App\DTO\Stats\ActivityStatsDto;
 use App\DTO\Stats\WeekdayStatDto;
+use App\Entity\Enum\WatchSource;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -16,6 +17,11 @@ use Doctrine\ORM\EntityManagerInterface;
  * Both read watched_date. For a library imported from ratings.csv that column holds the date
  * the rating was logged rather than the viewing itself — accurate for anyone who rates right
  * after watching, and off by however long they wait otherwise.
+ *
+ * Both also skip the rows deduced from a moved rating date. Revising a note is not an evening
+ * spent watching something, and counting it as one would put a square on the calendar for a
+ * day with no film behind it — a square that now opens the library filtered on that day, and
+ * would open it empty.
  */
 final class ActivityStatsService
 {
@@ -46,9 +52,9 @@ final class ActivityStatsService
                 COUNT(*) AS watch_count,
                 AVG(rating) AS average_rating
             FROM watch
-            WHERE user_id = :userId AND watched_date IS NOT NULL
+            WHERE user_id = :userId AND watched_date IS NOT NULL AND source <> :deduced
             GROUP BY weekday',
-            ['userId' => $userId]
+            ['userId' => $userId, 'deduced' => WatchSource::CSV_RERATING->value]
         )->fetchAllAssociative();
 
         $byWeekday = [];
@@ -72,10 +78,10 @@ final class ActivityStatsService
         $dayRows = $conn->executeQuery(
             'SELECT watched_date, COUNT(*) AS watch_count
             FROM watch
-            WHERE user_id = :userId AND watched_date IS NOT NULL
+            WHERE user_id = :userId AND watched_date IS NOT NULL AND source <> :deduced
             GROUP BY watched_date
             ORDER BY watched_date ASC',
-            ['userId' => $userId]
+            ['userId' => $userId, 'deduced' => WatchSource::CSV_RERATING->value]
         )->fetchAllAssociative();
 
         $calendar = array_map(

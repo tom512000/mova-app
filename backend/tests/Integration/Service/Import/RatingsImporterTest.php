@@ -96,9 +96,14 @@ final class RatingsImporterTest extends KernelTestCase
 
         self::assertSame(4.0, $watches[1]->getRating());
         self::assertSame('2026-08-25', $watches[1]->getWatchedDate()?->format('Y-m-d'));
-        self::assertTrue($watches[1]->isRewatch());
         self::assertSame(WatchSource::CSV_RERATING, $watches[1]->getSource());
         self::assertTrue($watches[1]->getSource()->isDeduced(), 'nobody declared this one');
+
+        // Recorded, but not asserted to be an evening in front of the film. The date also
+        // moves when the note is revised after reading someone else's review, and ratings.csv
+        // cannot tell that apart from a real second viewing — so the flag the dashboard counts
+        // rewatches with is left alone.
+        self::assertFalse($watches[1]->isRewatch(), 'a moved rating date declares nothing');
     }
 
     public function testARewatchThatDidNotChangeTheRatingIsStillASecondViewing(): void
@@ -110,7 +115,10 @@ final class RatingsImporterTest extends KernelTestCase
         $watches = $this->watches();
         self::assertCount(2, $watches);
         self::assertSame(4.0, $watches[1]->getRating());
-        self::assertTrue($watches[1]->isRewatch());
+        // Almost certainly a real rewatch — nobody re-rates a film to the note it already
+        // had — but "almost certainly" is not what a rewatch tally should be built on, and
+        // the row reaching the library at all is the part that matters.
+        self::assertFalse($watches[1]->isRewatch());
     }
 
     public function testAThirdOpinionStacksOnTopOfTheOtherTwo(): void
@@ -175,7 +183,7 @@ final class RatingsImporterTest extends KernelTestCase
         self::assertCount(2, $watches, 'the diary entry stays, the later opinion joins it');
         self::assertSame(2.5, $watches[0]->getRating());
         self::assertSame(4.0, $watches[1]->getRating());
-        self::assertTrue($watches[1]->isRewatch());
+        self::assertFalse($watches[1]->isRewatch());
     }
 
     public function testARowWithNoDateCannotBeToldApartFromTheLastOne(): void

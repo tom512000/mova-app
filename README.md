@@ -55,7 +55,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 296 tests, 1 371 assertions |
+| PHPUnit | 11.5.56 | 302 tests, 1 386 assertions |
 
 ### Frontend
 
@@ -136,11 +136,13 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
   jamais), puis les six premiers noms au générique. Chaque nom est un lien vers la bibliothèque
   filtrée sur cette personne et ce rôle.
 - **Notes externes** : moyenne TMDB, lien IMDb.
-- **« Ce que j'en pensais avant »** — le bloc de renotation. Quand un film porte plusieurs
-  visionnages notés différemment, il affiche l'ancienne note, la nouvelle, l'écart et un verdict.
-- **« Mes visionnages »** — un par ligne, avec date, note, étiquettes et un badge distinguant un
-  **rewatch déclaré** (« Rewatch ») d'un **rewatch déduit** (« Revu ? »), c'est-à-dire reconstruit
-  à partir d'une note qui a bougé sans entrée de journal.
+- **« Mes visionnages »** — un par ligne, du plus ancien au plus récent, avec date, note,
+  étiquettes et un badge « Rewatch » sur les seconds visionnages que Letterboxd a **déclarés**.
+- **Notes révisées** — une ligne sous le journal, par renotation : `Note révisée le 31 août 2026
+  · 2,5 → 2,0`. Volontairement discrète, et volontairement en dehors du journal : une date de
+  notation qui bouge ne prouve pas une soirée devant le film. C'est aussi souvent une note revue
+  après l'avis de quelqu'un d'autre, et `ratings.csv` ne permet pas de trancher — donc la page
+  dit ce qu'elle sait (la note a changé, ce jour-là, de tant à tant) et rien de plus.
 - **Critiques**, avec marqueur de spoiler et repli du texte quand il en contient un.
 
 ### 3. Dashboard statistique
@@ -247,10 +249,17 @@ définitivement de tous les exports futurs.
 
 `RatingsImporter` compare la date de la ligne à celle du dernier visionnage connu :
 - pas de visionnage connu → création normale (`csv_import`) ;
-- date postérieure → **second visionnage** enregistré (`csv_rerating`, marqué rewatch déduit) ;
+- date postérieure → **seconde opinion** enregistrée comme sa propre ligne (`csv_rerating`) ;
 - date antérieure → ligne ignorée ;
 - date identique, ou l'une des deux inconnue → mise à jour sur place, sauf si le visionnage
   appartient au journal, qui reste prioritaire.
+
+Ces lignes ne portent **pas** le drapeau `is_rewatch`, et n'entrent ni dans le total des rewatches
+du dashboard ni dans la carte de chaleur du bloc **Rythme**. Tous les autres écrivains de ce
+drapeau recopient quelque chose que Letterboxd a déclaré — la colonne `Rewatch` de `diary.csv` et
+de `reviews.csv`, l'entrée RSS. Une date de notation qui bouge ne déclare rien : compter ces
+lignes comme des visionnages posait un carré sur une journée sans film, carré désormais cliquable
+qui aurait ouvert une liste vide.
 
 Conséquence : **la base est la seule à détenir cet historique**, et un repartir-de-zéro depuis un zip
 unique le perdrait définitivement.
@@ -519,7 +528,7 @@ dans `index.html` avec deux `preconnect`.
 
 ## Qualité
 
-- **296 tests, 1 371 assertions**, répartis en trois couches : unitaires (logique pure —
+- **302 tests, 1 386 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

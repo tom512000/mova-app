@@ -161,133 +161,111 @@ export function MovieDetailPage() {
         </div>
       </div>
 
-      <OpinionShift watches={movie.watches} />
-
       <ReviewSection watches={movie.watches} />
 
-      <section className="border border-ink p-5 sm:p-6">
-        <h2 className="mb-4 font-serif text-2xl font-bold">Mes visionnages ({movie.watches.length})</h2>
-        <div className="flex flex-col divide-y divide-ink/15">
-          {movie.watches.map((watch) => (
-            <div key={watch.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0">
-              <div className="flex items-center justify-between font-mono text-sm">
-                <span className="font-semibold">{formatDate(watch.watchedDate)}</span>
-                <span className="flex items-center gap-2">
-                  <RewatchBadge watch={watch} />
-                  <StarRating rating={watch.rating} size="md" />
-                </span>
-              </div>
-              {watch.tags.length > 0 && (
-                <div className="flex flex-wrap gap-1">
-                  {watch.tags.map((tag) => (
-                    <Badge key={tag} variant="outline">
-                      #{tag}
-                    </Badge>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </section>
+      <ViewingLog watches={movie.watches} />
     </div>
   )
 }
 
 /**
- * The same film, twice, and what changed in between.
+ * Every evening spent in front of the film, and underneath, the notes that moved without one.
  *
- * Only drawn when there is genuinely something to compare: two dated viewings that both
- * carry a rating. On a library where almost every film was seen once, that is a rare block —
- * which is the point, it means something when it appears.
+ * The two are kept apart on purpose. A row deduced from a rating date moving is not a
+ * viewing — it is just as likely to be a note revised after reading somebody else's review —
+ * so listing it here would put an evening in the log that may never have happened, and count
+ * it in the heading.
  */
-/**
- * Says which kind of rewatch it is rather than flattening both into one word.
- *
- * A diary entry is Letterboxd's own statement that you watched the film again. A viewing
- * worked out from a rating date moving is our reading of it, and usually right — the badge
- * carries the distinction in its title so the page does not assert more than it knows.
- */
-function RewatchBadge({ watch }: { watch: Watch }) {
-  if (!watch.isRewatch) return null
-
-  return watch.isDeduced ? (
-    <Badge variant="outline" title="Déduit du changement de note, non déclaré sur Letterboxd">
-      Revu&nbsp;?
-    </Badge>
-  ) : (
-    <Badge>Rewatch</Badge>
-  )
-}
-
-function OpinionShift({ watches }: { watches: Watch[] }) {
-  const rated = watches.filter(
-    (watch): watch is Watch & { rating: number; watchedDate: string } =>
-      watch.rating !== null && watch.watchedDate !== null
-  )
-  if (rated.length < 2) return null
-
-  // The mapper hands the viewings back oldest first, so these are the two ends of the story.
-  const first = rated[0]
-  const last = rated[rated.length - 1]
-  const delta = last.rating - first.rating
-
-  const verdict =
-    delta > 0
-      ? 'Meilleur que dans mon souvenir'
-      : delta < 0
-        ? 'Moins bien que dans mon souvenir'
-        : 'Exactement comme dans mon souvenir'
+function ViewingLog({ watches }: { watches: Watch[] }) {
+  const viewings = watches.filter((watch) => !watch.isDeduced)
 
   return (
     <section className="border border-ink p-5 sm:p-6">
-      <h2 className="font-serif text-2xl font-bold">Ce que j'en pensais avant</h2>
-
-      <div className="mt-5 flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-8">
-        <Verdict label={formatDate(first.watchedDate)} rating={first.rating} />
-
-        <span className="font-mono text-2xl text-faint" aria-hidden>
-          &rarr;
-        </span>
-
-        <Verdict label={formatDate(last.watchedDate)} rating={last.rating} />
+      <h2 className="mb-4 font-serif text-2xl font-bold">Mes visionnages ({viewings.length})</h2>
+      <div className="flex flex-col divide-y divide-ink/15">
+        {viewings.map((watch) => (
+          <div key={watch.id} className="flex flex-col gap-2 py-4 first:pt-0 last:pb-0">
+            <div className="flex items-center justify-between font-mono text-sm">
+              <span className="font-semibold">{formatDate(watch.watchedDate)}</span>
+              <span className="flex items-center gap-2">
+                <RewatchBadge watch={watch} />
+                <StarRating rating={watch.rating} size="md" />
+              </span>
+            </div>
+            {watch.tags.length > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {watch.tags.map((tag) => (
+                  <Badge key={tag} variant="outline">
+                    #{tag}
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
       </div>
-
-      <p className="mt-5 text-center font-serif text-xl font-bold text-balance">
-        {verdict}
-        {delta !== 0 && (
-          <span className="ml-2 font-mono text-sm font-normal text-subtle tabular-nums">
-            {delta > 0 ? '+' : '−'}
-            {Math.abs(delta).toFixed(1).replace('.', ',')} étoile{Math.abs(delta) > 1 ? 's' : ''}
-          </span>
-        )}
-      </p>
-
-      {rated.length > 2 && (
-        <p className="mt-2 text-center font-mono text-[10px] uppercase tracking-widest text-faint">
-          {rated.length} visionnages notés &middot; le premier et le dernier
-        </p>
-      )}
-
-      {last.isDeduced && (
-        // Said plainly rather than hidden: Letterboxd never declared this second viewing.
-        // It was inferred from the rating date moving, which usually means a rewatch and
-        // sometimes only means a change of heart.
-        <p className="mt-4 border-t border-ink/15 pt-3 text-center font-mono text-[10px] uppercase tracking-widest text-subtle">
-          Second visionnage déduit du changement de note
-        </p>
-      )}
+      <RatingRevisions watches={watches} />
     </section>
   )
 }
 
-function Verdict({ label, rating }: { label: string; rating: number }) {
+/**
+ * A note that moved, in one line.
+ *
+ * Deliberately small. Re-rating a film is usually a passing second thought — somebody else's
+ * review, an idea on the way home — and the page used to answer it with its own bordered
+ * section, two rows of stars and a verdict reading "moins bien que dans mon souvenir". That
+ * sentence claims a second viewing, which is precisely what a moved rating date does not
+ * prove. This states what is actually known: the note changed, on this day, from that to
+ * this.
+ */
+function RatingRevisions({ watches }: { watches: Watch[] }) {
+  // Sorted here rather than trusted from the API. The note being revised is whatever stood
+  // immediately before it, so this reads the list in pairs — and pairing is only correct on
+  // a chronological list. The mapping does order the collection, but a functional test could
+  // not be made to fail with that ORDER BY removed (Postgres returns these rows in date
+  // order anyway on a table this size), so the guarantee is unproven and this does not lean
+  // on it. Undated viewings sort last, where they cannot pair with anything.
+  const ordered = watches
+    .slice()
+    .sort((a, b) => (a.watchedDate ?? '9999').localeCompare(b.watchedDate ?? '9999'))
+
+  const revisions = ordered.flatMap((watch, index) => {
+    const previous = ordered[index - 1]
+    if (!watch.isDeduced || watch.rating === null || previous?.rating == null) return []
+    return [{ id: watch.id, date: watch.watchedDate, from: previous.rating, to: watch.rating }]
+  })
+
+  if (revisions.length === 0) return null
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <span className="font-mono text-[10px] uppercase tracking-widest text-subtle">{label}</span>
-      <StarRating rating={rating} size="lg" />
-    </div>
+    <ul className="mt-4 flex flex-col gap-1.5 border-t border-ink/15 pt-3">
+      {revisions.map((revision) => (
+        <li key={revision.id} className="font-mono text-[10px] uppercase tracking-widest text-subtle">
+          Note révisée le {formatDate(revision.date)} ·{' '}
+          <span className="tabular-nums text-ink">
+            {half(revision.from)} &rarr; {half(revision.to)}
+          </span>
+        </li>
+      ))}
+    </ul>
   )
+}
+
+/** Half-star scale, written the French way: 2,5 rather than 2.5. */
+function half(rating: number): string {
+  return rating.toFixed(1).replace('.', ',')
+}
+
+/**
+ * A rewatch Letterboxd actually declared — a diary entry, a reviews.csv row, an RSS item.
+ * Nothing else sets the flag any more: a rating date that moved is recorded as a revised
+ * note rather than as a second viewing, so there is no longer a hedged kind to tell apart.
+ */
+function RewatchBadge({ watch }: { watch: Watch }) {
+  if (!watch.isRewatch) return null
+
+  return <Badge>Rewatch</Badge>
 }
 
 /**

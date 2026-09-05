@@ -216,6 +216,37 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame(2, $row[0]['movieCount']);
     }
 
+    public function testAFilmDetailListsItsViewingsOldestFirst(): void
+    {
+        // Written newest first on purpose, so a listing that simply echoed insertion order
+        // would fail here.
+        //
+        // This pins the contract, not its mechanism: removing the mapping's ORDER BY does
+        // not make it fail, because Postgres returns these few rows in date order regardless.
+        // That is why the film page sorts the list again before reading it in pairs instead
+        // of relying on what arrives.
+        $user = $this->entityManager->getRepository(User::class)->findOneBy(['email' => self::EMAIL]);
+        $comedy = $this->entityManager->getRepository(Genre::class)->findOneBy(['name' => self::COMEDY]);
+        self::assertNotNull($user);
+        self::assertNotNull($comedy);
+
+        $film = $this->movie('ZZ Ordre Des Visionnages', 2019, 100, $comedy);
+        $this->watch($user, $film, '2024-06-04', 5.0);
+        $this->watch($user, $film, '2021-02-17', 3.0);
+        $this->watch($user, $film, '2022-11-30', 4.0);
+        $this->entityManager->flush();
+
+        $this->client->request('GET', '/api/movies?q=ZZ+Ordre');
+        $id = $this->json()['items'][0]['id'];
+
+        $this->client->request('GET', '/api/movies/'.$id);
+        $watches = $this->json()['watches'];
+
+        self::assertSame(['2021-02-17', '2022-11-30', '2024-06-04'], array_column($watches, 'watchedDate'));
+        // floatval, because JSON brings a whole 5.0 back as the integer 5.
+        self::assertSame([3.0, 4.0, 5.0], array_map('floatval', array_column($watches, 'rating')));
+    }
+
     public function testAFilmDetailLeavesTheSeriesFieldsEmpty(): void
     {
         $id = $this->firstCardFor('mediaType=movie')['id'];

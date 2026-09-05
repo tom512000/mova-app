@@ -165,7 +165,18 @@ class Movie
     private Collection $credits;
 
     /** @var Collection<int, Watch> */
+    /**
+     * Oldest first, and said here rather than assumed by each reader.
+     *
+     * The film page walks this list in pairs — a revised note has to name the note it
+     * replaced, which is whatever stood immediately before it — and without an ORDER BY that
+     * is whatever order Postgres happens to return the rows in. The id breaks ties because
+     * it is a UUIDv7: two watches sharing a date fall back to the order they were written,
+     * which puts a note revised on the day of a viewing after that viewing rather than
+     * before it.
+     */
     #[ORM\OneToMany(targetEntity: Watch::class, mappedBy: 'movie', orphanRemoval: true, cascade: ['persist'])]
+    #[ORM\OrderBy(['watchedDate' => 'ASC', 'id' => 'ASC'])]
     private Collection $watches;
 
     public function __construct(string $letterboxdSlug, string $title)

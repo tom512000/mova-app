@@ -131,9 +131,13 @@ final class RatingsImporter extends AbstractCsvImporter
         $watch = new Watch($user, $movie, $source);
         $watch->setRating($rating);
         $watch->setWatchedDate($watchedDate);
-        // Not a claim that Letterboxd said so — it never does for these — but the flag the
-        // rest of the application reads to mean "not the first time".
-        $watch->setIsRewatch($source->isDeduced());
+        // isRewatch is deliberately left at its default of false, including for a re-rating.
+        // Every other writer of that flag is copying something Letterboxd actually declared
+        // — the Rewatch column of diary.csv and reviews.csv, the RSS entry — and a moved
+        // rating date declares nothing. It usually means a second viewing and sometimes only
+        // means a change of heart after reading someone else's review, and the export cannot
+        // tell the two apart. Setting the flag here made the dashboard count the second kind
+        // as a rewatch, which is a claim about an evening that never happened.
         $this->entityManager->persist($watch);
         $movie->addWatch($watch);
 
