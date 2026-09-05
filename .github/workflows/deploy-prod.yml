@@ -39,10 +39,47 @@ jobs:
           # Fails here, on the step that is actually wrong, instead of surfacing as
           # "Permission denied (publickey)" against the VPS - which sends you reading
           # authorized_keys on a server that was never offered a key in the first place.
-          if ! ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null 2>&1; then
-            echo "::error::VPS_SSH_KEY n'est pas une cle privee OpenSSH lisible."
+          #
+          # </dev/null matters: ssh-keygen prompts for a passphrase on an encrypted key,
+          # and a prompt that reads EOF looks exactly like a corrupt key from the outside.
+          # Its own stderr is what separates the two, so it is reported rather than hidden.
+          if ! KEY_ERROR="$(ssh-keygen -y -f ~/.ssh/id_ed25519 </dev/null 2>&1 >/dev/null)"; then
+            echo "::group::Diagnostic VPS_SSH_KEY"
+
+            # Structure only. Never a line of the body: GitHub masks a secret by exact
+            # match, so a fragment of it would print in clear. Headers are public strings
+            # and byte counts leak nothing, but they identify the failure on their own.
+            echo "ssh-keygen : ${KEY_ERROR:-<aucun message>}"
+            echo "octets     : $(wc -c < ~/.ssh/id_ed25519)"
+            echo "lignes     : $(wc -l < ~/.ssh/id_ed25519)"
+            echo "1re ligne  : $(head -n 1 ~/.ssh/id_ed25519 | cut -c1-40)"
+
+            if [ ! -s ~/.ssh/id_ed25519 ] || [ "$(wc -c < ~/.ssh/id_ed25519)" -lt 2 ]; then
+              echo "-> Le secret est vide. Il n'existe pas, ou il est defini ailleurs que"
+              echo "   sur ce depot / cet environnement (secret d'organisation non accorde,"
+              echo "   ou secret Dependabot, qui n'est pas visible depuis Actions)."
+            elif grep -q 'PuTTY-User-Key-File' ~/.ssh/id_ed25519; then
+              echo "-> Format PuTTY (.ppk). Convertis-le : puttygen cle.ppk -O private-openssh -o id_ed25519"
+            elif head -n 1 ~/.ssh/id_ed25519 | grep -qE '^(ssh-|ecdsa-)'; then
+              echo "-> C'est la cle PUBLIQUE. Le secret attend le fichier sans .pub."
+            elif echo "$KEY_ERROR" | grep -qi 'passphrase'; then
+              # Read off ssh-keygen's message, not the file: an encrypted key in the modern
+              # OPENSSH format carries no marker at all, so grepping for Proc-Type - the
+              # old PEM one - silently missed every key generated in the last decade.
+              echo "-> Cle protegee par passphrase. Une Action ne peut pas la saisir :"
+              echo "   genere une cle de deploiement dediee et sans passphrase."
+            elif ! head -n 1 ~/.ssh/id_ed25519 | grep -q 'BEGIN .*PRIVATE KEY'; then
+              echo "-> En-tete absent. Le secret a probablement ete tronque ou reformate."
+            else
+              echo "-> En-tete correct mais corps illisible : le collage a altere le base64."
+            fi
+
+            echo ""
             echo "Repose le secret sans passer par le presse-papier :"
             echo "  gh secret set VPS_SSH_KEY --env production < ~/.ssh/id_ed25519"
+            echo "::endgroup::"
+
+            echo "::error::VPS_SSH_KEY n'est pas une cle privee OpenSSH utilisable - voir le diagnostic ci-dessus."
             exit 1
           fi
 
