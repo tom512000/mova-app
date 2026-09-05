@@ -26,11 +26,25 @@ jobs:
         run: |
           install -m 700 -d ~/.ssh
 
-          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          # `tr -d '\r'` is not defensive clutter: a key copied through a Windows tool
+          # carries CRLF, the \r lands inside the base64 body, and ssh fails with the
+          # unhelpful "error in libcrypto" - which reads like a broken key rather than a
+          # mangled paste. printf supplies the trailing newline the clipboard drops.
+          printf '%s\n' "$SSH_PRIVATE_KEY" | tr -d '\r' > ~/.ssh/id_ed25519
           chmod 600 ~/.ssh/id_ed25519
 
-          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf '%s\n' "$SSH_KNOWN_HOSTS" | tr -d '\r' > ~/.ssh/known_hosts
           chmod 600 ~/.ssh/known_hosts
+
+          # Fails here, on the step that is actually wrong, instead of surfacing as
+          # "Permission denied (publickey)" against the VPS - which sends you reading
+          # authorized_keys on a server that was never offered a key in the first place.
+          if ! ssh-keygen -y -f ~/.ssh/id_ed25519 > /dev/null 2>&1; then
+            echo "::error::VPS_SSH_KEY n'est pas une cle privee OpenSSH lisible."
+            echo "Repose le secret sans passer par le presse-papier :"
+            echo "  gh secret set VPS_SSH_KEY --env production < ~/.ssh/id_ed25519"
+            exit 1
+          fi
 
       - name: Deploy Mova
         run: |
