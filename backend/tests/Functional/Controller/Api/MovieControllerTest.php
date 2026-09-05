@@ -11,6 +11,7 @@ use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\Person;
+use App\Entity\Studio;
 use App\Entity\User;
 use App\Entity\Watch;
 use Doctrine\ORM\EntityManagerInterface;
@@ -31,11 +32,14 @@ final class MovieControllerTest extends WebTestCase
     private const COMEDY = 'ZZ-Test-Comedie';
     private const SCIFI = 'ZZ-Test-SF';
     private const PERSON = 'ZZ Test Personne';
+    private const STUDIO = 'ZZ Test Studio';
 
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
     /** Directs Brazil and Dune, and acts in Amelie - enough to tell the roles apart. */
     private string $personId;
+    /** Produced Brazil and Dune, and nothing else in the seeded library. */
+    private string $studioId;
 
     protected function setUp(): void
     {
@@ -335,6 +339,42 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame($first, $paged);
     }
 
+    public function testStudioFilterKeepsEveryFilmTheStudioIsCreditedOn(): void
+    {
+        self::assertSame(['Brazil', 'Dune'], $this->titlesFor("studioId={$this->studioId}"));
+    }
+
+    public function testStudioFilterMatchesACoProductionCreditToo(): void
+    {
+        // Dune carries two studios. A film belongs to each of them, not only to a first
+        // one - which is also why the ranking's totals add up to more than the library.
+        $coProducer = $this->entityManager->getRepository(Studio::class)->findOneBy(['tmdbId' => 999002]);
+        self::assertNotNull($coProducer);
+
+        self::assertSame(['Dune'], $this->titlesFor('studioId='.$coProducer->getId()));
+    }
+
+    public function testStudioFilterEchoesTheNameBackSoTheChipCanLabelItself(): void
+    {
+        $this->client->request('GET', "/api/movies?studioId={$this->studioId}");
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        self::assertSame(self::STUDIO, $payload['studio']['name']);
+        self::assertNull($payload['person'], 'the two filters are echoed back independently');
+    }
+
+    public function testAnUnknownStudioNarrowsToNothingRatherThanFailing(): void
+    {
+        // Arrives from the address bar, so a stale bookmark must not 500. The listing is
+        // empty and the chip has no name to show, which is the honest answer.
+        $this->client->request('GET', '/api/movies?studioId=01912345-1234-7123-8123-123456789abc');
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        self::assertSame(200, $this->client->getResponse()->getStatusCode());
+        self::assertSame([], $payload['items']);
+        self::assertNull($payload['studio']);
+    }
+
     public function testPersonFilterNarrowsToOneCreditRole(): void
     {
         self::assertSame(['Brazil', 'Dune'], $this->titlesFor("personId={$this->personId}&personRole=director"));
@@ -523,9 +563,20 @@ final class MovieControllerTest extends WebTestCase
         // apart: creating Zone Blanche must not add to their tally as a director.
         $this->credit($zone, $person, CreditRole::CREATOR);
 
+        // Two films from one studio, and one of them shared with a second studio: enough
+        // to prove the filter matches on any credit rather than only on a first one.
+        $studio = (new Studio())->setTmdbId(999001)->setName(self::STUDIO);
+        $other = (new Studio())->setTmdbId(999002)->setName('ZZ Test Coproducteur');
+        $this->entityManager->persist($studio);
+        $this->entityManager->persist($other);
+        $brazil->addStudio($studio);
+        $dune->addStudio($studio);
+        $dune->addStudio($other);
+
         $this->entityManager->flush();
 
         $this->personId = (string) $person->getId();
+        $this->studioId = (string) $studio->getId();
     }
 
     private function credit(Movie $movie, Person $person, CreditRole $role): void

@@ -10,6 +10,8 @@ interface MovieFiltersProps {
   facets?: MovieFacets
   /** Set while the list is narrowed to one person; the name arrives with the listing. */
   person: { name: string; role: CreditRole | null } | null
+  /** Set while the list is narrowed to one studio; the name arrives with the listing. */
+  studio: { name: string } | null
   /** Set while the list is narrowed to one day of the activity calendar; '' otherwise. */
   watchedOn: string
   isDirty: boolean
@@ -18,6 +20,7 @@ interface MovieFiltersProps {
   onReshuffle: () => void
   onReset: () => void
   onClearPerson: () => void
+  onClearStudio: () => void
   onClearWatchedOn: () => void
 }
 
@@ -25,6 +28,7 @@ export function MovieFilters({
   state,
   facets,
   person,
+  studio,
   watchedOn,
   isDirty,
   onChange,
@@ -32,6 +36,7 @@ export function MovieFilters({
   onReshuffle,
   onReset,
   onClearPerson,
+  onClearStudio,
   onClearWatchedOn,
 }: MovieFiltersProps) {
   const isRandom = state.sort === 'random'
@@ -39,7 +44,7 @@ export function MovieFilters({
 
   return (
     <div className="flex flex-col gap-4 border border-ink p-4">
-      {(person || watchedOn !== '') && (
+      {(person || studio || watchedOn !== '') && (
         <div className="flex flex-wrap items-center gap-3 border-b border-muted pb-4">
           {person && (
             <Chip
@@ -47,6 +52,14 @@ export function MovieFilters({
               label={person.name}
               clearLabel={`Retirer le filtre ${person.name}`}
               onClear={onClearPerson}
+            />
+          )}
+          {studio && (
+            <Chip
+              prefix="Studio"
+              label={studio.name}
+              clearLabel={`Retirer le filtre ${studio.name}`}
+              onClear={onClearStudio}
             />
           )}
           {watchedOn !== '' && (

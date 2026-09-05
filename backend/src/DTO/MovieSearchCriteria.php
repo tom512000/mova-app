@@ -19,6 +19,9 @@ final readonly class MovieSearchCriteria
      *                                    library down to what it counted
      * @param string|null     $personId   keeps films this person is credited on
      * @param CreditRole|null $personRole narrows that credit to one role; any role when null
+     * @param string|null     $studioId   keeps films this production company is credited on,
+     *                                    which is how a name in the studios ranking opens the
+     *                                    library on what it counted
      * @param MediaType|null  $mediaType  keeps only films, or only series; both when null,
      *                                    which is the default everywhere the library is
      *                                    browsed as a whole
@@ -34,6 +37,7 @@ final readonly class MovieSearchCriteria
         public ?string $watchedOn = null,
         public ?string $personId = null,
         public ?CreditRole $personRole = null,
+        public ?string $studioId = null,
         public ?MediaType $mediaType = null,
         public MovieSortField $sort = MovieSortField::TITLE,
         public bool $descending = false,

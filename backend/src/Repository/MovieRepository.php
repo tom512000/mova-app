@@ -101,6 +101,13 @@ class MovieRepository extends ServiceEntityRepository
             $conditions[] = $credit.')';
         }
 
+        if (null !== $criteria->studioId) {
+            // EXISTS rather than a join: a film carries several studios, and joining would
+            // return it once per matching row.
+            $conditions[] = 'EXISTS (SELECT 1 FROM movie_studio ms WHERE ms.movie_id = m.id AND ms.studio_id = :studioId)';
+            $params['studioId'] = $criteria->studioId;
+        }
+
         $from = $this->watchedByProfile();
         $where = [] === $conditions ? '' : ' WHERE '.implode(' AND ', $conditions);
 

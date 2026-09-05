@@ -8,6 +8,7 @@ import type {
   PersonStat,
   RatingStats,
   ReleaseWindowStats,
+  StudioStat,
   TimelineBucket,
 } from '@/types/api'
 
@@ -61,6 +62,12 @@ export async function fetchWriterStats(limit = 25): Promise<PersonStat[]> {
 /** Producers only, never executive producers — see CreditRole::PRODUCER on the backend. */
 export async function fetchProducerStats(limit = 25): Promise<PersonStat[]> {
   const { data } = await apiClient.get<PersonStat[]>('/stats/producers', { params: { limit } })
+  return data
+}
+
+/** A film counts for each studio credited on it - see StudioStatsService on the backend. */
+export async function fetchStudioStats(limit = 25): Promise<StudioStat[]> {
+  const { data } = await apiClient.get<StudioStat[]>('/stats/studios', { params: { limit } })
   return data
 }
 

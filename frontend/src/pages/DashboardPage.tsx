@@ -13,6 +13,7 @@ import {
   fetchOverviewStats,
   fetchRatingStats,
   fetchReleaseWindowStats,
+  fetchStudioStats,
   fetchTimelineStats,
   fetchWriterStats,
 } from '@/services/statsService'
@@ -298,7 +299,7 @@ export function DashboardPage() {
         </>
       )}
 
-      <PeopleRankings />
+      <Rankings />
     </div>
   )
 }
@@ -367,95 +368,148 @@ function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
 }
 
 /**
- * The five rankings of people, in one block rather than five stacked ones.
+ * The six rankings, in one block rather than six stacked ones.
  *
- * Five sections one after another was a lot of page for five variations on the same list,
- * and nothing but the heading distinguished them. Folded together, the choice becomes the
- * interesting part and the page gets four sections shorter.
+ * Six sections one after another was a lot of page for six variations on the same list, and
+ * nothing but the heading distinguished them. Folded together, the choice becomes the
+ * interesting part and the page gets five sections shorter.
  *
- * The selector names the craft rather than the people - "Réalisation", not
- * "Réalisateur·rice·s les plus vu·e·s". Five inclusive plurals side by side are unreadable at
+ * The selector names what is being ranked rather than repeating the heading — "Réalisation",
+ * not "Réalisateur·rice·s les plus vu·e·s". Inclusive plurals side by side are unreadable at
  * this size, and the heading right above already says who is being counted.
  *
- * Only the visible ranking is fetched. Five queries used to fire on every dashboard load to
- * fill five blocks; now one does, and react-query keeps the others once they have been asked
- * for, so coming back to a tab is instant.
+ * Only the visible ranking is fetched. Six queries would otherwise fire on every dashboard
+ * load to fill six blocks; one does, and react-query keeps the others once they have been
+ * asked for, so coming back to a tab is instant.
  */
+interface RankedItem {
+  id: string
+  name: string
+  movieCount: number
+  averageRating: number | null
+}
+
 interface Ranking {
-  role: CreditRole
-  /** The craft, not the people: five inclusive plurals side by side do not fit a segment. */
+  id: string
+  /** What is ranked, not the heading: an inclusive plural does not fit a segment. */
   tab: string
   title: string
-  fetch: (limit?: number) => Promise<PersonStat[]>
-  /** What one credit counts as. Everything here is a film except a series creator's work. */
+  fetch: (limit: number) => Promise<RankedItem[]>
+  /** Where a card leads: the library, narrowed to exactly what that card counted. */
+  href: (item: RankedItem) => string
+  /** What one entry counts as. Everything here is a film except a series creator's work. */
   unit?: 'film' | 'série'
-  /** Says what a credit had to be to land here, where the title alone would overpromise. */
+  /** Says what an entry had to be to land here, where the title alone would overpromise. */
   note?: string
   empty: string
 }
 
+/**
+ * People and studios are counted by different tables and come back in different shapes;
+ * flattening both to one row type here keeps that difference out of the rendering, which
+ * only ever needs a name, a count and a score.
+ */
+function fromPeople(rows: PersonStat[]): RankedItem[] {
+  return rows.map((person) => ({
+    id: person.personId,
+    name: person.name,
+    movieCount: person.movieCount,
+    averageRating: person.averageRating,
+  }))
+}
+
+function personHref(role: CreditRole): (item: RankedItem) => string {
+  return (item) => `/movies?personId=${item.id}&personRole=${role}`
+}
+
 // Typed rather than `as const satisfies`: the latter narrows every entry to its own literal
-// shape, so `note` and `unit` vanish from the union for the four entries that omit them.
+// shape, so `note` and `unit` vanish from the union for the entries that omit them.
 const RANKINGS: readonly Ranking[] = [
   {
-    role: 'director',
+    id: 'director',
     tab: 'Réalisation',
     title: 'Réalisateur·rice·s les plus vu·e·s',
-    fetch: fetchDirectorStats,
+    fetch: (limit) => fetchDirectorStats(limit).then(fromPeople),
+    href: personHref('director'),
     empty: 'Pas encore de réalisateur·rice·s enrichi·e·s via TMDB.',
   },
   {
-    role: 'actor',
+    id: 'actor',
     tab: 'Interprétation',
     title: 'Acteur·rice·s les plus vu·e·s',
-    fetch: fetchActorStats,
+    fetch: (limit) => fetchActorStats(limit).then(fromPeople),
+    href: personHref('actor'),
     empty: "Pas encore d'acteur·rice·s enrichi·e·s via TMDB.",
   },
   {
-    role: 'writer',
+    id: 'writer',
     tab: 'Scénario',
     title: 'Scénaristes les plus vu·e·s',
-    fetch: fetchWriterStats,
+    fetch: (limit) => fetchWriterStats(limit).then(fromPeople),
+    href: personHref('writer'),
     empty: 'Pas encore de scénaristes enrichi·e·s via TMDB.',
   },
   {
-    role: 'creator',
+    id: 'creator',
     tab: 'Création',
     title: 'Créateur·rice·s de séries les plus vu·e·s',
-    fetch: fetchCreatorStats,
+    fetch: (limit) => fetchCreatorStats(limit).then(fromPeople),
+    href: personHref('creator'),
     // "séries" and not "films": counting a series as a film is the exact mislabelling the
     // creator role exists to undo.
     unit: 'série',
     empty: "Aucune série dans la bibliothèque pour l'instant.",
   },
   {
-    role: 'producer',
+    id: 'producer',
     tab: 'Production',
     title: 'Producteur·rice·s les plus vu·e·s',
-    fetch: fetchProducerStats,
+    fetch: (limit) => fetchProducerStats(limit).then(fromPeople),
+    href: personHref('producer'),
     // Only the plain "Producer" credit counts, never executive producer - that one is often
     // a financing arrangement rather than a job, and counting it would fill this list with
     // studio executives. Said here because the block gives no other clue.
     note: 'Producteur·rice·s crédité·e·s comme tel·le·s, hors production exécutive',
     empty: 'Pas encore de producteur·rice·s enrichi·e·s via TMDB.',
   },
+  {
+    id: 'studio',
+    tab: 'Studios',
+    title: 'Studios les plus vus',
+    fetch: (limit) =>
+      fetchStudioStats(limit).then((rows) =>
+        rows.map((studio) => ({
+          id: studio.studioId,
+          name: studio.name,
+          movieCount: studio.movieCount,
+          averageRating: studio.averageRating,
+        }))
+      ),
+    href: (item) => `/movies?studioId=${item.id}`,
+    // The one ranking whose rule genuinely surprises people. TMDB lists production
+    // companies flat, with no lead and no role, so every one of them counts — which puts
+    // broadcasters and financing arms level with the studios that actually shot the film.
+    // On a French library that is enough to send TF1 Films Production to the top.
+    note: 'Un film compte pour chacun de ses studios : chaînes et sociétés de financement y figurent au même titre que les studios de production',
+    empty: 'Pas encore de studios enrichis via TMDB.',
+  },
 ]
 
 /** Three rows of three. A block of its own can carry more than a stacked one could. */
-const PEOPLE_SHOWN = 9
+const ENTRIES_SHOWN = 9
 
-function PeopleRankings() {
-  const [active, setActive] = useState<CreditRole>('director')
+function Rankings() {
+  const [active, setActive] = useState<string>('director')
   const listRef = useRef<HTMLDivElement>(null)
 
-  const ranking = RANKINGS.find((r) => r.role === active) ?? RANKINGS[0]
+  const ranking = RANKINGS.find((entry) => entry.id === active) ?? RANKINGS[0]
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['stats', 'people', active],
-    queryFn: () => ranking.fetch(PEOPLE_SHOWN),
+    queryKey: ['stats', 'ranking', active],
+    queryFn: () => ranking.fetch(ENTRIES_SHOWN),
   })
 
   const move = (event: KeyboardEvent<HTMLButtonElement>) => {
-    const index = RANKINGS.findIndex((r) => r.role === active)
+    const index = RANKINGS.findIndex((entry) => entry.id === active)
     let target: number
     switch (event.key) {
       case 'ArrowRight':
@@ -475,11 +529,11 @@ function PeopleRankings() {
     }
 
     event.preventDefault()
-    // Wraps around: five segments read as a loop, and a strip that simply stops at the end
-    // feels broken rather than bounded.
+    // Wraps around: a short strip of segments reads as a loop, and one that simply stops at
+    // the end feels broken rather than bounded.
     const next = RANKINGS[(target + RANKINGS.length) % RANKINGS.length]
-    setActive(next.role)
-    listRef.current?.querySelector<HTMLButtonElement>(`[data-role="${next.role}"]`)?.focus()
+    setActive(next.id)
+    listRef.current?.querySelector<HTMLButtonElement>(`[data-ranking="${next.id}"]`)?.focus()
   }
 
   return (
@@ -489,7 +543,7 @@ function PeopleRankings() {
       </h2>
       {ranking.note && <p className="mb-4 mt-1 font-mono text-xs text-subtle">{ranking.note}</p>}
 
-      {/* Scrolls rather than wraps: five segments do not fit a phone, and a second row of
+      {/* Scrolls rather than wraps: six segments do not fit a phone, and a second row of
           them would read as two controls instead of one. The focus ring is drawn inside each
           segment for the same reason today's square is on the heatmap — anything outside the
           box is what this scroll container clips off the first and last of them. */}
@@ -497,25 +551,25 @@ function PeopleRankings() {
         <div
           ref={listRef}
           role="tablist"
-          aria-label="Type de crédit"
+          aria-label="Classement affiché"
           className="inline-flex divide-x divide-ink border border-ink"
         >
           {RANKINGS.map((entry) => {
-            const selected = entry.role === active
+            const selected = entry.id === active
 
             return (
               <button
-                key={entry.role}
+                key={entry.id}
                 type="button"
                 role="tab"
-                id={`people-tab-${entry.role}`}
-                data-role={entry.role}
+                id={`ranking-tab-${entry.id}`}
+                data-ranking={entry.id}
                 aria-selected={selected}
-                aria-controls="people-panel"
+                aria-controls="ranking-panel"
                 // One tab stop for the whole strip, arrows move inside it - the pattern a
                 // screen reader announces and therefore the one it expects.
                 tabIndex={selected ? 0 : -1}
-                onClick={() => setActive(entry.role)}
+                onClick={() => setActive(entry.id)}
                 onKeyDown={move}
                 className={cn(
                   'whitespace-nowrap px-3 py-2 font-mono text-[10px] uppercase tracking-widest transition-colors',
@@ -531,34 +585,35 @@ function PeopleRankings() {
       </div>
 
       <div
-        id="people-panel"
+        id="ranking-panel"
         role="tabpanel"
-        aria-labelledby={`people-tab-${active}`}
+        aria-labelledby={`ranking-tab-${active}`}
         tabIndex={-1}
         className="mt-5"
       >
-        {isLoading && <SkeletonPersonGrid count={PEOPLE_SHOWN} />}
+        {isLoading && <SkeletonPersonGrid count={ENTRIES_SHOWN} />}
         {isError && <ErrorState message={(error as Error).message} />}
-        {data && data.length > 0 ? (
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {data.map((p) => (
-              // Each card is the entry point to that person's films in the library.
-              <Link
-                key={p.personId}
-                to={`/movies?personId=${p.personId}&personRole=${active}`}
-                className="hard-shadow-hover group block border border-ink/30 p-4"
-              >
-                <p className="font-serif text-lg font-bold group-hover:text-accent">{p.name}</p>
-                <p className="mt-0.5 font-mono text-xs text-subtle">
-                  {p.movieCount} {ranking.unit ?? 'film'}
-                  {p.movieCount > 1 ? 's' : ''} &middot; {formatRating(p.averageRating)} moyenne
-                </p>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          data && <p className="text-sm text-subtle">{ranking.empty}</p>
-        )}
+        {data &&
+          (data.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {data.map((item) => (
+                // Each card is the entry point to that name's films in the library.
+                <Link
+                  key={item.id}
+                  to={ranking.href(item)}
+                  className="hard-shadow-hover group block border border-ink/30 p-4"
+                >
+                  <p className="font-serif text-lg font-bold group-hover:text-accent">{item.name}</p>
+                  <p className="mt-0.5 font-mono text-xs text-subtle">
+                    {item.movieCount} {ranking.unit ?? 'film'}
+                    {item.movieCount > 1 ? 's' : ''} &middot; {formatRating(item.averageRating)} moyenne
+                  </p>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-subtle">{ranking.empty}</p>
+          ))}
       </div>
     </section>
   )

@@ -207,6 +207,12 @@ export interface TimelineBoard {
  */
 export type CreditRole = 'director' | 'creator' | 'writer' | 'actor' | 'producer'
 
+/** The studio a listing was narrowed to, resolved server-side from the id in the URL. */
+export interface StudioFilter {
+  id: string
+  name: string
+}
+
 /** The person a listing was narrowed to, resolved server-side from the id in the URL. */
 export interface PersonFilter {
   id: string
@@ -242,6 +248,7 @@ export interface MovieListResponse {
   page: number
   perPage: number
   person: PersonFilter | null
+  studio: StudioFilter | null
 }
 
 export interface Credit {
@@ -343,6 +350,17 @@ export interface GenreStat {
   watchCount: number
   averageRating: number | null
   totalWatchTimeMinutes: number
+}
+
+/**
+ * No best and worst rating, unlike PersonStat: a studio credited on a hundred films has a
+ * best of 5 and a worst of 0.5 whatever it made, so the pair says nothing about it.
+ */
+export interface StudioStat {
+  studioId: string
+  name: string
+  movieCount: number
+  averageRating: number | null
 }
 
 export interface PersonStat {

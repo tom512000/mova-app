@@ -6,12 +6,14 @@ namespace App\Controller\Api;
 
 use App\DTO\MovieSearchCriteria;
 use App\DTO\PersonFilterDto;
+use App\DTO\StudioFilterDto;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\MediaType;
 use App\Entity\Enum\MovieSortField;
 use App\Mapper\MovieMapper;
 use App\Repository\MovieRepository;
 use App\Repository\PersonRepository;
+use App\Repository\StudioRepository;
 use App\Service\Profile\ViewedProfileResolver;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -36,6 +38,7 @@ final class MovieController
         Request $request,
         MovieRepository $movieRepository,
         PersonRepository $personRepository,
+        StudioRepository $studioRepository,
         MovieMapper $mapper,
     ): JsonResponse {
         $viewedUser = $this->profileResolver->getViewedUser();
@@ -52,6 +55,7 @@ final class MovieController
             'page' => $criteria->page,
             'perPage' => $criteria->perPage,
             'person' => $this->resolvePerson($criteria, $personRepository),
+            'studio' => $this->resolveStudio($criteria, $studioRepository),
         ]);
     }
 
@@ -127,6 +131,7 @@ final class MovieController
             // filter at all, the same forgiving treatment the other parameters get.
             personId: $this->uuidOrNull($query->get('personId')),
             personRole: CreditRole::tryFrom((string) $query->get('personRole', '')),
+            studioId: $this->uuidOrNull($query->get('studioId')),
             // Absent or unrecognised means the whole library, films and series together —
             // the same forgiving reading as every other filter here.
             mediaType: MediaType::tryFrom((string) $query->get('mediaType', '')),
@@ -154,6 +159,22 @@ final class MovieController
         return null === $person
             ? null
             : new PersonFilterDto((string) $person->getId(), $person->getName(), $criteria->personRole);
+    }
+
+    /**
+     * The studio behind a listing filtered on one, so the chip can name it. Unknown ids
+     * resolve to null and the listing simply comes back empty - the same forgiving reading
+     * the person filter gets.
+     */
+    private function resolveStudio(MovieSearchCriteria $criteria, StudioRepository $studioRepository): ?StudioFilterDto
+    {
+        if (null === $criteria->studioId) {
+            return null;
+        }
+
+        $studio = $studioRepository->find($criteria->studioId);
+
+        return null === $studio ? null : new StudioFilterDto((string) $studio->getId(), $studio->getName());
     }
 
     /**

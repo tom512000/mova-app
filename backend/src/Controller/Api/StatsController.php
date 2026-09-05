@@ -14,6 +14,7 @@ use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
 use App\Service\Stats\RatingStatsService;
 use App\Service\Stats\ReleaseWindowStatsService;
+use App\Service\Stats\StudioStatsService;
 use App\Service\Stats\TimelineStatsService;
 use Symfony\Component\HttpFoundation\JsonResponse;
 use Symfony\Component\HttpFoundation\Request;
@@ -120,6 +121,20 @@ final class StatsController
         return new JsonResponse($service->getStats(
             $this->profileResolver->getViewedUser(),
             CreditRole::PRODUCER,
+            $this->limitFrom($request),
+        ));
+    }
+
+    /**
+     * Production companies. A film counts for each studio credited on it, so the totals
+     * exceed the library - see StudioStatsService for why there is nothing to pick a single
+     * one with.
+     */
+    #[Route('/studios', methods: ['GET'])]
+    public function studios(Request $request, StudioStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getStudioStats(
+            $this->profileResolver->getViewedUser(),
             $this->limitFrom($request),
         ));
     }

@@ -43,6 +43,9 @@ export function MoviesPage() {
   // answers with the name to label it.
   const personId = params.get('personId') ?? ''
   const personRole = params.get('personRole') as CreditRole | null
+  // Reached by clicking a studio on the dashboard. No role to go with it: a studio is
+  // credited on a film or it is not.
+  const studioId = params.get('studioId') ?? ''
   // Reached by clicking a square of the activity calendar: the day it counted, spelled out
   // as the ISO date the API filters on.
   const watchedOn = params.get('watchedOn') ?? ''
@@ -77,7 +80,7 @@ export function MoviesPage() {
   const facets = useQuery({ queryKey: ['movies', 'facets'], queryFn: fetchMovieFacets, staleTime: 5 * 60 * 1000 })
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole, watchedOn }],
+    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole, studioId, watchedOn }],
     queryFn: () =>
       fetchMovies({
         q: q || undefined,
@@ -90,6 +93,7 @@ export function MoviesPage() {
         seed: filters.sort === 'random' ? seed : undefined,
         personId: personId || undefined,
         personRole: personRole ?? undefined,
+        studioId: studioId || undefined,
         watchedOn: watchedOn || undefined,
         page,
         perPage: PER_PAGE,
@@ -122,6 +126,10 @@ export function MoviesPage() {
     ? { name: data?.person?.name ?? '…', role: data?.person?.role ?? personRole }
     : null
 
+  // Same reasoning as the person chip: the name only arrives with the listing, but the
+  // chip has to be there straight away or the bar jumps a line once it does.
+  const activeStudio = studioId !== '' ? { name: data?.studio?.name ?? '…' } : null
+
   const hasFilters =
     filters.genre !== '' ||
     filters.mediaType !== '' ||
@@ -129,6 +137,7 @@ export function MoviesPage() {
     filters.year !== '' ||
     q !== '' ||
     personId !== '' ||
+    studioId !== '' ||
     watchedOn !== ''
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
@@ -153,11 +162,13 @@ export function MoviesPage() {
         onChange={handleFilterChange}
         onSortChange={handleSortChange}
         person={activePerson}
+        studio={activeStudio}
         watchedOn={watchedOn}
         onClearWatchedOn={() => updateParams({ watchedOn: null, page: null })}
         onReshuffle={() => updateParams({ seed: newSeed(), page: null })}
         onReset={handleReset}
         onClearPerson={() => updateParams({ personId: null, personRole: null, page: null })}
+        onClearStudio={() => updateParams({ studioId: null, page: null })}
       />
 
       {data && (

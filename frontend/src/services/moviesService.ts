@@ -21,6 +21,8 @@ export interface MovieSearchParams {
   /** Keeps films this person is credited on, optionally narrowed to one role. */
   personId?: string
   personRole?: CreditRole
+  /** Keeps films this production company is credited on. */
+  studioId?: string
   /** Films only, or series only. Absent means the whole library. */
   mediaType?: MediaType
   sort?: MovieSortField

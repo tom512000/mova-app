@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 314 tests, 1 406 assertions |
+| PHPUnit | 11.5.56 | 325 tests, 1 440 assertions |
 
 ### Frontend
 
@@ -207,19 +207,31 @@ leurs deux requêtes ne partent pas du tout.
   chronologique et non bidimensionnel : dans une colonne on descend vers plus tard, d'une colonne à
   l'autre on va vers la droite vers plus tard, donc les quatre flèches partagent une seule liste et
   chaque pas atterrit sur un carré réellement ouvrable.
-- **Les gens, en un seul bloc** — cinq classements (réalisation, interprétation, scénario,
-  création de séries, production) derrière un sélecteur segmenté, neuf noms à la fois. Chacun
-  donne le nombre d'œuvres et la note moyenne ; cliquer un nom filtre la bibliothèque sur ses
-  crédits dans ce rôle.
-  - C'étaient cinq sections empilées, soit beaucoup de page pour cinq variantes de la même
+- **Les classements, en un seul bloc** — six classements (réalisation, interprétation,
+  scénario, création de séries, production, studios) derrière un sélecteur segmenté, neuf noms
+  à la fois. Chacun donne le nombre d'œuvres et la note moyenne ; cliquer un nom ouvre la
+  bibliothèque filtrée sur ce que la carte a compté.
+  - C'étaient six sections empilées, soit beaucoup de page pour six variantes de la même
     liste que seul leur titre distinguait. Regroupées, le choix devient la partie intéressante.
-  - Le sélecteur nomme le **métier** et non les personnes — « Réalisation », pas
-    « Réalisateur·rice·s les plus vu·e·s » : cinq pluriels inclusifs côte à côte sont illisibles
+  - Le sélecteur nomme **ce qui est classé** et non le titre — « Réalisation », pas
+    « Réalisateur·rice·s les plus vu·e·s » : des pluriels inclusifs côte à côte sont illisibles
     à cette taille, et le titre juste au-dessus dit déjà qui est compté. C'est un vrai
     `tablist` : un seul arrêt de tabulation, flèches pour circuler, `Home`/`End` aux extrémités.
-  - **Seul le classement affiché est demandé.** Cinq requêtes partaient à chaque ouverture du
-    dashboard pour remplir cinq blocs ; il n'en part plus qu'une, et react-query garde les
-    autres une fois consultées.
+  - **Studios** compte un film pour **chacun** de ses studios, donc la colonne totalise plus
+    que la bibliothèque — même convention que l'anneau des pays, et pour la même raison :
+    TMDB renvoie les sociétés de production à plat, sans chef de file ni rôle, et la table de
+    liaison ne conserve même pas leur ordre. Il n'y a donc rien avec quoi désigner « le »
+    studio d'un film. La conséquence est écrite sous le titre du bloc parce qu'elle surprend :
+    les chaînes et les sociétés de financement sont créditées sur tout ce qu'elles financent,
+    si bien que sur une bibliothèque française TF1 Films Production devance les studios qui
+    ont réellement tourné les films. C'est un fait exact sur le financement du cinéma, mais un
+    lecteur non prévenu y lirait « ton studio préféré » et se tromperait.
+  - Le classement des studios ne donne ni meilleure ni pire note, contrairement à ceux des
+    personnes : une société créditée sur cent films a un maximum de 5 et un minimum de 0,5
+    quoi qu'elle ait produit, donc la paire ne dirait rien.
+  - **Seul le classement affiché est demandé.** Six requêtes partiraient à chaque ouverture du
+    dashboard pour remplir six blocs ; il n'en part qu'une, et react-query garde les autres
+    une fois consultées.
   - **Producteur·rice·s** ne compte que le crédit `Producer` de TMDB, jamais `Executive
     Producer`, `Co-Producer`, `Associate Producer` ni `Line Producer`. Ces intitulés ne désignent
     pas le même travail : une production exécutive est très souvent un montage financier ou un
@@ -510,7 +522,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/studios`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -724,7 +736,7 @@ plus.
 
 ## Qualité
 
-- **314 tests, 1 406 assertions**, répartis en trois couches : unitaires (logique pure —
+- **325 tests, 1 440 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée
