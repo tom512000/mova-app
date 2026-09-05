@@ -344,6 +344,25 @@ export interface DecadeStat {
   averageRating: number | null
 }
 
+export interface DivergentWork {
+  movieId: string
+  title: string
+  yourRating: number
+  /** TMDB's audience score, already halved onto the same five-star scale. */
+  publicRating: number
+  /** yourRating - publicRating, computed from the two rounded values so the row adds up. */
+  gap: number
+}
+
+export interface DivergenceStats {
+  above: DivergentWork[]
+  below: DivergentWork[]
+  /** The TMDB vote floor a work had to clear to be compared at all. */
+  minimumVotes: number
+  /** How many works cleared it, which is what the two top fives were picked from. */
+  comparableCount: number
+}
+
 export interface GenreStat {
   genreName: string
   movieCount: number

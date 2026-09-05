@@ -3,6 +3,7 @@ import type {
   ActivityStats,
   CountryStat,
   DecadeStat,
+  DivergenceStats,
   GenreStat,
   OverviewStats,
   PersonStat,
@@ -30,6 +31,12 @@ export async function fetchRatingStats(): Promise<RatingStats> {
 /** Decades with no film in them still come back, at zero - see DecadeStatsService. */
 export async function fetchDecadeStats(): Promise<DecadeStat[]> {
   const { data } = await apiClient.get<DecadeStat[]>('/stats/decades')
+  return data
+}
+
+/** Only works with enough TMDB votes to be worth comparing - see DivergenceStatsService. */
+export async function fetchDivergenceStats(): Promise<DivergenceStats> {
+  const { data } = await apiClient.get<DivergenceStats>('/stats/divergence')
   return data
 }
 

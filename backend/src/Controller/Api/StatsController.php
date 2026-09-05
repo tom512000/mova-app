@@ -9,6 +9,7 @@ use App\Service\Profile\ViewedProfileResolver;
 use App\Service\Stats\ActivityStatsService;
 use App\Service\Stats\CountryStatsService;
 use App\Service\Stats\DecadeStatsService;
+use App\Service\Stats\DivergenceStatsService;
 use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
@@ -60,6 +61,17 @@ final class StatsController
     public function decades(DecadeStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getDecadeStats($this->profileResolver->getViewedUser()));
+    }
+
+    /**
+     * Where the profile's ratings part company with TMDB's audience score. The vote floor
+     * and the size of the population it was picked from travel with the answer - see
+     * DivergenceStatsService.
+     */
+    #[Route('/divergence', methods: ['GET'])]
+    public function divergence(DivergenceStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getDivergence($this->profileResolver->getViewedUser()));
     }
 
     #[Route('/genres', methods: ['GET'])]

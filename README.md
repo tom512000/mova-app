@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 325 tests, 1 440 assertions |
+| PHPUnit | 11.5.56 | 333 tests, 1 458 assertions |
 
 ### Frontend
 
@@ -151,15 +151,16 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
 
 ### 3. Dashboard statistique
 
-Douze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+Treize agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
-Un bouton **Vue détaillée** en tête de page replie les deux blocs les plus fins — les
-décennies et le rythme — pour ne garder que la lecture d'ensemble. Le choix est retenu dans
+Un bouton **Vue détaillée** en tête de page replie les trois blocs les plus fins — la
+divergence avec le public, les décennies et le rythme — pour ne garder que la lecture
+d'ensemble. Le choix est retenu dans
 `localStorage` plutôt que dans l'URL : c'est une préférence de lecture propre à ce navigateur, et
 un lien de profil partagé doit arriver dans l'état où son destinataire a laissé le dashboard, pas
 dans celui de l'expéditeur. Il est **actif par défaut** : ces blocs existaient avant le réglage, et
 les voir disparaître au premier chargement après un déploiement se lirait comme une panne. Repliés,
-leurs deux requêtes ne partent pas du tout.
+leurs trois requêtes ne partent pas du tout.
 
 **Cartes de synthèse**
 - Nombre d'œuvres distinctes, avec le total de visionnages et de rewatches en sous-titre.
@@ -186,6 +187,24 @@ leurs deux requêtes ne partent pas du tout.
   question a un sens). Mesuré depuis la **sortie française en salles** quand TMDB la connaît, avec
   repli sur la sortie primaire sinon. Films uniquement : la date d'une série est celle de son
   premier épisode.
+- **Où tu diverges du public** — les œuvres notées le plus loin du score du public TMDB, dans
+  les deux sens. Deux colonnes plutôt qu'une liste signée : « ce que j'aime et que personne
+  n'aime » et « ce que tout le monde aime sauf moi » sont deux curiosités distinctes, et une
+  seule table triée enterre la seconde moitié sous la première.
+  - TMDB note sur dix, la bibliothèque sur cinq : **le score public est divisé par deux avant
+    la soustraction**. Sans ça l'écart afficherait deux étoiles et demie là où il y en a une
+    et demie.
+  - Les œuvres notées par **moins de 50 personnes sur TMDB** sont écartées. Sans ce plancher
+    le classement se remplit de confidentialités notées par une douzaine de gens, où un large
+    écart signifie seulement qu'une douzaine d'inconnus n'étaient pas d'accord. Le plancher et
+    le nombre d'œuvres qui l'ont franchi voyagent avec la réponse : un top cinq n'est pas
+    lisible sans savoir dans quoi il a été pris.
+  - Une œuvre notée **exactement** comme le public ne figure dans aucune des deux colonnes.
+    Les deux listes sont séparées par le signe de l'écart et non en prenant les deux bouts
+    d'une liste triée — ces tranches se chevauchent sur une petite bibliothèque, et la même
+    œuvre apparaîtrait à la fois comme coup de cœur et comme déception.
+  - L'écart n'est pas colorié : la palette réserve l'accent aux états d'interaction, et les
+    deux titres de colonne disent déjà dans quel sens chacune va.
 - **Décennies** — un histogramme des films par décennie de sortie, la note moyenne étant
   imprimée **au-dessus de sa propre barre** plutôt que tracée en seconde série sur un axe de
   droite. Deux axes laisseraient l'échelle décider de l'ampleur de la tendance — un domaine
@@ -522,7 +541,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/studios`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/studios`, `/divergence`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -736,7 +755,7 @@ plus.
 
 ## Qualité
 
-- **325 tests, 1 440 assertions**, répartis en trois couches : unitaires (logique pure —
+- **333 tests, 1 458 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

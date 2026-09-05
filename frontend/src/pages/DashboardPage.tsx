@@ -6,6 +6,7 @@ import {
   fetchActorStats,
   fetchCountryStats,
   fetchDecadeStats,
+  fetchDivergenceStats,
   fetchCreatorStats,
   fetchProducerStats,
   fetchDirectorStats,
@@ -17,12 +18,19 @@ import {
   fetchTimelineStats,
   fetchWriterStats,
 } from '@/services/statsService'
-import type { CreditRole, PersonStat, ReleaseWindowStats } from '@/types/api'
+import type {
+  CreditRole,
+  DivergenceStats,
+  DivergentWork,
+  PersonStat,
+  ReleaseWindowStats,
+} from '@/types/api'
 import { StatCard } from '@/components/StatCard'
 import {
   SkeletonChart,
   SkeletonDonut,
   SkeletonHeatmap,
+  SkeletonLines,
   SkeletonPageHeader,
   SkeletonPersonGrid,
   SkeletonReleaseWindow,
@@ -60,6 +68,7 @@ export function DashboardPage() {
   // reader turns them back on.
   const decades = useQuery({ queryKey: ['stats', 'decades'], queryFn: fetchDecadeStats, enabled: detailed })
   const activity = useQuery({ queryKey: ['stats', 'activity'], queryFn: fetchActivityStats, enabled: detailed })
+  const divergence = useQuery({ queryKey: ['stats', 'divergence'], queryFn: fetchDivergenceStats, enabled: detailed })
   const atRelease = useQuery({ queryKey: ['stats', 'at-release'], queryFn: fetchReleaseWindowStats })
 
   // The whole page, not just the cards: this branch replaces the masthead too, and a
@@ -247,6 +256,23 @@ export function DashboardPage() {
 
       {detailed && (
         <>
+          <section className="border border-ink p-5 sm:p-6">
+            <h2 className="mb-1 font-serif text-2xl font-bold">Où tu diverges du public</h2>
+            <p className="mb-5 font-mono text-xs text-subtle">
+              Note TMDB ramenée sur cinq étoiles
+              {divergence.data &&
+                ` · ${divergence.data.comparableCount} œuvres notées par au moins ${divergence.data.minimumVotes} personnes sur TMDB`}
+            </p>
+            {divergence.isLoading && (
+              <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <SkeletonLines count={6} />
+                <SkeletonLines count={6} />
+              </div>
+            )}
+            {divergence.isError && <ErrorState message={(divergence.error as Error).message} />}
+            {divergence.data && <DivergencePanel stats={divergence.data} />}
+          </section>
+
           <section className="newsprint-texture border border-ink p-5 sm:p-6">
             <h2 className="mb-1 font-serif text-2xl font-bold">Décennies</h2>
             <p className="mb-4 font-mono text-xs text-subtle">
@@ -365,6 +391,96 @@ function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
       </ol>
     </div>
   )
+}
+
+/**
+ * Where the profile's ratings part company with TMDB's audience score.
+ *
+ * Two columns rather than one signed list: "films you rated far above everyone else" and
+ * "films you rated far below" are two different things to be curious about, and a single
+ * table sorted by a signed gap buries the second half below the fold of the first.
+ *
+ * No colour on the gap. The palette keeps the accent for interaction rather than for data,
+ * and the two headings already say which direction each column runs in — a red and a green
+ * would only repeat, in the one place the design system reserves for something else.
+ */
+function DivergencePanel({ stats }: { stats: DivergenceStats }) {
+  return (
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+      <DivergenceTable
+        heading="Tu aimes, le public non"
+        works={stats.above}
+        empty="Aucune œuvre notée au-dessus du public pour l'instant."
+      />
+      <DivergenceTable
+        heading="Le public aime, toi non"
+        works={stats.below}
+        empty="Aucune œuvre notée en dessous du public pour l'instant."
+      />
+    </div>
+  )
+}
+
+function DivergenceTable({
+  heading,
+  works,
+  empty,
+}: {
+  heading: string
+  works: DivergentWork[]
+  empty: string
+}) {
+  return (
+    <div>
+      <h3 className="mb-3 font-mono text-[10px] uppercase tracking-widest text-subtle">{heading}</h3>
+      {works.length === 0 ? (
+        <p className="text-sm text-subtle">{empty}</p>
+      ) : (
+        // Scrolls on its own rather than pushing the page sideways: four columns of numbers
+        // and a title do not fit a narrow phone whatever the type size.
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[20rem] text-sm">
+            <thead>
+              <tr className="border-b border-ink font-mono text-[10px] uppercase tracking-widest text-subtle">
+                <th className="pb-2 text-left font-medium">Titre</th>
+                <th className="pb-2 pl-3 text-right font-medium">Toi</th>
+                <th className="pb-2 pl-3 text-right font-medium">Public</th>
+                <th className="pb-2 pl-3 text-right font-medium">Écart</th>
+              </tr>
+            </thead>
+            <tbody>
+              {works.map((work) => (
+                <tr key={work.movieId} className="border-b border-ink/15 last:border-b-0">
+                  <td className="py-2 pr-3">
+                    <Link to={`/movies/${work.movieId}`} className="hover:text-accent">
+                      {work.title}
+                    </Link>
+                  </td>
+                  {/* tabular-nums so the decimal points line up down the column; without it
+                      a 5 and a 1 push their digits to different places and the eye has to
+                      re-find the comparison on every row. */}
+                  <td className="py-2 pl-3 text-right font-mono text-xs tabular-nums">
+                    {formatRating(work.yourRating)}
+                  </td>
+                  <td className="py-2 pl-3 text-right font-mono text-xs tabular-nums text-subtle">
+                    {formatRating(work.publicRating)}
+                  </td>
+                  <td className="py-2 pl-3 text-right font-mono text-xs font-bold tabular-nums">
+                    {formatGap(work.gap)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** A true minus sign rather than a hyphen: it is the width of the plus it sits under. */
+function formatGap(gap: number): string {
+  return `${gap > 0 ? '+' : '−'}${formatRating(Math.abs(gap))}`
 }
 
 /**
