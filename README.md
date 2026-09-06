@@ -60,7 +60,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 380 tests, 1 598 assertions |
+| PHPUnit | 11.5.56 | 399 tests, 1 661 assertions |
 
 ### Frontend
 
@@ -451,6 +451,15 @@ unique le perdrait définitivement.
 - Les compteurs sont remis à zéro à chaque passe, pour qu'un message redélivré décrive sa passe et
   non la somme de toutes les tentatives.
 - Historique complet des imports consultable, avec suivi en direct de l'import en cours.
+  - **Cinq lignes à l'écran, puis défilement.** Trente-huit imports repoussaient le panneau de
+    synchro RSS un écran plus bas et transformaient la page en journal. Le plafond est une hauteur
+    maximale et non une troncature : tout reste atteignable, ça cesse simplement d'être toute la
+    page. En dessous de cinq lignes, aucun conteneur de défilement n'est créé — encadrer quatre
+    lignes reviendrait à borner quelque chose qui n'a jamais été trop long.
+  - Une ligne d'import terminé ne bouge plus jamais, donc elle n'est plus revalidée : sans ça, les
+    données fournies par la liste comptaient comme périmées et **chaque ligne se re-demandait au
+    serveur au montage** — trente-huit requêtes pour ouvrir une page qui avait déjà les
+    trente-huit réponses.
 - Déduplication par `MovieUpserter` et `TagUpserter`, qui gardent un cache par slug et par nom :
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
@@ -519,6 +528,34 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
   de l'item RSS par `(contains spoilers)`.
 - Déclenchement manuel possible depuis la page Import, avec affichage de l'état et de la date de
   dernière synchronisation.
+- **Le compte Letterboxd se règle depuis l'application**, sur la même page. Le pseudo et
+  l'interrupteur de synchro automatique appartiennent à la ligne de chaque utilisateur·rice :
+  un réglage à l'échelle de l'installation ne peut décrire qu'un seul compte, et ils vivaient
+  là tant qu'une installation valait un compte. Le déménagement s'était arrêté à mi-chemin :
+  la migration semait la valeur une fois et **plus rien ne pouvait la changer ensuite**, si bien
+  qu'un second compte n'avait aucun moyen de synchroniser et que le panneau renvoyait vers un
+  fichier serveur qui n'avait plus d'effet sur lui. Plus aucune configuration hors application
+  n'entre en jeu : le compte propriétaire d'une nouvelle installation arrive non configuré, comme
+  tout autre compte, et se règle depuis l'écran.
+  - Le pseudo est validé par **liste blanche**, et c'est structurel : il est interpolé dans
+    `https://letterboxd.com/{pseudo}/rss/`, donc une valeur portant un slash, une chaîne de requête
+    ou une traversée échappée dirigerait la requête du serveur ailleurs. Tant que seule une migration
+    pouvait l'écrire, la question ne se posait pas. La garde est **dans le client RSS** et pas
+    seulement à l'endpoint : les fixtures et la console atteignent la même méthode, et la garantie
+    appartient à l'endroit où l'URL est construite.
+  - La liste blanche ne recopie **pas** les règles d'inscription de Letterboxd, inobservables d'ici
+    et susceptibles de changer. Les deux erreurs ne coûtent pas la même chose : accepter un pseudo
+    que Letterboxd refuserait donne un 404 clair au moment de lire le flux, tandis que refuser un
+    pseudo valide enferme quelqu'un dehors en lui affirmant qu'il a tort. Les tirets passent pour
+    cette raison — un tiret est aussi inerte qu'un tiret bas dans un segment d'URL.
+  - Activer la synchro automatique **sans pseudo est refusé** plutôt que silencieusement enregistré
+    à faux. La requête du planificateur ignore déjà un compte sans pseudo, donc rien n'aurait cassé —
+    mais l'interrupteur serait revenu à zéro sans explication, ce qui se lit comme un échec
+    d'enregistrement.
+  - Le planificateur est construit **au démarrage du worker**, qui se recycle toutes les heures
+    (`--time-limit=3600`). Activer la synchro automatique est donc pris en compte au prochain
+    redémarrage, au plus tard dans l'heure — c'est écrit sous la case, sans quoi le délai se lirait
+    comme un réglage non sauvegardé.
 
 ### 10. Les jeux
 
@@ -678,7 +715,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
-| **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
+| **Synchro** | `GET /sync/letterboxd`, `PUT /sync/letterboxd` (pseudo et synchro auto), `POST /sync/letterboxd` (déclenchement) |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
 | **Santé** | `GET /health` — la seule route publique sous `/api`, pour la sonde du conteneur |
 | **Jeux** | `GET /games/{game}/{mode}`, `POST .../start`, `POST .../guess`, `POST .../reveal` (infini seulement), plus `POST .../letter` (pendu), `.../pick` (duel), `.../order` (chronologie) |
@@ -890,7 +927,7 @@ plus.
 
 ## Qualité
 
-- **380 tests, 1 598 assertions**, répartis en trois couches : unitaires (logique pure —
+- **399 tests, 1 661 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

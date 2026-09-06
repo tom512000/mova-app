@@ -2,12 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRef, useState } from 'react'
 import { RefreshCw, UploadCloud } from 'lucide-react'
 import { fetchImportBatches, uploadLetterboxdExport } from '@/services/importService'
-import { fetchSyncState, triggerSync } from '@/services/syncService'
+import { fetchSyncState, triggerSync, updateSyncSettings } from '@/services/syncService'
 import { ImportBatchRow } from '@/components/ImportBatchRow'
 import { ErrorState } from '@/components/ErrorState'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
-import type { ImportBatch } from '@/types/api'
+import { TextField } from '@/components/ui/TextField'
+import { apiErrorMessage, apiFieldErrors } from '@/utils/apiError'
+import type { ImportBatch, SyncState } from '@/types/api'
 import { cn } from '@/utils/cn'
 import { PageMeta } from '@/components/PageMeta'
 import { SkeletonImportHistory, SkeletonSyncPanel } from '@/components/Skeleton'
@@ -87,19 +89,77 @@ export function ImportPage() {
       )}
 
       <section className="flex flex-col gap-3">
-        <h2 className="font-serif text-2xl font-bold">Historique des imports</h2>
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-serif text-2xl font-bold">Historique des imports</h2>
+          {history.data && history.data.length > 0 && (
+            <span className="font-mono text-[11px] uppercase tracking-widest text-subtle">
+              {history.data.length} import{history.data.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
         {history.isLoading && <SkeletonImportHistory />}
         {/* There was no error branch here either: a failed fetch left the heading standing
             over nothing at all, indistinguishable from an account that has never imported. */}
         {history.isError && <ErrorState message={(history.error as Error).message} />}
         {history.data && history.data.length === 0 && <p className="text-sm text-subtle">Aucun import pour l'instant.</p>}
-        {history.data?.map((batch) => <ImportBatchRow key={batch.id} initial={batch} />)}
+        {history.data && history.data.length > 0 && <ImportHistoryList batches={history.data} />}
       </section>
 
       <LetterboxdRssSyncSection />
     </div>
   )
 }
+
+/** Rows kept on screen before the list starts scrolling. */
+const VISIBLE_BATCHES = 5
+
+/**
+ * The import history, capped at five rows and scrolled past that.
+ *
+ * Thirty-eight imports pushed the RSS panel a full screen below the fold and turned the page
+ * into a log. The cap is a max-height rather than a slice: every import stays reachable, it
+ * just stops being the whole page.
+ *
+ * The height is five collapsed rows plus the gaps between them, which is a measurement and
+ * not a round number — hence the arithmetic below rather than a bare value. A row whose
+ * error list is unfolded is taller than that, so the fit is approximate in exactly the case
+ * where it should be: opening errors gives you more to read, and more to scroll.
+ *
+ * Short histories get no scroll container at all. Wrapping four rows in one would add a
+ * frame around something that was never too long.
+ */
+function ImportHistoryList({ batches }: { batches: ImportBatch[] }) {
+  if (batches.length <= VISIBLE_BATCHES) {
+    return (
+      <div className="flex flex-col gap-3">
+        {batches.map((batch) => (
+          <ImportBatchRow key={batch.id} initial={batch} />
+        ))}
+      </div>
+    )
+  }
+
+  return (
+    <div
+      // pr-2 keeps the scrollbar off the rows' right border rather than on top of it.
+      className="flex flex-col gap-3 overflow-y-auto pr-2"
+      style={{ maxHeight: `calc(${VISIBLE_BATCHES} * ${COLLAPSED_ROW_HEIGHT} + ${VISIBLE_BATCHES - 1} * ${ROW_GAP})` }}
+      tabIndex={0}
+      role="group"
+      aria-label={`Historique des imports, ${batches.length} entrées`}
+    >
+      {batches.map((batch) => (
+        <ImportBatchRow key={batch.id} initial={batch} />
+      ))}
+    </div>
+  )
+}
+
+/** One collapsed ImportBatchRow: 1rem padding twice, three lines, two borders. */
+const COLLAPSED_ROW_HEIGHT = '6rem'
+
+/** Tailwind's gap-3, as used by the list above. */
+const ROW_GAP = '0.75rem'
 
 function LetterboxdRssSyncSection() {
   const queryClient = useQueryClient()
@@ -138,7 +198,8 @@ function LetterboxdRssSyncSection() {
             </>
           ) : (
             <p className="mt-1 max-w-md font-body text-sm text-subtle">
-              Configure <code className="font-mono text-xs">LETTERBOXD_USERNAME</code> (et <code className="font-mono text-xs">LETTERBOXD_RSS_SYNC_ENABLED=true</code> pour l'automatique) dans le fichier .env pour activer la synchro.
+              Renseigne ton pseudo Letterboxd pour que Mova aille lire ton journal. Le réglage appartient à ton compte :
+              chaque profil synchronise le sien.
             </p>
           )}
         </div>
@@ -171,6 +232,123 @@ function LetterboxdRssSyncSection() {
       {syncState.lastSyncStatus === 'failed' && syncState.lastSyncError && (
         <p className="mt-2 font-mono text-xs text-accent">{syncState.lastSyncError}</p>
       )}
+
+      <SyncSettingsForm state={syncState} />
     </section>
+  )
+}
+
+/**
+ * Where the Letterboxd account behind the sync is actually set.
+ *
+ * There was nowhere. The setting moved off the installation's configuration and onto each
+ * user's row when the app went multi-user, but nothing was ever built to write it: the
+ * migration seeded it once and that was the last word on the subject. A second account could
+ * not sync at all, and this panel went on pointing people at a server-side file that had
+ * stopped having any effect on it.
+ *
+ * Folded away once configured. An account that already syncs does not need a form standing
+ * open under it — the button that opens this one is the rarely-used path, and the
+ * "Synchroniser maintenant" button above is the common one.
+ */
+function SyncSettingsForm({ state }: { state: SyncState }) {
+  const queryClient = useQueryClient()
+
+  // Open by default when there is nothing configured: the panel would otherwise say what is
+  // missing and hide the only control that fixes it.
+  const [isOpen, setIsOpen] = useState(!state.configured)
+  const [username, setUsername] = useState(state.username ?? '')
+  const [autoSync, setAutoSync] = useState(state.autoSyncEnabled)
+  const [error, setError] = useState<string | null>(null)
+  const [fieldError, setFieldError] = useState<string | undefined>(undefined)
+
+  const save = useMutation({
+    mutationFn: updateSyncSettings,
+    onSuccess: (data) => {
+      queryClient.setQueryData(['sync', 'letterboxd'], data)
+      setIsOpen(false)
+      setError(null)
+      setFieldError(undefined)
+    },
+    onError: (err) => {
+      setFieldError(apiFieldErrors(err).letterboxdUsername)
+      setError(apiFieldErrors(err).letterboxdUsername ? null : apiErrorMessage(err, "L'enregistrement a échoué."))
+    },
+  })
+
+  if (!isOpen) {
+    return (
+      <button
+        type="button"
+        onClick={() => setIsOpen(true)}
+        className="mt-4 font-mono text-xs uppercase tracking-widest text-accent underline decoration-2 underline-offset-4 hover:no-underline"
+      >
+        Changer de compte Letterboxd
+      </button>
+    )
+  }
+
+  return (
+    <form
+      onSubmit={(event) => {
+        event.preventDefault()
+        const trimmed = username.trim()
+        save.mutate({ letterboxdUsername: trimmed === '' ? null : trimmed, rssSyncEnabled: autoSync })
+      }}
+      className="mt-5 flex flex-col gap-4 border-t border-ink/20 pt-5"
+    >
+      <TextField
+        label="Pseudo Letterboxd"
+        value={username}
+        onChange={(event) => setUsername(event.target.value)}
+        placeholder="tonpseudo"
+        autoComplete="off"
+        spellCheck={false}
+        error={fieldError}
+        hint="Celui de l'adresse letterboxd.com/tonpseudo/. Laisse vide pour arrêter la synchro."
+        className="sm:max-w-xs"
+      />
+
+      <label className="flex max-w-md items-start gap-3">
+        <input
+          type="checkbox"
+          checked={autoSync}
+          onChange={(event) => setAutoSync(event.target.checked)}
+          className="mt-0.5 h-4 w-4 shrink-0 accent-accent"
+        />
+        <span className="font-body text-sm">
+          Synchroniser automatiquement, toutes les heures
+          <span className="mt-0.5 block font-mono text-[10px] text-subtle">
+            {/* Said out loud because the delay is real and would otherwise read as the
+                setting not having been saved. The scheduler is built once per worker start,
+                and the worker recycles hourly. */}
+            Prise en compte au prochain redémarrage du worker, au plus tard dans l'heure
+          </span>
+        </span>
+      </label>
+
+      {error && <p className="font-mono text-xs text-accent">{error}</p>}
+
+      <div className="flex flex-wrap items-center gap-3">
+        <Button type="submit" size="sm" disabled={save.isPending}>
+          {save.isPending ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
+        {state.configured && (
+          <button
+            type="button"
+            onClick={() => {
+              setIsOpen(false)
+              setUsername(state.username ?? '')
+              setAutoSync(state.autoSyncEnabled)
+              setError(null)
+              setFieldError(undefined)
+            }}
+            className="font-mono text-xs uppercase tracking-widest text-subtle hover:text-ink"
+          >
+            Annuler
+          </button>
+        )}
+      </div>
+    </form>
   )
 }

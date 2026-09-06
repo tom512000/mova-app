@@ -10,10 +10,9 @@ parameters:
     app.tmdb.api_key: '%env(TMDB_API_KEY)%'
     app.tmdb.api_base_url: '%env(TMDB_API_BASE_URL)%'
     app.tmdb.image_base_url: '%env(TMDB_IMAGE_BASE_URL)%'
-    # LETTERBOXD_USERNAME / LETTERBOXD_RSS_SYNC_ENABLED used to live here as app-wide
-    # parameters. They belong to each User entity row now, because one env var cannot
-    # describe two accounts syncing two different Letterboxd feeds. The env vars are
-    # only read once, by the multi-user migration, to seed the owner account.
+    # No Letterboxd parameter here. Which account a feed is read from, and whether it is
+    # read on a schedule, belong to each User entity row and are set from the Import screen:
+    # one installation-wide setting cannot describe two people syncing two different feeds.
 
 services:
     # default configuration for services in *this* file

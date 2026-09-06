@@ -38,9 +38,11 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     private array $roles = [];
 
     /**
-     * The public Letterboxd account this user syncs from, e.g. "tom51200". Lives here
-     * rather than in LETTERBOXD_USERNAME so two users can sync two different accounts
-     * through the one shared worker.
+     * The public Letterboxd account this user syncs from, e.g. "tom51200".
+     *
+     * On the row rather than in the installation's configuration, so that two users can sync
+     * two different accounts through the one shared worker — and so that either of them can
+     * change it from the account screen without touching a file on the server.
      */
     #[ORM\Column(length: 255, nullable: true)]
     private ?string $letterboxdUsername = null;

@@ -19,11 +19,21 @@ const STATUS_VARIANT: Record<ImportBatch['status'], 'outline' | 'solid' | 'accen
   failed: 'accent',
 }
 
+/** Statuses an import can still move out of. Everything else is final. */
+const RUNNING: ReadonlyArray<ImportBatch['status']> = ['pending', 'processing']
+
 export function ImportBatchRow({ initial }: { initial: ImportBatch }) {
+  const isRunning = RUNNING.includes(initial.status)
+
   const { data: batch } = useQuery({
     queryKey: ['import', initial.id],
     queryFn: () => fetchImportBatch(initial.id),
     initialData: initial,
+    // A finished import never changes again, so the row it was handed is the row for good.
+    // Without this, initialData counts as stale and every row refetches itself on mount —
+    // thirty-eight requests fired on opening a page that already had all thirty-eight
+    // answers in the history payload.
+    staleTime: isRunning ? 0 : Infinity,
     refetchInterval: (query) => {
       const status = query.state.data?.status
       return status === 'pending' || status === 'processing' ? 1000 : false

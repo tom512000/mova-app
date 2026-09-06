@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Letterboxd;
 
 use App\DTO\Letterboxd\RssDiaryEntry;
+use App\DTO\Letterboxd\SyncSettingsRequest;
 use App\Exception\LetterboxdRssException;
 use App\Service\Import\LetterboxdSlugExtractor;
 use Psr\Log\LoggerInterface;
@@ -57,6 +58,16 @@ final class LetterboxdRssClient implements LetterboxdRssClientInterface
 
     public function fetchDiaryEntries(string $username): array
     {
+        // Checked here as well as at the endpoint that writes it, and not out of habit: this
+        // string becomes a path segment of the URL below, so a value carrying a slash, a
+        // query string or an escaped traversal aims the server's own fetch somewhere it was
+        // never asked to go. The endpoint is one caller among several — fixtures, the
+        // migration and the console all reach this method too — and the guarantee belongs
+        // where the URL is built rather than at each of them.
+        if (1 !== preg_match(SyncSettingsRequest::USERNAME_PATTERN, $username)) {
+            throw new LetterboxdRssException(sprintf('Pseudo Letterboxd invalide : "%s".', $username));
+        }
+
         $url = sprintf('https://letterboxd.com/%s/rss/', $username);
 
         try {

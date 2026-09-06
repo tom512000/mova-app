@@ -67,8 +67,6 @@ services:
       TMDB_API_KEY: "${TMDB_API_KEY:?set TMDB_API_KEY}"
       TMDB_API_BASE_URL: "https://api.themoviedb.org/3"
       TMDB_IMAGE_BASE_URL: "https://image.tmdb.org/t/p"
-      LETTERBOXD_USERNAME: ${LETTERBOXD_USERNAME:-}
-      LETTERBOXD_RSS_SYNC_ENABLED: ${LETTERBOXD_RSS_SYNC_ENABLED:-false}
 
   backend:
     image: mova-backend:prod

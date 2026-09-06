@@ -129,4 +129,35 @@ final class LetterboxdRssClientTest extends TestCase
         $this->expectException(\App\Exception\LetterboxdRssException::class);
         $client->fetchDiaryEntries('unknown-user');
     }
+
+    /**
+     * @param string $username something that would change the URL rather than fill a slot in it
+     */
+    #[\PHPUnit\Framework\Attributes\DataProvider('urlBendingUsernames')]
+    public function testAUsernameThatWouldRedirectTheFetchNeverReachesTheNetwork(string $username): void
+    {
+        // The endpoint that writes this setting validates too, but it is one caller among
+        // several — fixtures, the migration and the console all reach this method — and the
+        // guarantee belongs where the URL is built. Asserting no request is made is the
+        // point: refusing after the fetch would be no protection at all.
+        $httpClient = new MockHttpClient(static function (): never {
+            self::fail('Le flux ne doit pas être appelé avec un pseudo invalide.');
+        });
+        $client = new LetterboxdRssClient($httpClient, new LetterboxdSlugExtractor(), new NullLogger());
+
+        $this->expectException(\App\Exception\LetterboxdRssException::class);
+        $client->fetchDiaryEntries($username);
+    }
+
+    /**
+     * @return iterable<string, array{string}>
+     */
+    public static function urlBendingUsernames(): iterable
+    {
+        yield 'traversal' => ['../../evil'];
+        yield 'extra path segment' => ['tom51200/../other'];
+        yield 'query string' => ['tom51200?redirect=1'];
+        yield 'absolute url' => ['https://evil.test'];
+        yield 'empty' => [''];
+    }
 }

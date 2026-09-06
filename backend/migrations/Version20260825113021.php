@@ -60,25 +60,30 @@ final class Version20260825113021 extends AbstractMigration
     }
 
     /**
-     * The Letterboxd settings move from app-wide env vars onto this row — the last time
-     * LETTERBOXD_USERNAME / LETTERBOXD_RSS_SYNC_ENABLED are read anywhere.
+     * The owner account starts with no Letterboxd feed attached, and that is not an omission.
+     *
+     * These two columns were seeded here from app-wide environment variables while the RSS
+     * settings were still a property of the installation rather than of a person. They stopped
+     * being that when the app became multi-user, and the account screen now writes them, so
+     * reading anything from the environment here would only reintroduce a value nobody can
+     * see from inside the app to explain.
+     *
+     * Harmless to replay on the databases that ran this with the old seed: they were migrated
+     * long ago and this INSERT already yields to its ON CONFLICT. On a fresh install the
+     * account simply arrives unconfigured, which is the same state any second account has
+     * always started in.
      */
     private function createOwnerAccount(): void
     {
-        $letterboxdUsername = trim((string) ($_ENV['LETTERBOXD_USERNAME'] ?? ''));
-        $rssSyncEnabled = filter_var($_ENV['LETTERBOXD_RSS_SYNC_ENABLED'] ?? false, \FILTER_VALIDATE_BOOL);
-
         $this->addSql(
             'INSERT INTO app_user (email, display_name, password, roles, letterboxd_username, rss_sync_enabled, created_at)
-             VALUES (:email, :displayName, :password, :roles, :letterboxdUsername, :rssSyncEnabled, NOW())
+             VALUES (:email, :displayName, :password, :roles, NULL, false, NOW())
              ON CONFLICT (email) DO NOTHING',
             [
                 'email' => self::OWNER_EMAIL,
                 'displayName' => self::OWNER_DISPLAY_NAME,
                 'password' => self::UNUSABLE_PASSWORD,
                 'roles' => json_encode(['ROLE_USER']),
-                'letterboxdUsername' => '' !== $letterboxdUsername ? $letterboxdUsername : null,
-                'rssSyncEnabled' => $rssSyncEnabled ? 'true' : 'false',
             ]
         );
     }
