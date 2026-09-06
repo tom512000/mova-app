@@ -1,4 +1,5 @@
 import { ArrowDown, ArrowUp, Shuffle, X } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { CreditRole, MovieFacets, MovieSortField } from '@/types/api'
 import { MEDIA_TYPE_OPTIONS, ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
 import { formatCalendarDay, franchiseLabel, ratingToStars } from '@/utils/format'
@@ -9,7 +10,7 @@ interface MovieFiltersProps {
   state: MovieFilterState
   facets?: MovieFacets
   /** Set while the list is narrowed to one person; the name arrives with the listing. */
-  person: { name: string; role: CreditRole | null } | null
+  person: { id: string; name: string; role: CreditRole | null } | null
   /** Set while the list is narrowed to one studio; the name arrives with the listing. */
   studio: { name: string } | null
   /** Set while the list is narrowed to one saga; the name arrives with the listing. */
@@ -55,6 +56,9 @@ export function MovieFilters({
             <Chip
               prefix={person.role ? ROLE_PREFIX[person.role] : null}
               label={person.name}
+              // The way back. Their page links here to narrow the library; this returns to
+              // everything else about them, so neither is a dead end.
+              href={`/people/${person.id}`}
               clearLabel={`Retirer le filtre ${person.name}`}
               onClear={onClearPerson}
             />
@@ -199,18 +203,27 @@ export function MovieFilters({
 function Chip({
   prefix,
   label,
+  href,
   clearLabel,
   onClear,
 }: {
   prefix: string | null
   label: string
+  /** Where the label leads, when it leads anywhere. Only the person chip has somewhere. */
+  href?: string
   clearLabel: string
   onClear: () => void
 }) {
   return (
     <span className="inline-flex items-center gap-2.5 border border-ink bg-ink py-1.5 pl-3 pr-1.5 text-paper">
       {prefix && <span className="font-mono text-[10px] uppercase tracking-widest opacity-60">{prefix}</span>}
-      <span className="font-serif text-sm font-bold">{label}</span>
+      {href ? (
+        <Link to={href} className="font-serif text-sm font-bold underline-offset-4 hover:underline">
+          {label}
+        </Link>
+      ) : (
+        <span className="font-serif text-sm font-bold">{label}</span>
+      )}
       <button
         type="button"
         onClick={onClear}

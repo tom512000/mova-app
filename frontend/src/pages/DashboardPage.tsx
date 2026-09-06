@@ -21,7 +21,6 @@ import {
   fetchWriterStats,
 } from '@/services/statsService'
 import type {
-  CreditRole,
   DivergenceStats,
   DivergentWork,
   PersonStat,
@@ -641,8 +640,15 @@ function fromPeople(rows: PersonStat[]): RankedItem[] {
   }))
 }
 
-function personHref(role: CreditRole): (item: RankedItem) => string {
-  return (item) => `/movies?personId=${item.id}&personRole=${role}`
+/**
+ * Every ranking lands on the same page, whichever job it counted.
+ *
+ * It used to hand back the library filtered on that person *in that role*, which meant
+ * somebody topping two rankings was two unrelated links to two unrelated lists. Their page
+ * says how many jobs they hold and links onward to the filtered listing itself.
+ */
+function personHref(item: RankedItem): string {
+  return `/people/${item.id}`
 }
 
 // Typed rather than `as const satisfies`: the latter narrows every entry to its own literal
@@ -653,7 +659,7 @@ const RANKINGS: readonly Ranking[] = [
     tab: 'Réalisation',
     title: 'Réalisateur·rice·s les plus vu·e·s',
     fetch: (limit) => fetchDirectorStats(limit).then(fromPeople),
-    href: personHref('director'),
+    href: personHref,
     empty: 'Pas encore de réalisateur·rice·s enrichi·e·s via TMDB.',
   },
   {
@@ -661,7 +667,7 @@ const RANKINGS: readonly Ranking[] = [
     tab: 'Interprétation',
     title: 'Acteur·rice·s les plus vu·e·s',
     fetch: (limit) => fetchActorStats(limit).then(fromPeople),
-    href: personHref('actor'),
+    href: personHref,
     empty: "Pas encore d'acteur·rice·s enrichi·e·s via TMDB.",
   },
   {
@@ -669,7 +675,7 @@ const RANKINGS: readonly Ranking[] = [
     tab: 'Scénario',
     title: 'Scénaristes les plus vu·e·s',
     fetch: (limit) => fetchWriterStats(limit).then(fromPeople),
-    href: personHref('writer'),
+    href: personHref,
     empty: 'Pas encore de scénaristes enrichi·e·s via TMDB.',
   },
   {
@@ -677,7 +683,7 @@ const RANKINGS: readonly Ranking[] = [
     tab: 'Création',
     title: 'Créateur·rice·s de séries les plus vu·e·s',
     fetch: (limit) => fetchCreatorStats(limit).then(fromPeople),
-    href: personHref('creator'),
+    href: personHref,
     // "séries" and not "films": counting a series as a film is the exact mislabelling the
     // creator role exists to undo.
     unit: 'série',
@@ -688,7 +694,7 @@ const RANKINGS: readonly Ranking[] = [
     tab: 'Production',
     title: 'Producteur·rice·s les plus vu·e·s',
     fetch: (limit) => fetchProducerStats(limit).then(fromPeople),
-    href: personHref('producer'),
+    href: personHref,
     // Only the plain "Producer" credit counts, never executive producer - that one is often
     // a financing arrangement rather than a job, and counting it would fill this list with
     // studio executives. Said here because the block gives no other clue.

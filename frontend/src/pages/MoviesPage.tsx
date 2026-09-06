@@ -126,7 +126,7 @@ export function MoviesPage() {
   // Until the listing comes back the name is unknown, but the chip must already be there
   // or the bar would jump a line once it arrives.
   const activePerson = personId !== ''
-    ? { name: data?.person?.name ?? '…', role: data?.person?.role ?? personRole }
+    ? { id: personId, name: data?.person?.name ?? '…', role: data?.person?.role ?? personRole }
     : null
 
   // Same reasoning as the person chip: the name only arrives with the listing, but the

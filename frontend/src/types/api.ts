@@ -589,3 +589,72 @@ export interface WatchlistFacets {
   shortestRuntime: number | null
   longestRuntime: number | null
 }
+
+/**
+ * One job a person holds in the library, counted apart from their others.
+ *
+ * The whole point of the person page: the same name is often two different propositions —
+ * twenty-one films as an actor, seven as a director, and different notes on each.
+ */
+export interface PersonRole {
+  role: CreditRole
+  watchedCount: number
+  unwatchedCount: number
+  averageRating: number | null
+}
+
+/** One work of a person's that the library holds, watched or not. */
+export interface PersonWork {
+  movieId: string
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  mediaType: MediaType
+  /** Several when they wore several hats on it, in credit-block order. */
+  roles: CreditRole[]
+  characterName: string | null
+  myAverageRating: number | null
+  lastWatchedDate: string | null
+  watched: boolean
+  inWatchlist: boolean
+}
+
+export interface PersonProfile {
+  id: string
+  name: string
+  tmdbId: number | null
+  profileUrl: string | null
+  roles: PersonRole[]
+  /** Distinct works watched, all jobs together — not the sum of the roles above. */
+  watchedCount: number
+  watchlistCount: number
+  averageRating: number | null
+  /** Against the profile's own average, in stars. Positive means rated above the library. */
+  ratingGap: number | null
+  works: PersonWork[]
+}
+
+/** One film of a person's filmography that has not been watched. */
+export interface FilmographyEntry {
+  tmdbId: number
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+}
+
+export interface FilmographyRole {
+  role: CreditRole
+  watchedCount: number
+  totalCount: number
+  /** Capped for display — the tally is watchedCount against totalCount. */
+  missing: FilmographyEntry[]
+}
+
+/**
+ * Comes back null whenever there is nothing worth showing: no TMDB id, TMDB unreachable, or
+ * a filmography that survives none of the filters. The section simply does not draw.
+ */
+export interface PersonFilmography {
+  roles: FilmographyRole[]
+  note: string
+}

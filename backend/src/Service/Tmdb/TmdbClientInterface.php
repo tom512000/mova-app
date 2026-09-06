@@ -47,4 +47,20 @@ interface TmdbClientInterface
      * @return array<string, mixed> season details, including an `episodes` list
      */
     public function getTvSeason(int $tvId, int $seasonNumber): array;
+
+    /**
+     * Everything TMDB credits one person with, films and series together.
+     *
+     * Deliberately not appended to anything: this is the only call in the app made for a
+     * person rather than a work, and it is made when somebody opens a person's page — never
+     * during an import, where it would multiply a nine-hundred-work enrichment by the cast
+     * of every one of them.
+     *
+     * The payload is raw and wide: `cast` holds talk-show appearances and archive footage
+     * alongside real parts, and `crew` files a dozen jobs under Production. Narrowing it is
+     * PersonFilmographyService's business, not this method's.
+     *
+     * @return array<string, mixed> credits with `cast` and `crew` lists
+     */
+    public function getPersonCredits(int $personId): array;
 }

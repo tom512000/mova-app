@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 import { formatDate, formatMinutesAsDuration, franchiseLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
-import type { Credit, CreditRole, Franchise, FranchiseFilm, MovieDetail, Watch } from '@/types/api'
+import type { Credit, Franchise, FranchiseFilm, MovieDetail, Watch } from '@/types/api'
 import { PageMeta } from '@/components/PageMeta'
 
 /**
@@ -124,21 +124,21 @@ export function MovieDetailPage() {
           {movie.directors.length > 0 && (
             <p className="mt-6 text-sm">
               <span className="font-mono text-xs uppercase tracking-widest text-subtle">Réalisé par </span>
-              <CreditLinks credits={movie.directors} role="director" className="font-serif font-bold" />
+              <CreditLinks credits={movie.directors} className="font-serif font-bold" />
             </p>
           )}
 
           {movie.creators.length > 0 && (
             <p className="mt-6 text-sm">
               <span className="font-mono text-xs uppercase tracking-widest text-subtle">Créé par </span>
-              <CreditLinks credits={movie.creators} role="creator" className="font-serif font-bold" />
+              <CreditLinks credits={movie.creators} className="font-serif font-bold" />
             </p>
           )}
 
           {movie.cast.length > 0 && (
             <p className="mt-2 text-sm">
               <span className="font-mono text-xs uppercase tracking-widest text-subtle">Avec </span>
-              <CreditLinks credits={movie.cast.slice(0, 6)} role="actor" className="font-body" />
+              <CreditLinks credits={movie.cast.slice(0, 6)} className="font-body" />
             </p>
           )}
 
@@ -435,25 +435,20 @@ function ReviewBody({ watch }: { watch: Watch }) {
 }
 
 /**
- * Every name is a way into the library: it opens the listing filtered on that person in
- * that role. A person can hold two credits on the same film, hence the index in the key.
+ * Every name opens that person's page: what they do, how much of it has been seen, how it
+ * is rated, and what is left. It used to open the library filtered on them in this role,
+ * which is now one link on that page rather than the only thing a name could do.
+ *
+ * A person can hold two credits on the same film, hence the index in the key.
  */
-function CreditLinks({
-  credits,
-  role,
-  className,
-}: {
-  credits: Credit[]
-  role: CreditRole
-  className?: string
-}) {
+function CreditLinks({ credits, className }: { credits: Credit[]; className?: string }) {
   return (
     <>
       {credits.map((credit, index) => (
         <span key={`${credit.personId}-${index}`}>
           {index > 0 && ', '}
           <Link
-            to={`/movies?personId=${credit.personId}&personRole=${role}`}
+            to={`/people/${credit.personId}`}
             className={`underline-offset-4 decoration-accent decoration-2 hover:underline ${className ?? ''}`}
           >
             {credit.name}

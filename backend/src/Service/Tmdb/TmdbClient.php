@@ -84,6 +84,14 @@ final class TmdbClient implements TmdbClientInterface
     }
 
     /**
+     * @return array<string, mixed> credits with `cast` and `crew` lists
+     */
+    public function getPersonCredits(int $personId): array
+    {
+        return $this->request('GET', "/person/{$personId}/combined_credits");
+    }
+
+    /**
      * @param array<string, scalar> $query
      *
      * @return array<string, mixed>

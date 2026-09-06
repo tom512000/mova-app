@@ -23,16 +23,17 @@ partage.
 - [Fonctionnalités](#fonctionnalités)
   - [Bibliothèque](#1-bibliothèque--films-et-séries)
   - [Fiche d'une œuvre](#2-fiche-dune-œuvre)
-  - [Dashboard statistique](#3-dashboard-statistique)
-  - [Le musée](#4-le-musée)
-  - [Watchlist](#5-watchlist--quest-ce-que-je-regarde-ce-soir-)
-  - [Import Letterboxd](#6-import-letterboxd)
-  - [Enrichissement TMDB](#7-enrichissement-tmdb)
-  - [Synchronisation RSS](#8-synchronisation-rss)
-  - [Les jeux](#9-les-jeux)
-  - [Profils partagés](#10-profils-partagés)
-  - [Compte et authentification](#11-compte-et-authentification)
-  - [Identité visuelle](#12-identité-visuelle)
+  - [Fiche d'une personne](#3-fiche-dune-personne)
+  - [Dashboard statistique](#4-dashboard-statistique)
+  - [Le musée](#5-le-musée)
+  - [Watchlist](#6-watchlist--quest-ce-que-je-regarde-ce-soir-)
+  - [Import Letterboxd](#7-import-letterboxd)
+  - [Enrichissement TMDB](#8-enrichissement-tmdb)
+  - [Synchronisation RSS](#9-synchronisation-rss)
+  - [Les jeux](#10-les-jeux)
+  - [Profils partagés](#11-profils-partagés)
+  - [Compte et authentification](#12-compte-et-authentification)
+  - [Identité visuelle](#13-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -59,7 +60,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 360 tests, 1 545 assertions |
+| PHPUnit | 11.5.56 | 380 tests, 1 598 assertions |
 
 ### Frontend
 
@@ -137,8 +138,10 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
   pays de production **en français**.
 - **Synopsis** composé en lettrine, à la manière d'un article de presse.
 - **Crédits** : « Réalisé par » pour un film, « Créé par » pour une série (les deux ne coexistent
-  jamais), puis les six premiers noms au générique. Chaque nom est un lien vers la bibliothèque
-  filtrée sur cette personne et ce rôle.
+  jamais), puis les six premiers noms au générique. Chaque nom ouvre **sa fiche** : ce qu'elle
+  fait, ce que tu en as vu, comment tu la notes et ce qu'il te reste. Le nom ouvrait la
+  bibliothèque filtrée sur cette personne et ce rôle — c'est désormais un lien *sur* sa fiche
+  plutôt que la seule chose qu'un nom sache faire.
 - **Notes externes** : moyenne TMDB, lien IMDb.
 - **Saga** — pour un film qui appartient à une collection TMDB : les affiches de **tous** ses
   films, pas seulement ceux de la bibliothèque, avec « 4 sur 7 vus » en tête et un lien pour
@@ -157,7 +160,70 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
   dit ce qu'elle sait (la note a changé, ce jour-là, de tant à tant) et rien de plus.
 - **Critiques**, avec marqueur de spoiler et repli du texte quand il en contient un.
 
-### 3. Dashboard statistique
+### 3. Fiche d'une personne
+
+Cliquer un nom filtrait la bibliothèque, et c'était tout. Utile, mais ce n'était pas une page :
+pas de photo, pas de note moyenne, aucune idée de la part de son œuvre déjà vue, et — le plus
+gênant — quelqu'un qui réalise **et** joue était deux liens sans rapport vers deux listes sans
+rapport. Dany Boon, c'était quatre liens. Tout ce qui concerne une personne tient maintenant au
+même endroit.
+
+- **En-tête** : photo TMDB (8 369 des 9 736 personnes en ont une ; les autres reçoivent le même
+  fond pointillé que les affiches manquantes, pour qu'une absence se lise comme une absence et
+  non comme une image cassée), nom, badges de ses métiers, lien TMDB.
+- **Quatre chiffres** : œuvres vues sur le total crédité, ta note moyenne sur ses œuvres, l'écart
+  avec ta moyenne générale, et ce qui l'attend dans ta watchlist.
+  - L'écart compare **par œuvre des deux côtés** de la soustraction. Lire la moyenne de la
+    bibliothèque directement sur les lignes de visionnage laisserait un film revu trois fois
+    peser trois fois sur la référence et une seule fois sur la personne : l'écart parlerait alors
+    davantage des habitudes de rewatch que de la personne.
+- **Ses métiers**, une ligne par job, avec sa note moyenne propre. Un seul chiffre global
+  cacherait la moitié la plus intéressante de quiconque fait deux choses : Dany Boon, c'est
+  vingt et un films comme acteur à 3,40 et sept comme réalisateur à 3,64.
+- **« 9 sur 14 »** — la seule chose de la page que la bibliothèque ne peut pas répondre, donc la
+  seule qui demande TMDB. La page se dessine sans, et le chiffre arrive derrière.
+
+Ce que TMDB renvoie est large et largement inutilisable : `combined_credits` classe les passages
+télé, les images d'archive et les documentaires **sur** la personne au même rang que les vrais
+rôles — 49 pour Christopher Nolan, qui ne joue quasiment nulle part — et étale une douzaine de
+métiers sur le département production. Trois filtres ramènent ça à ce qu'on reconnaîtrait comme
+une filmographie : longs métrages seulement, sortis, et au-dessus d'un plancher de votes. Le
+plancher fait le gros du travail : il ramène Nolan de 20 à 14 crédits de réalisation en écartant
+les compilations de courts métrages, et Tom Cruise de 96 à 51 crédits d'interprétation en
+écartant les caméos d'archive.
+
+- **Un film déjà vu échappe au plancher.** Celui-ci est calibré sur l'audience que TMDB ne donne
+  qu'aux sorties anglophones, si bien que les films français récents passent au travers :
+  `Regarde` est à 43 votes et `Les Chèvres !` à 60, et les deux avaient été vus. Ce n'est pas un
+  rustine sur le seuil, c'est la règle que le seuil approxime — il existe pour deviner si un
+  crédit inconnu est un vrai film, et il n'y a plus rien à deviner sur un film que quelqu'un a
+  regardé. Effet de bord utile : les deux comptes de la page ne peuvent plus se contredire.
+- **Le rapprochement se fait sur l'identifiant TMDB, pas sur la table des crédits.** Seuls les
+  quinze premiers noms au générique sont importés, donc quelqu'un seizième à l'affiche n'a
+  aucune ligne de crédit pour un film que la bibliothèque possède et a pourtant vu. Le compter
+  comme manquant enverrait voir un film déjà vu — le même piège que le bloc des sagas évite en
+  joignant sur `tmdb_id`.
+- **Une seule colonne de comptage**, et c'est une correction. Afficher « vues dans ta
+  bibliothèque » à côté de « sur sa filmographie » mettait deux nombres mesurant des choses
+  différentes côte à côte, et ils divergent assez souvent pour se lire comme un bug : Philippe
+  Lacheau sortait à 16 contre 17. Les deux chiffres étaient justes. Ensemble ils avaient l'air
+  faux.
+
+- **« Ce qui t'attend »** : ses œuvres déjà dans ta watchlist.
+- **« Il te reste à voir »** : ce que TMDB lui crédite et que tu n'as pas vu, à plat et
+  dédoublonné entre les métiers — un film qu'elle a écrit *et* réalisé est un film à voir, pas
+  deux. Ces cartes ne mènent nulle part, par construction : la bibliothèque ne les connaît pas.
+- **« Dans ta bibliothèque »** : toutes ses œuvres, de la plus récente à la plus ancienne, avec
+  ses rôles sur chaque carte plutôt qu'une section par métier — sinon quelqu'un qui a écrit,
+  réalisé et joué le même film y apparaîtrait trois fois, soit exactement la confusion que cette
+  page existe pour supprimer. Un lien « Filtrer la bibliothèque » garde l'ancien comportement,
+  comme un lien parmi d'autres et non comme la seule chose qu'un nom sache faire. En sens
+  inverse, la pastille de filtre de la bibliothèque renvoie vers la fiche : aucun des deux n'est
+  un cul-de-sac.
+- **Jamais de filmographie pour une création de série** : TMDB n'a pas cette notion sur `/tv`.
+  La ligne retombe alors sur ce que la bibliothèque sait, ce qui vaut mieux qu'un tiret.
+
+### 4. Dashboard statistique
 
 Quinze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
@@ -258,8 +324,11 @@ leurs quatre requêtes ne partent pas du tout.
     n'a pas été vu, et le compter comme vu serait un mensonge par total.
 - **Les classements, en un seul bloc** — six classements (réalisation, interprétation,
   scénario, création de séries, production, studios) derrière un sélecteur segmenté, neuf noms
-  à la fois. Chacun donne le nombre d'œuvres et la note moyenne ; cliquer un nom ouvre la
-  bibliothèque filtrée sur ce que la carte a compté.
+  à la fois. Chacun donne le nombre d'œuvres et la note moyenne ; cliquer un nom ouvre **sa
+  fiche**. Les cinq classements de personnes menaient auparavant vers la bibliothèque filtrée sur
+  cette personne *et ce rôle*, si bien que quelqu'un présent dans deux classements était deux
+  liens sans rapport vers deux listes sans rapport. Les studios, eux, mènent toujours vers la
+  bibliothèque filtrée : un studio n'a pas de fiche.
   - C'étaient six sections empilées, soit beaucoup de page pour six variantes de la même
     liste que seul leur titre distinguait. Regroupées, le choix devient la partie intéressante.
   - Le sélecteur nomme **ce qui est classé** et non le titre — « Réalisation », pas
@@ -290,7 +359,7 @@ leurs quatre requêtes ne partent pas du tout.
     arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
     rien ne la signalerait.
 
-### 4. Le musée
+### 5. Le musée
 
 Toutes les affiches accrochées sur un mur unique, en perspective, parcouru horizontalement à la
 molette ou au glisser.
@@ -303,7 +372,7 @@ molette ou au glisser.
   et note.
 - Rendu plafonné à 44 colonnes simultanées, quelle que soit la largeur de fenêtre.
 
-### 5. Watchlist — « Qu'est-ce que je regarde ce soir ? »
+### 6. Watchlist — « Qu'est-ce que je regarde ce soir ? »
 
 - **Filtre par temps disponible** — « Peu importe », moins d'1 h 30, moins de 2 h, moins de 2 h 30.
   Une œuvre dont la durée est inconnue est **exclue** dès qu'un budget temps est posé : une durée
@@ -318,7 +387,7 @@ molette ou au glisser.
 - **Recherche** par titre.
 - Les facettes exposent aussi la durée la plus courte et la plus longue de la watchlist.
 
-### 6. Import Letterboxd
+### 7. Import Letterboxd
 
 Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le fichier est stocké, un
 `ImportBatch` est créé, et le traitement part en tâche de fond via Messenger.
@@ -386,7 +455,7 @@ unique le perdrait définitivement.
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
 
-### 7. Enrichissement TMDB
+### 8. Enrichissement TMDB
 
 Un export Letterboxd ne contient aucun identifiant TMDB. La résolution se fait en trois temps, par
 message asynchrone et par film :
@@ -436,7 +505,7 @@ producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pa
 réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
 sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
-### 8. Synchronisation RSS
+### 9. Synchronisation RSS
 
 Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux exports.
 
@@ -451,7 +520,7 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
 - Déclenchement manuel possible depuis la page Import, avec affichage de l'état et de la date de
   dernière synchronisation.
 
-### 9. Les jeux
+### 10. Les jeux
 
 Huit jeux, tous construits sur **la bibliothèque de la personne qui joue** — donc sur des films
 qu'elle a vraiment vus. Chacun se joue en **mode quotidien** (une grille par jour, la même du premier
@@ -503,7 +572,7 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 10. Profils partagés
+### 11. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -520,7 +589,7 @@ différemment, pas cinq films de cinq années distinctes.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 11. Compte et authentification
+### 12. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -533,7 +602,7 @@ différemment, pas cinq films de cinq années distinctes.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 12. Identité visuelle
+### 13. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -605,6 +674,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 |---|---|
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
+| **Personnes** | `GET /people/{id}`, `GET /people/{id}/filmography` — séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
@@ -820,7 +890,7 @@ plus.
 
 ## Qualité
 
-- **360 tests, 1 545 assertions**, répartis en trois couches : unitaires (logique pure —
+- **380 tests, 1 598 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

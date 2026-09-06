@@ -29,6 +29,7 @@ const MuseumPage = lazy(() => import('@/pages/MuseumPage').then((m) => ({ defaul
 const ImportPage = lazy(() => import('@/pages/ImportPage').then((m) => ({ default: m.ImportPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then((m) => ({ default: m.AccountPage })))
 const SharePage = lazy(() => import('@/pages/SharePage').then((m) => ({ default: m.SharePage })))
+const PersonPage = lazy(() => import('@/pages/PersonPage').then((m) => ({ default: m.PersonPage })))
 
 const ClueGamePage = lazy(() => import('@/pages/ClueGamePage').then((m) => ({ default: m.ClueGamePage })))
 const ComparisonGamePage = lazy(() =>
@@ -54,6 +55,7 @@ export function App() {
             <Route index element={<DashboardPage />} />
             <Route path="movies" element={<MoviesPage />} />
             <Route path="movies/:id" element={<MovieDetailPage />} />
+            <Route path="people/:id" element={<PersonPage />} />
             <Route path="watchlist" element={<WatchlistPage />} />
             <Route path="museum" element={<MuseumPage />} />
             <Route path="games/clue/:mode" element={<ClueGamePage />} />
