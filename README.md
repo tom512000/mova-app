@@ -25,15 +25,16 @@ partage.
   - [Fiche d'une œuvre](#2-fiche-dune-œuvre)
   - [Fiche d'une personne](#3-fiche-dune-personne)
   - [Dashboard statistique](#4-dashboard-statistique)
-  - [Le musée](#5-le-musée)
-  - [Watchlist](#6-watchlist--quest-ce-que-je-regarde-ce-soir-)
-  - [Import Letterboxd](#7-import-letterboxd)
-  - [Enrichissement TMDB](#8-enrichissement-tmdb)
-  - [Synchronisation RSS](#9-synchronisation-rss)
-  - [Les jeux](#10-les-jeux)
-  - [Profils partagés](#11-profils-partagés)
-  - [Compte et authentification](#12-compte-et-authentification)
-  - [Identité visuelle](#13-identité-visuelle)
+  - [La rétrospective annuelle](#5-la-rétrospective-annuelle)
+  - [Le musée](#6-le-musée)
+  - [Watchlist](#7-watchlist--quest-ce-que-je-regarde-ce-soir-)
+  - [Import Letterboxd](#8-import-letterboxd)
+  - [Enrichissement TMDB](#9-enrichissement-tmdb)
+  - [Synchronisation RSS](#10-synchronisation-rss)
+  - [Les jeux](#11-les-jeux)
+  - [Profils partagés](#12-profils-partagés)
+  - [Compte et authentification](#13-compte-et-authentification)
+  - [Identité visuelle](#14-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -60,7 +61,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 399 tests, 1 661 assertions |
+| PHPUnit | 11.5.56 | 416 tests, 1 699 assertions |
 
 ### Frontend
 
@@ -359,7 +360,62 @@ leurs quatre requêtes ne partent pas du tout.
     arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
     rien ne la signalerait.
 
-### 5. Le musée
+### 5. La rétrospective annuelle
+
+Le rituel de fin d'année de Letterboxd, en local. Une page par année, atteignable depuis la
+barre de navigation et depuis un bandeau en tête du dashboard qui porte déjà les chiffres de
+l'année en cours — un bandeau qui annoncerait seulement une page serait une publicité, celui-ci
+est déjà une partie de la réponse.
+
+L'audit annonçait « de la mise en page, pas de la recherche », et c'était à moitié vrai : les
+*formes* existaient — la carte de rythme sait trouver une série de jours consécutifs, les
+classements savent compter des genres et des personnes — mais **aucun de ces services ne prend
+une année**. Ils rapportent tous sur la bibliothèque entière, ce qui est exactement le contraire
+d'une rétrospective. Ce qui est réutilisé, c'est le raisonnement, pas les requêtes.
+
+- **Sélecteur d'année**, limité aux années qui ont des visionnages — une année creuse proposée
+  dans la liste ouvrirait sur une page vide. Tout arrive en **une seule requête**, années
+  comprises : séparées, chaque visite attendrait un appel pour savoir quoi demander au suivant.
+- **Les chiffres** : visionnages, temps passé, jours de cinéma, note moyenne. Les œuvres sans durée
+  connue sont **comptées à part** et annoncées, pour que les heures se lisent comme un plancher :
+  une série sans durée sur TMDB raccourcirait sinon l'année en silence.
+- **Le mois le plus chargé**, comparé à une moyenne sur **douze** mois et non sur les mois actifs :
+  un janvier vide fait partie de ce qui met août en valeur, et diviser par les seuls mois pleins
+  aplatirait le contraste dont le bloc parle.
+- **La plus longue série de jours consécutifs**, avec ses dates : « vingt-cinq jours » est un
+  nombre, « du 8 août au 1er septembre » est un souvenir, et le souvenir est ce que la page vient
+  chercher. La fenêtre est celle de l'année : le 31 décembre et le 1er janvier sont deux jours
+  consécutifs mais pas la même rétrospective.
+- **Le genre de l'année** — celui dont la **part** a le plus progressé, pas celui qui a le plus
+  augmenté en volume. Sur une année qui grandit (312 visionnages → 419), tous les genres montent
+  en absolu, donc le plus gros progresseur est simplement le plus gros genre et le bloc ne dit
+  rien. Les parts neutralisent le volume et répondent à la vraie question : non pas « qu'as-tu le
+  plus regardé » mais « vers quoi t'es-tu tourné ».
+  - **Le dénominateur est le nombre de visionnages de l'année**, et ça a été corrigé en route.
+    La première version déduisait le total en additionnant les compteurs par genre — or un film
+    porte plusieurs genres, donc chaque soirée était comptée une fois par étiquette portée. La
+    comédie sortait à 32 % de mille-douze étiquettes au lieu de 78 % de quatre-cent-dix-neuf
+    soirées : une affirmation vraie sur une question que personne ne posait. Les parts dépassent
+    donc 100 % cumulées, même convention que l'anneau des pays et le classement des studios.
+  - Un plancher de cinq visionnages écarte les accidents : un film dans un genre absent l'an
+    passé est une hausse infinie et ne veut rien dire.
+- **Tes gens de l'année** : le·a plus vu·e en réalisation et en interprétation, avec un lien vers
+  leur fiche. Deux métiers et pas cinq — ce sont les deux pour lesquels on choisit un film. Un
+  crédit de production n'est la raison de personne, et le compter aurait donné son année à cette
+  bibliothèque à une productrice créditée sur dix-neuf comédies que personne n'a regardées pour
+  elle.
+- **Le plus vieux film découvert** — découvert, donc jamais vu une année précédente, sans quoi le
+  bloc renverrait le même vieux favori chaque décembre.
+- **Tes plus belles notes**, dix affiches. La **meilleure** note donnée pendant l'année et non la
+  moyenne des visionnages : un film adoré en mars n'est pas rétrogradé par un second visionnage
+  tiède en novembre.
+
+Chaque bloc peut être absent. Une année à quatre visionnages n'a pas de mois qui se détache ni de
+genre qui a pris le dessus, et la page doit se lire comme une année calme, pas comme une page
+cassée. Une année sans année précédente n'affiche aucune comparaison : « +419 visionnages » face
+à une année qui n'existe pas se lirait comme une croissance plutôt que comme un début.
+
+### 6. Le musée
 
 Toutes les affiches accrochées sur un mur unique, en perspective, parcouru horizontalement à la
 molette ou au glisser.
@@ -372,7 +428,7 @@ molette ou au glisser.
   et note.
 - Rendu plafonné à 44 colonnes simultanées, quelle que soit la largeur de fenêtre.
 
-### 6. Watchlist — « Qu'est-ce que je regarde ce soir ? »
+### 7. Watchlist — « Qu'est-ce que je regarde ce soir ? »
 
 - **Filtre par temps disponible** — « Peu importe », moins d'1 h 30, moins de 2 h, moins de 2 h 30.
   Une œuvre dont la durée est inconnue est **exclue** dès qu'un budget temps est posé : une durée
@@ -387,7 +443,7 @@ molette ou au glisser.
 - **Recherche** par titre.
 - Les facettes exposent aussi la durée la plus courte et la plus longue de la watchlist.
 
-### 7. Import Letterboxd
+### 8. Import Letterboxd
 
 Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le fichier est stocké, un
 `ImportBatch` est créé, et le traitement part en tâche de fond via Messenger.
@@ -464,7 +520,7 @@ unique le perdrait définitivement.
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
 
-### 8. Enrichissement TMDB
+### 9. Enrichissement TMDB
 
 Un export Letterboxd ne contient aucun identifiant TMDB. La résolution se fait en trois temps, par
 message asynchrone et par film :
@@ -514,7 +570,7 @@ producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pa
 réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
 sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
-### 9. Synchronisation RSS
+### 10. Synchronisation RSS
 
 Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux exports.
 
@@ -557,7 +613,7 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
     redémarrage, au plus tard dans l'heure — c'est écrit sous la case, sans quoi le délai se lirait
     comme un réglage non sauvegardé.
 
-### 10. Les jeux
+### 11. Les jeux
 
 Huit jeux, tous construits sur **la bibliothèque de la personne qui joue** — donc sur des films
 qu'elle a vraiment vus. Chacun se joue en **mode quotidien** (une grille par jour, la même du premier
@@ -609,7 +665,7 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 11. Profils partagés
+### 12. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -626,7 +682,7 @@ différemment, pas cinq films de cinq années distinctes.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 12. Compte et authentification
+### 13. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -639,7 +695,7 @@ différemment, pas cinq films de cinq années distinctes.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 13. Identité visuelle
+### 14. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -713,7 +769,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Personnes** | `GET /people/{id}`, `GET /people/{id}/filmography` — séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release`, `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `PUT /sync/letterboxd` (pseudo et synchro auto), `POST /sync/letterboxd` (déclenchement) |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -927,7 +983,7 @@ plus.
 
 ## Qualité
 
-- **399 tests, 1 661 assertions**, répartis en trois couches : unitaires (logique pure —
+- **416 tests, 1 699 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

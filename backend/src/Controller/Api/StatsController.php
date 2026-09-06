@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\DTO\Stats\Retrospective\RetrospectivePageDto;
 use App\Entity\Enum\CreditRole;
 use App\Service\Profile\ViewedProfileResolver;
 use App\Service\Stats\ActivityStatsService;
@@ -17,6 +18,7 @@ use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
 use App\Service\Stats\RatingStatsService;
 use App\Service\Stats\ReleaseWindowStatsService;
+use App\Service\Stats\RetrospectiveService;
 use App\Service\Stats\StudioStatsService;
 use App\Service\Stats\TimelineStatsService;
 use Symfony\Component\HttpFoundation\JsonResponse;
@@ -97,6 +99,29 @@ final class StatsController
             $this->profileResolver->getViewedUser(),
             $this->limitFrom($request),
         ));
+    }
+
+    /**
+     * The end-of-year page: one year of the library, with the years to choose from.
+     *
+     * The year is read forgivingly, like every other parameter here — an unknown or absent
+     * one falls back to the most recent year that has anything in it rather than raising,
+     * because these arrive from the address bar and a stale bookmark should still show a page.
+     */
+    #[Route('/retrospective', methods: ['GET'])]
+    public function retrospective(Request $request, RetrospectiveService $service): JsonResponse
+    {
+        $user = $this->profileResolver->getViewedUser();
+        $years = $service->getAvailableYears($user);
+
+        if ([] === $years) {
+            return new JsonResponse(new RetrospectivePageDto([], null));
+        }
+
+        $requested = (int) $request->query->get('year', 0);
+        $year = \in_array($requested, $years, true) ? $requested : $years[0];
+
+        return new JsonResponse(new RetrospectivePageDto($years, $service->getRetrospective($user, $year)));
     }
 
     #[Route('/genres', methods: ['GET'])]

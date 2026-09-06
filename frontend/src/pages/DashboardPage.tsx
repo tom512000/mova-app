@@ -20,6 +20,7 @@ import {
   fetchTimelineStats,
   fetchWriterStats,
 } from '@/services/statsService'
+import { fetchRetrospective } from '@/services/retrospectiveService'
 import type {
   DivergenceStats,
   DivergentWork,
@@ -126,6 +127,8 @@ export function DashboardPage() {
           Vue détaillée
         </button>
       </div>
+
+      <RetrospectiveBand />
 
       <section className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
         <Link to="/movies" className="block">
@@ -587,6 +590,54 @@ function DivergenceTable({
 /** A true minus sign rather than a hyphen: it is the width of the plus it sits under. */
 function formatGap(gap: number): string {
   return `${gap > 0 ? '+' : '−'}${formatRating(Math.abs(gap))}`
+}
+
+/**
+ * The way into the retrospective, said in one line with the year's own numbers in it.
+ *
+ * A banner that only announced a page would be an advertisement; one carrying the figures is
+ * already part of the answer, and clicking it is a choice to see the rest. It draws nothing
+ * at all until the year has something in it — a January dashboard should not open on an
+ * invitation to admire two viewings.
+ */
+function RetrospectiveBand() {
+  const { data } = useQuery({
+    queryKey: ['retrospective', 'latest'],
+    queryFn: () => fetchRetrospective(),
+    staleTime: 5 * 60 * 1000,
+  })
+
+  const retrospective = data?.retrospective
+  if (!retrospective || retrospective.watchCount === 0) return null
+
+  return (
+    <Link
+      to="/retrospective"
+      className="hard-shadow-hover flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border border-ink bg-ink p-5 text-paper sm:p-6"
+    >
+      <div>
+        <p className="font-mono text-[10px] uppercase tracking-widest text-paper/60">Ta rétrospective</p>
+        <p className="font-serif text-4xl font-black leading-none tabular-nums sm:text-5xl">{retrospective.year}</p>
+      </div>
+
+      <div className="flex flex-wrap items-baseline gap-x-6 gap-y-2 font-mono text-xs">
+        <span>
+          <b className="text-lg tabular-nums">{retrospective.watchCount}</b> visionnages
+        </span>
+        {retrospective.longestStreak && (
+          <span>
+            <b className="text-lg tabular-nums">{retrospective.longestStreak.days}</b> jours d’affilée
+          </span>
+        )}
+        {retrospective.genre && (
+          <span>
+            <b className="text-lg">{retrospective.genre.genreName}</b> en tête
+          </span>
+        )}
+        <span className="uppercase tracking-widest text-accent">Voir la page &rarr;</span>
+      </div>
+    </Link>
+  )
 }
 
 /**

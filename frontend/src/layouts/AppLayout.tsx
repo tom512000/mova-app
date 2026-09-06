@@ -33,6 +33,9 @@ const NAV_ITEMS: NavItem[] = [
   { to: '/watchlist', label: 'Watchlist' },
   // Read-only like the listings, so it stays available while viewing someone else's profile.
   { to: '/museum', label: 'Musée' },
+  // Read-only too: it reports on a year of the viewed profile, so it has something to say
+  // about somebody else's library just as much as about your own.
+  { to: '/retrospective', label: 'Rétrospective' },
   // Games are played, not browsed: like Import they act on the logged-in account, so they
   // go away while another profile is being viewed rather than pretending to act on it.
   {

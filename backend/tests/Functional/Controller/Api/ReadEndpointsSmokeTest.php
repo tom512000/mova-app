@@ -99,6 +99,11 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'stats countries' => ['/api/stats/countries'];
         yield 'stats activity' => ['/api/stats/activity'];
         yield 'stats at release' => ['/api/stats/at-release'];
+        yield 'stats retrospective' => ['/api/stats/retrospective'];
+        // With a year, and with one the profile has nothing for: both have to answer, since
+        // these arrive from the address bar and a stale bookmark should still show a page.
+        yield 'stats retrospective for a year' => ['/api/stats/retrospective?year=2026'];
+        yield 'stats retrospective for an empty year' => ['/api/stats/retrospective?year=1998'];
     }
 
     #[\PHPUnit\Framework\Attributes\DataProvider('readRoutes')]

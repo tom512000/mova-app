@@ -658,3 +658,78 @@ export interface PersonFilmography {
   roles: FilmographyRole[]
   note: string
 }
+
+/** One work named by the retrospective. */
+export interface RetrospectiveWork {
+  movieId: string
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  mediaType: MediaType
+  rating: number | null
+  watchedDate: string | null
+}
+
+export interface RetrospectiveMonth {
+  /** 1 to 12 — named on the client, so the backend stays language-free. */
+  month: number
+  watchCount: number
+  averageMonthCount: number
+}
+
+export interface RetrospectiveStreak {
+  days: number
+  startDate: string
+  endDate: string
+  watchCount: number
+}
+
+/**
+ * Shares are of the year's viewings, so they sum past 100% — one film belongs to each of its
+ * genres, the same convention the country ring uses.
+ */
+export interface GenreShift {
+  genreName: string
+  watchCount: number
+  share: number
+  /** Null when there is no year before to have risen from. */
+  previousShare: number | null
+}
+
+export interface PersonOfTheYear {
+  personId: string
+  name: string
+  profileUrl: string | null
+  role: CreditRole
+  workCount: number
+}
+
+export interface YearComparison {
+  year: number
+  watchCount: number
+  averageRating: number | null
+}
+
+export interface Retrospective {
+  year: number
+  watchCount: number
+  workCount: number
+  activeDays: number
+  totalRuntimeMinutes: number
+  /** Named so the hours read as a floor rather than a total. */
+  worksWithoutRuntime: number
+  averageRating: number | null
+  busiestMonth: RetrospectiveMonth | null
+  longestStreak: RetrospectiveStreak | null
+  genre: GenreShift | null
+  people: PersonOfTheYear[]
+  oldestDiscovery: RetrospectiveWork | null
+  previousYear: YearComparison | null
+  topRated: RetrospectiveWork[]
+}
+
+export interface RetrospectivePage {
+  /** Years with viewings, most recent first. Empty on a library that has never been imported. */
+  availableYears: number[]
+  retrospective: Retrospective | null
+}
