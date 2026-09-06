@@ -42,6 +42,8 @@ final readonly class MovieDetailDto
         public ?int $seasonCount = null,
         public ?int $episodeCount = null,
         public ?string $lastAirDate = null,
+        /** The saga this film belongs to, films only - TMDB has no collections for series. */
+        public ?FranchiseDto $franchise = null,
     ) {
     }
 }

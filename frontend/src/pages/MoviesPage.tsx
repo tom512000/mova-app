@@ -43,6 +43,8 @@ export function MoviesPage() {
   // answers with the name to label it.
   const personId = params.get('personId') ?? ''
   const personRole = params.get('personRole') as CreditRole | null
+  // Reached from a film's saga panel, or from the dashboard's unfinished sagas.
+  const franchiseId = params.get('franchiseId') ?? ''
   // Reached by clicking a studio on the dashboard. No role to go with it: a studio is
   // credited on a film or it is not.
   const studioId = params.get('studioId') ?? ''
@@ -80,7 +82,7 @@ export function MoviesPage() {
   const facets = useQuery({ queryKey: ['movies', 'facets'], queryFn: fetchMovieFacets, staleTime: 5 * 60 * 1000 })
 
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole, studioId, watchedOn }],
+    queryKey: ['movies', { ...filters, q, seed, page, personId, personRole, studioId, franchiseId, watchedOn }],
     queryFn: () =>
       fetchMovies({
         q: q || undefined,
@@ -94,6 +96,7 @@ export function MoviesPage() {
         personId: personId || undefined,
         personRole: personRole ?? undefined,
         studioId: studioId || undefined,
+        franchiseId: franchiseId || undefined,
         watchedOn: watchedOn || undefined,
         page,
         perPage: PER_PAGE,
@@ -130,6 +133,8 @@ export function MoviesPage() {
   // chip has to be there straight away or the bar jumps a line once it does.
   const activeStudio = studioId !== '' ? { name: data?.studio?.name ?? '…' } : null
 
+  const activeFranchise = franchiseId !== '' ? { name: data?.franchise?.name ?? '…' } : null
+
   const hasFilters =
     filters.genre !== '' ||
     filters.mediaType !== '' ||
@@ -138,6 +143,7 @@ export function MoviesPage() {
     q !== '' ||
     personId !== '' ||
     studioId !== '' ||
+    franchiseId !== '' ||
     watchedOn !== ''
   const isDirty = hasFilters || filters.sort !== 'title' || filters.direction !== 'asc'
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.perPage)) : 1
@@ -163,12 +169,14 @@ export function MoviesPage() {
         onSortChange={handleSortChange}
         person={activePerson}
         studio={activeStudio}
+        franchise={activeFranchise}
         watchedOn={watchedOn}
         onClearWatchedOn={() => updateParams({ watchedOn: null, page: null })}
         onReshuffle={() => updateParams({ seed: newSeed(), page: null })}
         onReset={handleReset}
         onClearPerson={() => updateParams({ personId: null, personRole: null, page: null })}
         onClearStudio={() => updateParams({ studioId: null, page: null })}
+        onClearFranchise={() => updateParams({ franchiseId: null, page: null })}
       />
 
       {data && (

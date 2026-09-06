@@ -12,6 +12,7 @@ use App\Mapper\TmdbMovieMapper;
 use App\Mapper\TmdbSeriesMapper;
 use App\Message\EnrichMovieMessage;
 use App\Repository\MovieRepository;
+use App\Service\Tmdb\FranchiseSynchroniser;
 use App\Service\Tmdb\SeriesRuntimeResolver;
 use App\Service\Tmdb\TmdbClientInterface;
 use App\Service\Tmdb\TmdbResolver;
@@ -28,6 +29,7 @@ final class EnrichMovieMessageHandler
         private readonly TmdbMovieMapper $tmdbMovieMapper,
         private readonly TmdbSeriesMapper $tmdbSeriesMapper,
         private readonly SeriesRuntimeResolver $seriesRuntimeResolver,
+        private readonly FranchiseSynchroniser $franchiseSynchroniser,
         private readonly EntityManagerInterface $entityManager,
     ) {
     }
@@ -77,6 +79,9 @@ final class EnrichMovieMessageHandler
             } else {
                 $details = $this->tmdbClient->getMovieDetails($tmdbId);
                 $this->tmdbMovieMapper->map($movie, $details);
+                // Free for the film itself - belongs_to_collection is already in the
+                // response above - and one extra call the first time a saga is seen.
+                $this->franchiseSynchroniser->attach($movie, $details);
             }
 
             if (null !== $imdbIdFromFallback && null === $movie->getImdbId()) {

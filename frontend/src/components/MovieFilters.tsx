@@ -1,7 +1,7 @@
 import { ArrowDown, ArrowUp, Shuffle, X } from 'lucide-react'
 import type { CreditRole, MovieFacets, MovieSortField } from '@/types/api'
 import { MEDIA_TYPE_OPTIONS, ROLE_PREFIX, SORT_OPTIONS, type MovieFilterState } from '@/utils/movieSort'
-import { formatCalendarDay, ratingToStars } from '@/utils/format'
+import { formatCalendarDay, franchiseLabel, ratingToStars } from '@/utils/format'
 import { Button } from '@/components/ui/Button'
 import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 
@@ -12,6 +12,8 @@ interface MovieFiltersProps {
   person: { name: string; role: CreditRole | null } | null
   /** Set while the list is narrowed to one studio; the name arrives with the listing. */
   studio: { name: string } | null
+  /** Set while the list is narrowed to one saga; the name arrives with the listing. */
+  franchise: { name: string } | null
   /** Set while the list is narrowed to one day of the activity calendar; '' otherwise. */
   watchedOn: string
   isDirty: boolean
@@ -21,6 +23,7 @@ interface MovieFiltersProps {
   onReset: () => void
   onClearPerson: () => void
   onClearStudio: () => void
+  onClearFranchise: () => void
   onClearWatchedOn: () => void
 }
 
@@ -29,6 +32,7 @@ export function MovieFilters({
   facets,
   person,
   studio,
+  franchise,
   watchedOn,
   isDirty,
   onChange,
@@ -37,6 +41,7 @@ export function MovieFilters({
   onReset,
   onClearPerson,
   onClearStudio,
+  onClearFranchise,
   onClearWatchedOn,
 }: MovieFiltersProps) {
   const isRandom = state.sort === 'random'
@@ -44,7 +49,7 @@ export function MovieFilters({
 
   return (
     <div className="flex flex-col gap-4 border border-ink p-4">
-      {(person || studio || watchedOn !== '') && (
+      {(person || studio || franchise || watchedOn !== '') && (
         <div className="flex flex-wrap items-center gap-3 border-b border-muted pb-4">
           {person && (
             <Chip
@@ -60,6 +65,14 @@ export function MovieFilters({
               label={studio.name}
               clearLabel={`Retirer le filtre ${studio.name}`}
               onClear={onClearStudio}
+            />
+          )}
+          {franchise && (
+            <Chip
+              prefix="Saga"
+              label={franchiseLabel(franchise.name)}
+              clearLabel={`Retirer le filtre ${franchiseLabel(franchise.name)}`}
+              onClear={onClearFranchise}
             />
           )}
           {watchedOn !== '' && (

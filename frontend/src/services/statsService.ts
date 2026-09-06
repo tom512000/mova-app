@@ -5,6 +5,7 @@ import type {
   CountryStat,
   DecadeStat,
   DivergenceStats,
+  FranchiseStat,
   GenreStat,
   OverviewStats,
   PersonStat,
@@ -44,6 +45,12 @@ export async function fetchDecadeStats(): Promise<DecadeStat[]> {
 /** Only works with enough TMDB votes to be worth comparing - see DivergenceStatsService. */
 export async function fetchDivergenceStats(): Promise<DivergenceStats> {
   const { data } = await apiClient.get<DivergenceStats>('/stats/divergence')
+  return data
+}
+
+/** Sagas started and not finished, the one left to finish first. */
+export async function fetchFranchiseStats(limit = 12): Promise<FranchiseStat[]> {
+  const { data } = await apiClient.get<FranchiseStat[]>('/stats/franchises', { params: { limit } })
   return data
 }
 

@@ -21,6 +21,7 @@ use Doctrine\ORM\Mapping as ORM;
 // carry the id 84958. See MediaType.
 #[ORM\UniqueConstraint(name: 'uniq_movie_media_type_tmdb_id', fields: ['mediaType', 'tmdbId'])]
 #[ORM\Index(name: 'idx_movie_enrichment_status', fields: ['enrichmentStatus'])]
+#[ORM\Index(name: 'idx_movie_franchise', fields: ['franchise'])]
 class Movie
 {
     use HasUuid;
@@ -159,6 +160,14 @@ class Movie
     #[ORM\ManyToMany(targetEntity: Studio::class)]
     #[ORM\JoinTable(name: 'movie_studio')]
     private Collection $studios;
+
+    /**
+     * The TMDB franchise this film belongs to, if any - and only ever for a film. TMDB has
+     * no equivalent for series, so this stays null on every one of them by construction.
+     */
+    #[ORM\ManyToOne(targetEntity: Franchise::class)]
+    #[ORM\JoinColumn(nullable: true, onDelete: 'SET NULL')]
+    private ?Franchise $franchise = null;
 
     /** @var Collection<int, Credit> */
     #[ORM\OneToMany(targetEntity: Credit::class, mappedBy: 'movie', orphanRemoval: true, cascade: ['persist'])]
@@ -600,6 +609,18 @@ class Movie
     public function clearCountries(): static
     {
         $this->countries->clear();
+
+        return $this;
+    }
+
+    public function getFranchise(): ?Franchise
+    {
+        return $this->franchise;
+    }
+
+    public function setFranchise(?Franchise $franchise): static
+    {
+        $this->franchise = $franchise;
 
         return $this;
     }

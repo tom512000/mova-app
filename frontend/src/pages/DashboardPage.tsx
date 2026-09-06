@@ -8,6 +8,7 @@ import {
   fetchCountryStats,
   fetchDecadeStats,
   fetchDivergenceStats,
+  fetchFranchiseStats,
   fetchCreatorStats,
   fetchProducerStats,
   fetchDirectorStats,
@@ -48,7 +49,7 @@ import { ActivityHeatmap } from '@/charts/ActivityHeatmap'
 import { DecadeChart } from '@/charts/DecadeChart'
 import { BudgetChart } from '@/charts/BudgetChart'
 import { buttonVariants } from '@/components/ui/Button'
-import { formatMinutesAsDays, formatMinutesAsDuration, formatRating } from '@/utils/format'
+import { formatMinutesAsDays, formatMinutesAsDuration, formatRating, franchiseLabel } from '@/utils/format'
 import { cn } from '@/utils/cn'
 import { PageMeta } from '@/components/PageMeta'
 import { useDetailedStats } from '@/hooks/useDetailedStats'
@@ -257,6 +258,8 @@ export function DashboardPage() {
         </section>
       </div>
 
+      <UnfinishedSagas />
+
       {detailed && (
         <>
           <section className="border border-ink p-5 sm:p-6">
@@ -417,6 +420,83 @@ function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
         ))}
       </ol>
     </div>
+  )
+}
+
+/** Three rows of three, like the rankings under it. */
+const SAGAS_SHOWN = 9
+
+/**
+ * Sagas started and not finished.
+ *
+ * Ordered by what is left rather than by what has been seen: a saga missing one film is
+ * something you might do tonight, a saga missing seven is a project. That ordering is what
+ * makes this a tool rather than another tally — the top of the list is the actionable end.
+ *
+ * The missing titles are named. "Four of seven" without saying which three is half an
+ * answer, and the half that cannot be acted on.
+ */
+function UnfinishedSagas() {
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['stats', 'franchises'],
+    queryFn: () => fetchFranchiseStats(SAGAS_SHOWN),
+  })
+
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <h2 className="mb-1 font-serif text-2xl font-bold">Sagas à finir</h2>
+      <p className="mb-5 font-mono text-xs text-subtle">
+        Sagas TMDB dont il te manque au moins un film · celles qu'il reste le moins à finir d'abord
+      </p>
+
+      {isLoading && <SkeletonLines count={6} />}
+      {isError && <ErrorState message={(error as Error).message} />}
+      {data &&
+        (data.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.map((saga) => (
+              <Link
+                key={saga.franchiseId}
+                // Chronological, like the panel on a film's page: a saga read in
+                // alphabetical order is a saga read in no order at all.
+                to={`/movies?franchiseId=${saga.franchiseId}&sort=year`}
+                className="hard-shadow-hover group block border border-ink/30 p-4"
+              >
+                <p className="font-serif text-lg font-bold leading-tight group-hover:text-accent">
+                  {franchiseLabel(saga.name)}
+                </p>
+                <p className="mt-0.5 font-mono text-xs text-subtle">
+                  <b className="text-ink">
+                    {saga.watchedCount} / {saga.totalCount}
+                  </b>{' '}
+                  · il t'en manque {saga.totalCount - saga.watchedCount}
+                </p>
+
+                {/* A bar reads before the numbers do, and the numbers are right above it for
+                    whoever wants the exact count. aria-hidden because it says nothing the
+                    line above has not already said in words. */}
+                <div aria-hidden className="mt-2 h-1 w-full bg-muted">
+                  <div
+                    className="h-full bg-ink"
+                    style={{ width: `${Math.round((saga.watchedCount / saga.totalCount) * 100)}%` }}
+                  />
+                </div>
+
+                {saga.missing.length > 0 && (
+                  <p className="mt-2 line-clamp-3 text-xs italic text-subtle">
+                    {saga.missing.join(' · ')}
+                  </p>
+                )}
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-subtle">
+            Aucune saga commencée à finir — soit tu les as toutes termin&eacute;es, soit tes films
+            n'ont pas encore été rattachés à leur saga TMDB.
+          </p>
+        ))}
+    </section>
   )
 }
 

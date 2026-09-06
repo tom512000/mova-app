@@ -19,6 +19,7 @@ final readonly class MovieSearchCriteria
      *                                    library down to what it counted
      * @param string|null     $personId   keeps films this person is credited on
      * @param CreditRole|null $personRole narrows that credit to one role; any role when null
+     * @param string|null     $franchiseId keeps the films of one TMDB saga
      * @param string|null     $studioId   keeps films this production company is credited on,
      *                                    which is how a name in the studios ranking opens the
      *                                    library on what it counted
@@ -38,6 +39,7 @@ final readonly class MovieSearchCriteria
         public ?string $personId = null,
         public ?CreditRole $personRole = null,
         public ?string $studioId = null,
+        public ?string $franchiseId = null,
         public ?MediaType $mediaType = null,
         public MovieSortField $sort = MovieSortField::TITLE,
         public bool $descending = false,

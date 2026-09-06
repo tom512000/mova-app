@@ -14,6 +14,7 @@ use App\Entity\Enum\MediaType;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
+use App\Service\Franchise\FranchiseViewBuilder;
 use App\Service\Stats\StatsMath;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 
@@ -22,6 +23,9 @@ final class MovieMapper
     public function __construct(
         #[Autowire('%app.tmdb.image_base_url%')]
         private readonly string $imageBaseUrl,
+        // Only ever used by toDetailDto, which maps one film. The listing mappers must not
+        // touch it: a saga query per row would turn a page of twenty-four into twenty-five.
+        private readonly FranchiseViewBuilder $franchiseViewBuilder,
     ) {
     }
 
@@ -143,6 +147,7 @@ final class MovieMapper
             seasonCount: $movie->getSeasonCount(),
             episodeCount: $movie->getEpisodeCount(),
             lastAirDate: $movie->getLastAirDate()?->format('Y-m-d'),
+            franchise: $this->franchiseViewBuilder->build($movie, $viewedUser),
         );
     }
 

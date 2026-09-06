@@ -59,7 +59,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 343 tests, 1 489 assertions |
+| PHPUnit | 11.5.56 | 360 tests, 1 545 assertions |
 
 ### Frontend
 
@@ -140,6 +140,14 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
   jamais), puis les six premiers noms au générique. Chaque nom est un lien vers la bibliothèque
   filtrée sur cette personne et ce rôle.
 - **Notes externes** : moyenne TMDB, lien IMDb.
+- **Saga** — pour un film qui appartient à une collection TMDB : les affiches de **tous** ses
+  films, pas seulement ceux de la bibliothèque, avec « 4 sur 7 vus » en tête et un lien pour
+  filtrer la bibliothèque sur la saga, **triée par année de sortie** — une saga a un ordre, et
+  c'est celui de ses sorties ; la lire par ordre alphabétique, c'est ne la lire dans aucun ordre. Trois états à distinguer d'un coup d'œil : vu, dans la
+  bibliothèque mais pas encore vu, absent de la bibliothèque. Seuls les deux premiers sont des
+  liens — un titre que la bibliothèque ne connaît pas n'a nulle part où mener, et un lien vers
+  une 404 vaut moins qu'un texte simple. **Jamais sur une série** : TMDB n'a pas de collections
+  pour `/tv`, donc le champ n'existe pas et aucun enrichissement ne le fera apparaître.
 - **« Mes visionnages »** — un par ligne, du plus ancien au plus récent, avec date, note,
   étiquettes et un badge « Rewatch » sur les seconds visionnages que Letterboxd a **déclarés**.
 - **Notes révisées** — une ligne sous le journal, par renotation : `Note révisée le 31 août 2026
@@ -151,7 +159,7 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
 
 ### 3. Dashboard statistique
 
-Quatorze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+Quinze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
 Un bouton **Vue détaillée** en tête de page replie les quatre blocs les plus fins — la
 divergence avec le public, les décennies, les budgets et le rythme — pour ne garder que la
@@ -240,6 +248,14 @@ leurs quatre requêtes ne partent pas du tout.
   chronologique et non bidimensionnel : dans une colonne on descend vers plus tard, d'une colonne à
   l'autre on va vers la droite vers plus tard, donc les quatre flèches partagent une seule liste et
   chaque pas atterrit sur un carré réellement ouvrable.
+- **Sagas à finir** — les sagas TMDB commencées dont il manque au moins un film, **celles
+  qu'il reste le moins à finir d'abord**. Ce tri est ce qui en fait un outil plutôt qu'un
+  décompte de plus : une saga à un film près est quelque chose qu'on peut faire ce soir, une
+  saga à cinq films est un projet, et trier par nombre de films vus enterrerait le bout
+  actionnable de la liste. Les titres manquants sont **nommés** — « quatre sur sept » sans
+  dire lesquels est la moitié de la réponse sur laquelle on ne peut rien faire.
+  - « Manquant » veut dire **non vu**, pas « non possédé » : un film garé dans la watchlist
+    n'a pas été vu, et le compter comme vu serait un mensonge par total.
 - **Les classements, en un seul bloc** — six classements (réalisation, interprétation,
   scénario, création de séries, production, studios) derrière un sélecteur segmenté, neuf noms
   à la fois. Chacun donne le nombre d'œuvres et la note moyenne ; cliquer un nom ouvre la
@@ -395,15 +411,30 @@ message asynchrone et par film :
 saisons et d'épisodes, date de dernière diffusion, langue originale, budget, recettes, popularité,
 note et nombre de votes TMDB, affiche, image de fond, genres, pays de production **traduits en
 français** via ICU avec une table d'exceptions (Hong Kong, Macao, URSS, Yougoslavie, RDA), studios,
-et les crédits complets (réalisation, scénario, création, interprétation).
+saga, et les crédits complets (réalisation, scénario, création, interprétation).
+
+**Les sagas coûtent deux choses différentes**, gardées séparées. Nommer la saga d'un film est
+**gratuit** : `belongs_to_collection` est un champ de premier niveau de `/movie/{id}`, donc il
+arrive dans chaque réponse d'enrichissement depuis toujours — l'app se contentait de le jeter.
+Savoir ce qu'il y a *dans* la saga coûte un appel à `/collection/{id}`, **un par saga et non par
+film** : une saga de neuf films coûte une requête quel que soit le nombre de ses films dans la
+bibliothèque. Une saga déjà remplie n'est pas redemandée ; `--all` force le rafraîchissement.
+Un échec sur cet appel secondaire **ne fait pas échouer l'enrichissement** : le film garde le nom
+de sa saga et la composition reste inconnue jusqu'au passage suivant.
+
+Sur cette bibliothèque : **489 films rattachés à 196 sagas**, qui totalisent 616 films chez TMDB —
+soit 127 titres que la bibliothèque ne contient pas, et c'est cette moitié-là qui est intéressante.
 
 **Cinq états d'enrichissement** : `pending`, `enriched`, `failed`, `ambiguous`, et `excluded` —
 ce dernier étant **terminal**. Une entrée confirmée sans correspondance TMDB n'est jamais réessayée,
 ce qui empêche un ré-import de relancer la recherche et de re-choisir un mauvais candidat.
 
-**Sept commandes de maintenance** accompagnent le pipeline : audit des correspondances existantes,
+**Neuf commandes de maintenance** accompagnent le pipeline : audit des correspondances existantes,
 forçage manuel d'un identifiant, remise à l'état ambigu, exclusion définitive, relance des échecs,
-rattrapage des studios, rattrapage des dates de sortie françaises.
+rattrapage des studios, rattrapage des dates de sortie françaises, rattrapage des
+producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pas** avoir à
+réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
+sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
 ### 8. Synchronisation RSS
 
@@ -529,11 +560,22 @@ Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
 ## Modèle de données
 
-18 entités, identifiants **UUID v7** (ordonnables dans le temps).
+20 entités, identifiants **UUID v7** (ordonnables dans le temps).
 
 **Bibliothèque** — `Movie` (films et séries dans une seule table, discriminées par `mediaType`),
 `Genre`, `Country`, `Studio`, `Person`, `Credit` (la personne, l'œuvre, le rôle, l'ordre au
 générique).
+
+**Sagas** — `Franchise` (une collection TMDB) et `FranchiseFilm` (un de ses films, **qu'il soit
+dans la bibliothèque ou non** : nommer ce qui manque est la raison d'être de la table). L'entité
+ne s'appelle pas `Collection` parce que celle de Doctrine est importée dans chaque entité du
+projet, et deux choses du même nom dans un même fichier sont un piège posé pour la suite. Le lien
+de `FranchiseFilm` vers un `Movie` se fait **par identifiant TMDB à la lecture**, pas par clé
+étrangère : une ligne y est un fait sur la saga et survit à ce que la bibliothèque contient
+aujourd'hui, donc un film importé le mois prochain rejoint sa saga sans que la table soit
+réécrite. Ce rapprochement **exige `media_type`** en plus du numéro : TMDB numérote films et
+séries dans deux séquences indépendantes, donc un numéro seul peut appareiller un film de la
+saga avec une série qui n'a rien à voir.
 
 **Activité** — `Watch` (un visionnage : date, note, rewatch, critique, spoiler, source, référence
 externe, étiquettes), `Tag`, `WatchlistEntry`.
@@ -564,7 +606,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/countries`, `/activity`, `/at-release` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `POST /sync/letterboxd` |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -778,7 +820,7 @@ plus.
 
 ## Qualité
 
-- **343 tests, 1 489 assertions**, répartis en trois couches : unitaires (logique pure —
+- **360 tests, 1 545 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

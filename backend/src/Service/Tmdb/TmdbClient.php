@@ -62,6 +62,20 @@ final class TmdbClient implements TmdbClientInterface
     }
 
     /**
+     * A TMDB collection - a franchise - with every film it lists in `parts`.
+     *
+     * One call per franchise rather than per film: `belongs_to_collection` already rides
+     * along on every /movie response and names the franchise, but only says which films are
+     * in it here.
+     *
+     * @return array<string, mixed> collection details, including a `parts` list
+     */
+    public function getCollection(int $collectionId): array
+    {
+        return $this->request('GET', "/collection/{$collectionId}");
+    }
+
+    /**
      * @return array<string, mixed> season details, including an `episodes` list
      */
     public function getTvSeason(int $tvId, int $seasonNumber): array

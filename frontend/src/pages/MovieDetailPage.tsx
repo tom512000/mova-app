@@ -7,8 +7,9 @@ import { SkeletonMovieDetail } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
 import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
-import { formatDate, formatMinutesAsDuration } from '@/utils/format'
-import type { Credit, CreditRole, MovieDetail, Watch } from '@/types/api'
+import { formatDate, formatMinutesAsDuration, franchiseLabel } from '@/utils/format'
+import { cn } from '@/utils/cn'
+import type { Credit, CreditRole, Franchise, FranchiseFilm, MovieDetail, Watch } from '@/types/api'
 import { PageMeta } from '@/components/PageMeta'
 
 /**
@@ -161,10 +162,110 @@ export function MovieDetailPage() {
         </div>
       </div>
 
+      {null !== movie.franchise && <SagaPanel franchise={movie.franchise} currentMovieId={movie.id} />}
+
       <ReviewSection watches={movie.watches} />
 
       <ViewingLog watches={movie.watches} />
     </div>
+  )
+}
+
+/**
+ * The saga this film belongs to, and what is left of it.
+ *
+ * Every film TMDB lists in the saga is here, not only the ones the library holds — a panel
+ * that showed four of seven and said nothing about the other three would be answering the
+ * less interesting half of the question.
+ *
+ * Three states, and they have to be told apart at a glance: watched, in the library but not
+ * yet watched, and not in the library at all. Only the first two are links; a title the
+ * library has never heard of has nowhere to go, and a link that lands on a 404 is worse than
+ * plain text.
+ */
+function SagaPanel({ franchise, currentMovieId }: { franchise: Franchise; currentMovieId: string }) {
+  const total = franchise.films.length
+  const seen = franchise.watchedCount
+
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <div className="mb-1 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+        <h2 className="font-serif text-2xl font-bold">Saga {franchiseLabel(franchise.name)}</h2>
+        {/* sort=year and not the alphabetical default: a saga has an order, and it is the
+            one it was released in. The direction comes free - "Année de sortie" already
+            defaults to ascending, which is chronological. */}
+        <Link
+          to={`/movies?franchiseId=${franchise.id}&sort=year`}
+          className="font-mono text-[10px] uppercase tracking-widest text-subtle hover:text-accent"
+        >
+          Filtrer la bibliothèque
+        </Link>
+      </div>
+      <p className="mb-5 font-mono text-xs text-subtle">
+        <b className="text-ink">
+          {seen} sur {total}
+        </b>{' '}
+        {1 === total ? 'film' : 'films'} vu{seen > 1 ? 's' : ''}
+        {seen < total && ` · il t'en reste ${total - seen}`}
+      </p>
+
+      <ol className="grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+        {franchise.films.map((film) => (
+          <SagaEntry key={film.tmdbId} film={film} isCurrent={film.movieId === currentMovieId} />
+        ))}
+      </ol>
+    </section>
+  )
+}
+
+function SagaEntry({ film, isCurrent }: { film: FranchiseFilm; isCurrent: boolean }) {
+  const poster = (
+    <>
+      <div
+        className={cn(
+          'aspect-[2/3] w-full border border-ink/30 bg-surface',
+          // Dimmed rather than greyed: a poster at half strength still reads as a poster,
+          // and the eye picks the watched ones out of the row without any badge to count.
+          !film.watched && 'opacity-40 grayscale'
+        )}
+      >
+        {null !== film.posterUrl && (
+          <img
+            src={film.posterUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover"
+          />
+        )}
+      </div>
+      <p className="mt-1.5 line-clamp-2 font-body text-xs leading-tight">{film.title}</p>
+      <p className="font-mono text-[10px] text-subtle">
+        {film.releaseYear ?? 'à venir'}
+        {film.watched && ' · vu'}
+      </p>
+    </>
+  )
+
+  return (
+    <li>
+      {null === film.movieId ? (
+        // Not in the library: nothing to navigate to. The row still earns its place — it is
+        // the answer to "what am I missing".
+        <div className="block" title="Pas dans ta bibliothèque">
+          {poster}
+        </div>
+      ) : (
+        <Link
+          to={`/movies/${film.movieId}`}
+          // The film whose page this is stays visible but inert; a link back to here would
+          // be a step that goes nowhere.
+          className={cn('block', isCurrent ? 'pointer-events-none' : 'group hover:text-accent')}
+          aria-current={isCurrent ? 'page' : undefined}
+        >
+          {poster}
+        </Link>
+      )}
+    </li>
   )
 }
 

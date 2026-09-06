@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Api;
 
 use App\DTO\MovieSearchCriteria;
+use App\DTO\FranchiseFilterDto;
 use App\DTO\PersonFilterDto;
 use App\DTO\StudioFilterDto;
 use App\Entity\Enum\CreditRole;
@@ -12,6 +13,7 @@ use App\Entity\Enum\MediaType;
 use App\Entity\Enum\MovieSortField;
 use App\Mapper\MovieMapper;
 use App\Repository\MovieRepository;
+use App\Repository\FranchiseRepository;
 use App\Repository\PersonRepository;
 use App\Repository\StudioRepository;
 use App\Service\Profile\ViewedProfileResolver;
@@ -39,6 +41,7 @@ final class MovieController
         MovieRepository $movieRepository,
         PersonRepository $personRepository,
         StudioRepository $studioRepository,
+        FranchiseRepository $franchiseRepository,
         MovieMapper $mapper,
     ): JsonResponse {
         $viewedUser = $this->profileResolver->getViewedUser();
@@ -56,6 +59,7 @@ final class MovieController
             'perPage' => $criteria->perPage,
             'person' => $this->resolvePerson($criteria, $personRepository),
             'studio' => $this->resolveStudio($criteria, $studioRepository),
+            'franchise' => $this->resolveFranchise($criteria, $franchiseRepository),
         ]);
     }
 
@@ -132,6 +136,7 @@ final class MovieController
             personId: $this->uuidOrNull($query->get('personId')),
             personRole: CreditRole::tryFrom((string) $query->get('personRole', '')),
             studioId: $this->uuidOrNull($query->get('studioId')),
+            franchiseId: $this->uuidOrNull($query->get('franchiseId')),
             // Absent or unrecognised means the whole library, films and series together —
             // the same forgiving reading as every other filter here.
             mediaType: MediaType::tryFrom((string) $query->get('mediaType', '')),
@@ -159,6 +164,22 @@ final class MovieController
         return null === $person
             ? null
             : new PersonFilterDto((string) $person->getId(), $person->getName(), $criteria->personRole);
+    }
+
+    /**
+     * The saga behind a listing filtered on one, so the chip can name it. Unknown ids
+     * resolve to null and the listing simply comes back empty - the same forgiving reading
+     * every other filter here gets.
+     */
+    private function resolveFranchise(MovieSearchCriteria $criteria, FranchiseRepository $franchiseRepository): ?FranchiseFilterDto
+    {
+        if (null === $criteria->franchiseId) {
+            return null;
+        }
+
+        $franchise = $franchiseRepository->find($criteria->franchiseId);
+
+        return null === $franchise ? null : new FranchiseFilterDto((string) $franchise->getId(), $franchise->getName());
     }
 
     /**

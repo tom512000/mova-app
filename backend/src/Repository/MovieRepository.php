@@ -112,6 +112,12 @@ class MovieRepository extends ServiceEntityRepository
             $params['studioId'] = $criteria->studioId;
         }
 
+        if (null !== $criteria->franchiseId) {
+            // A plain column on movie, so no EXISTS needed: a film belongs to one saga.
+            $conditions[] = 'm.franchise_id = :franchiseId';
+            $params['franchiseId'] = $criteria->franchiseId;
+        }
+
         $from = $this->watchedByProfile();
         $where = [] === $conditions ? '' : ' WHERE '.implode(' AND ', $conditions);
 

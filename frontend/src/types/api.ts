@@ -207,6 +207,31 @@ export interface TimelineBoard {
  */
 export type CreditRole = 'director' | 'creator' | 'writer' | 'actor' | 'producer'
 
+/** One entry of a TMDB saga, held whether or not the library owns it. */
+export interface FranchiseFilm {
+  tmdbId: number
+  title: string
+  releaseYear: number | null
+  posterUrl: string | null
+  /** The library's own id when it holds this film; null makes the row a dead line, not a link. */
+  movieId: string | null
+  watched: boolean
+}
+
+/** The saga a film belongs to. Films only - TMDB has no collections for series. */
+export interface Franchise {
+  id: string
+  name: string
+  watchedCount: number
+  films: FranchiseFilm[]
+}
+
+/** The saga a listing was narrowed to, resolved server-side from the id in the URL. */
+export interface FranchiseFilter {
+  id: string
+  name: string
+}
+
 /** The studio a listing was narrowed to, resolved server-side from the id in the URL. */
 export interface StudioFilter {
   id: string
@@ -249,6 +274,7 @@ export interface MovieListResponse {
   perPage: number
   person: PersonFilter | null
   studio: StudioFilter | null
+  franchise: FranchiseFilter | null
 }
 
 export interface Credit {
@@ -296,6 +322,8 @@ export interface MovieDetail {
   seasonCount: number | null
   episodeCount: number | null
   lastAirDate: string | null
+  /** The saga this film belongs to. Always null on a series - TMDB has no collections there. */
+  franchise: Franchise | null
 }
 
 export interface MovieRuntime {
@@ -376,6 +404,16 @@ export interface DivergenceStats {
   minimumVotes: number
   /** How many works cleared it, which is what the two top fives were picked from. */
   comparableCount: number
+}
+
+/** A saga started and not finished, as counted for the dashboard. */
+export interface FranchiseStat {
+  franchiseId: string
+  name: string
+  watchedCount: number
+  totalCount: number
+  /** Unwatched titles, oldest first and capped - the tally is watchedCount vs totalCount. */
+  missing: string[]
 }
 
 export interface GenreStat {

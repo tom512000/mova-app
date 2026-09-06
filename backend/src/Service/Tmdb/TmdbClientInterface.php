@@ -29,6 +29,17 @@ interface TmdbClientInterface
     public function getTvDetails(int $tvId): array;
 
     /**
+     * A TMDB collection - a franchise - with every film it lists in `parts`.
+     *
+     * One call per franchise rather than per film: `belongs_to_collection` already rides
+     * along on every /movie response and names the franchise, but only says which films
+     * are in it here.
+     *
+     * @return array<string, mixed> collection details, including a `parts` list
+     */
+    public function getCollection(int $collectionId): array;
+
+    /**
      * One season's episode list. The only place a series' real running time can be read:
      * TMDB leaves `episode_run_time` empty on most modern series, so the total has to be
      * summed from the episodes themselves.

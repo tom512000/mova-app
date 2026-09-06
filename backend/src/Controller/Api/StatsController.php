@@ -11,6 +11,7 @@ use App\Service\Stats\BudgetStatsService;
 use App\Service\Stats\CountryStatsService;
 use App\Service\Stats\DecadeStatsService;
 use App\Service\Stats\DivergenceStatsService;
+use App\Service\Stats\FranchiseStatsService;
 use App\Service\Stats\GenreStatsService;
 use App\Service\Stats\OverviewStatsService;
 use App\Service\Stats\PersonStatsService;
@@ -83,6 +84,19 @@ final class StatsController
     public function divergence(DivergenceStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getDivergence($this->profileResolver->getViewedUser()));
+    }
+
+    /**
+     * Sagas started and not finished, the one left to finish first. Films only - TMDB has
+     * no collections for series. See FranchiseStatsService.
+     */
+    #[Route('/franchises', methods: ['GET'])]
+    public function franchises(Request $request, FranchiseStatsService $service): JsonResponse
+    {
+        return new JsonResponse($service->getIncompleteFranchises(
+            $this->profileResolver->getViewedUser(),
+            $this->limitFrom($request),
+        ));
     }
 
     #[Route('/genres', methods: ['GET'])]

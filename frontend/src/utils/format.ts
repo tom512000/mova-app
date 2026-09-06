@@ -15,6 +15,17 @@ export function formatRating(rating: number | null): string {
   return rating.toFixed(2).replace(/\.00$/, '').replace(/0$/, '')
 }
 
+/**
+ * TMDB suffixes its collection names - "Fast and Furious - Saga", "Alien Collection". Every
+ * place this app shows one already says the word Saga, so the suffix would only stutter.
+ */
+export function franchiseLabel(name: string): string {
+  const trimmed = name.replace(/\s*[-–—]?\s*(saga|collection)\s*$/i, '').trim()
+
+  // A saga genuinely called "Collection" would otherwise come back as an empty heading.
+  return trimmed === '' ? name : trimmed
+}
+
 export function formatDate(isoDate: string | null): string {
   if (!isoDate) return '—'
   return new Date(isoDate).toLocaleDateString('fr-FR', { year: 'numeric', month: 'short', day: 'numeric' })

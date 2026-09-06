@@ -8,6 +8,8 @@ use App\Entity\Credit;
 use App\Entity\Enum\CreditRole;
 use App\Entity\Enum\MediaType;
 use App\Entity\Enum\WatchSource;
+use App\Entity\Franchise;
+use App\Entity\FranchiseFilm;
 use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\Person;
@@ -33,6 +35,7 @@ final class MovieControllerTest extends WebTestCase
     private const SCIFI = 'ZZ-Test-SF';
     private const PERSON = 'ZZ Test Personne';
     private const STUDIO = 'ZZ Test Studio';
+    private const SAGA = 'ZZ Test Saga - Saga';
 
     private KernelBrowser $client;
     private EntityManagerInterface $entityManager;
@@ -40,6 +43,8 @@ final class MovieControllerTest extends WebTestCase
     private string $personId;
     /** Produced Brazil and Dune, and nothing else in the seeded library. */
     private string $studioId;
+    /** Holds Brazil and Dune, plus one film the library does not have. */
+    private string $sagaId;
 
     protected function setUp(): void
     {
@@ -380,6 +385,59 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame($first, $paged);
     }
 
+    public function testFranchiseFilterKeepsTheFilmsOfThatSaga(): void
+    {
+        self::assertSame(['Brazil', 'Dune'], $this->titlesFor("franchiseId={$this->sagaId}"));
+    }
+
+    public function testFranchiseFilterEchoesTheNameBackSoTheChipCanLabelItself(): void
+    {
+        $this->client->request('GET', "/api/movies?franchiseId={$this->sagaId}");
+        $payload = json_decode((string) $this->client->getResponse()->getContent(), true);
+
+        self::assertSame(self::SAGA, $payload['franchise']['name']);
+        self::assertNull($payload['studio'], 'the filters are echoed back independently');
+    }
+
+    public function testAFilmPageListsItsWholeSagaIncludingWhatIsMissing(): void
+    {
+        $brazil = $this->entityManager->getRepository(Movie::class)->findOneBy(['title' => 'Brazil']);
+        self::assertNotNull($brazil);
+
+        $this->client->request('GET', '/api/movies/'.$brazil->getId());
+        $saga = json_decode((string) $this->client->getResponse()->getContent(), true)['franchise'];
+
+        self::assertSame(self::SAGA, $saga['name']);
+        self::assertSame(['Brazil', 'Dune', 'ZZ Jamais vu'], array_column($saga['films'], 'title'));
+        self::assertSame(2, $saga['watchedCount']);
+
+        // The film nobody owns carries no id, which is what stops the interface turning it
+        // into a link to a page that does not exist.
+        self::assertNull($saga['films'][2]['movieId']);
+        self::assertFalse($saga['films'][2]['watched']);
+        self::assertNotNull($saga['films'][0]['movieId']);
+    }
+
+    public function testASeriesSharingATmdbNumberIsNotMistakenForASagaEntry(): void
+    {
+        // TMDB numbers films and series in separate sequences, so a series can legitimately
+        // carry the same number as a film of the saga. Matching on the number alone would
+        // pair the two and count a series nobody associates with the saga as one of its films.
+        $zone = $this->entityManager->getRepository(Movie::class)->findOneBy(['title' => 'Zone Blanche']);
+        self::assertNotNull($zone);
+        $zone->setTmdbId(910003);
+        $this->entityManager->flush();
+
+        $brazil = $this->entityManager->getRepository(Movie::class)->findOneBy(['title' => 'Brazil']);
+        self::assertNotNull($brazil);
+
+        $this->client->request('GET', '/api/movies/'.$brazil->getId());
+        $saga = json_decode((string) $this->client->getResponse()->getContent(), true)['franchise'];
+
+        self::assertNull($saga['films'][2]['movieId'], 'the series must not be adopted by the saga');
+        self::assertSame(2, $saga['watchedCount']);
+    }
+
     public function testStudioFilterKeepsEveryFilmTheStudioIsCreditedOn(): void
     {
         self::assertSame(['Brazil', 'Dune'], $this->titlesFor("studioId={$this->studioId}"));
@@ -614,10 +672,28 @@ final class MovieControllerTest extends WebTestCase
         $dune->addStudio($studio);
         $dune->addStudio($other);
 
+        // A saga of three films, two of which the library holds. The third is the point:
+        // "you have two of three" is only worth reading if it can name the one missing.
+        $brazil->setTmdbId(910001);
+        $dune->setTmdbId(910002);
+
+        $saga = (new Franchise())->setTmdbId(999100)->setName(self::SAGA);
+        $this->entityManager->persist($saga);
+        $brazil->setFranchise($saga);
+        $dune->setFranchise($saga);
+
+        foreach ([[910001, 'Brazil', '1985-02-20'], [910002, 'Dune', '2021-09-15'], [910003, 'ZZ Jamais vu', '2030-01-01']] as [$tmdbId, $title, $date]) {
+            $part = new FranchiseFilm($saga, $tmdbId, $title);
+            $part->setReleaseDate(new \DateTimeImmutable($date));
+            $saga->addFilm($part);
+            $this->entityManager->persist($part);
+        }
+
         $this->entityManager->flush();
 
         $this->personId = (string) $person->getId();
         $this->studioId = (string) $studio->getId();
+        $this->sagaId = (string) $saga->getId();
     }
 
     private function credit(Movie $movie, Person $person, CreditRole $role): void
