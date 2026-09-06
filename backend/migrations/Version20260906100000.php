@@ -15,8 +15,8 @@ use Doctrine\Migrations\AbstractMigration;
  * seven" is only worth reading if it can name the other three.
  *
  * Written by hand rather than taken from a schema diff: the diff also wanted to drop
- * _backup_game_session_guesses, which is not this migration's business and has never been
- * asked for.
+ * _backup_game_session_guesses, which was not this migration's business. That table is gone
+ * on its own terms in Version20260906120000.
  */
 final class Version20260906100000 extends AbstractMigration
 {
