@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Import\Importers;
 
 use App\Entity\Enum\ImportFileType;
+use App\Entity\ImportBatch;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\WatchlistEntry;
@@ -70,5 +71,41 @@ final class WatchlistImporter extends AbstractCsvImporter
         $this->entityManager->persist($entry);
 
         return $movie;
+    }
+
+    /**
+     * Drops the entries this export no longer names.
+     *
+     * watchlist.csv is the only Letterboxd file that is a *snapshot* rather than a log: it
+     * lists the watchlist as it stands, so a film missing from it has left the watchlist and
+     * that absence is information. Every other importer is right to ignore what its file does
+     * not say — a film missing from diary.csv was simply not watched again.
+     *
+     * Reading it as additive was the bug: watching a film takes it off the Letterboxd
+     * watchlist, so the export stops naming it, and the app kept the row for ever. Twenty-two
+     * of two hundred and seven entries were films already seen, and some had been removed by
+     * hand without ever being watched — which nothing but this could have noticed.
+     *
+     * The guard is against a file that parsed but arrived incomplete. A snapshot naming
+     * nothing is not the claim "your watchlist is empty", it is a broken file, and acting on
+     * it would delete the lot. An export that genuinely holds nothing leaves the stored rows
+     * alone; they go on the first import that names at least one.
+     */
+    protected function afterRows(User $user, array $touchedMovies, ImportBatch $batch): void
+    {
+        if ([] === $touchedMovies) {
+            return;
+        }
+
+        $keptIds = [];
+        foreach ($touchedMovies as $movie) {
+            $keptIds[(string) $movie->getId()] = true;
+        }
+
+        foreach ($this->watchlistEntryRepository->findBy(['user' => $user]) as $entry) {
+            if (!isset($keptIds[(string) $entry->getMovie()->getId()])) {
+                $this->entityManager->remove($entry);
+            }
+        }
     }
 }

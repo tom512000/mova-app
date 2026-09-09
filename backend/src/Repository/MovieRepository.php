@@ -86,7 +86,13 @@ class MovieRepository extends ServiceEntityRepository
         if (null !== $criteria->watchedOn) {
             // One row of the calendar square, not the film's own aggregate: a rewatch is
             // what puts a film under a second date, and the square counted that rewatch.
-            $conditions[] = 'EXISTS (SELECT 1 FROM watch wd WHERE wd.movie_id = m.id AND wd.user_id = :userId AND wd.watched_date = :watchedOn)';
+            //
+            // Deduced rows are excluded here for one reason above all: the square that leads
+            // here already excludes them. ActivityStatsService counted four films on the 31st
+            // of August and this listing answered with five, the fifth being a film whose
+            // rating had merely been revised that day. A square that opens onto a different
+            // number than the one written on it is worse than either number alone.
+            $conditions[] = 'EXISTS (SELECT 1 FROM watch wd WHERE wd.movie_id = m.id AND wd.user_id = :userId AND wd.watched_date = :watchedOn AND wd.source <> :deducedSource)';
             $params['watchedOn'] = $criteria->watchedOn;
         }
 

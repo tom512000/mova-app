@@ -84,12 +84,18 @@ class WatchlistEntryRepository extends ServiceEntityRepository
         $connection = $this->getEntityManager()->getConnection();
         $params = ['userId' => (string) $user->getId()];
 
+        // Three raw queries that do not pass through filtered(), so the "already watched"
+        // exclusion has to be repeated rather than inherited. Leaving it out kept a genre in
+        // the dropdown that nothing matched any more — a filter you could pick and get an
+        // empty list from.
+        $unwatched = ' AND NOT EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = we.movie_id AND w.user_id = :userId)';
+
         $genres = $connection->executeQuery(
             'SELECT DISTINCT g.name
             FROM watchlist_entry we
             JOIN movie_genre mg ON mg.movie_id = we.movie_id
             JOIN genre g ON g.id = mg.genre_id
-            WHERE we.user_id = :userId
+            WHERE we.user_id = :userId'.$unwatched.'
             ORDER BY g.name',
             $params
         )->fetchFirstColumn();
@@ -99,7 +105,7 @@ class WatchlistEntryRepository extends ServiceEntityRepository
             'SELECT DISTINCT (m.release_year / 10) * 10 AS decade
             FROM watchlist_entry we
             JOIN movie m ON m.id = we.movie_id
-            WHERE we.user_id = :userId AND m.release_year IS NOT NULL
+            WHERE we.user_id = :userId AND m.release_year IS NOT NULL'.$unwatched.'
             ORDER BY decade DESC',
             $params
         )->fetchFirstColumn();
@@ -108,7 +114,7 @@ class WatchlistEntryRepository extends ServiceEntityRepository
             'SELECT MIN(m.runtime_minutes) AS shortest, MAX(m.runtime_minutes) AS longest
             FROM watchlist_entry we
             JOIN movie m ON m.id = we.movie_id
-            WHERE we.user_id = :userId AND m.runtime_minutes IS NOT NULL',
+            WHERE we.user_id = :userId AND m.runtime_minutes IS NOT NULL'.$unwatched,
             $params
         )->fetchAssociative() ?: [];
 
@@ -129,6 +135,17 @@ class WatchlistEntryRepository extends ServiceEntityRepository
         $qb = $this->createQueryBuilder('we')
             ->join('we.movie', 'm')
             ->where('we.user = :user')
+            // A film that has been watched is not on a watchlist, whatever the stored row
+            // says. Letterboxd takes a film off yours the moment you log it, so its export
+            // stops naming it — and an import that only ever adds rows kept it for ever.
+            // Twenty-two of two hundred and seven entries were films already seen.
+            //
+            // The prune in WatchlistImporter now removes them on the next import, but this
+            // stays, and not as a belt for that brace: an RSS sync records a viewing without
+            // any import running at all, and between two exports this is the only thing that
+            // notices. It is also the honest reading of the question the page answers, which
+            // is "what is left to watch" and never "what did I once add".
+            ->andWhere('NOT EXISTS (SELECT 1 FROM App\Entity\Watch w WHERE w.movie = m AND w.user = :user)')
             ->setParameter('user', $user);
 
         if (null !== $criteria->query && '' !== $criteria->query) {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Enum\WatchSource;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
@@ -76,6 +77,39 @@ class WatchRepository extends ServiceEntityRepository
      * the most recent one and every later import would be compared against a row that says
      * nothing. Undated viewings sort last instead.
      */
+    /**
+     * The earliest viewing watched.csv is allowed to move, or null when there is none.
+     *
+     * The earliest and not the latest: this file says when a film was first marked as seen,
+     * which is the first viewing rather than the most recent one. Aiming at the latest meant
+     * a film with a revised rating had its correction land on the revision, get refused, and
+     * leave the real viewing where it was.
+     *
+     * Two kinds of row are excluded outright. A diary entry states a real viewing date and
+     * nothing here knows better; a deduced row stands for a change of heart rather than an
+     * evening, so moving its date would move something that never happened.
+     *
+     * Undated rows come first — a viewing with no date at all is the one most in need of one.
+     */
+    public function findEarliestCorrectableByMovie(User $user, Movie $movie): ?Watch
+    {
+        return $this->createQueryBuilder('w')
+            ->addSelect('CASE WHEN w.watchedDate IS NULL THEN 0 ELSE 1 END AS HIDDEN undated')
+            ->where('w.movie = :movie')
+            ->andWhere('w.user = :user')
+            ->andWhere('w.externalRef IS NULL')
+            ->andWhere('w.source <> :deduced')
+            ->setParameter('movie', $movie)
+            ->setParameter('user', $user)
+            ->setParameter('deduced', WatchSource::CSV_RERATING->value)
+            ->orderBy('undated', 'ASC')
+            ->addOrderBy('w.watchedDate', 'ASC')
+            ->addOrderBy('w.id', 'ASC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function findLatestByMovie(User $user, Movie $movie): ?Watch
     {
         return $this->createQueryBuilder('w')

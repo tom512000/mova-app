@@ -37,6 +37,24 @@ class Watch
     #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
     private ?\DateTimeImmutable $watchedDate = null;
 
+    /**
+     * The day ratings.csv last said this rating was logged — which is not the day the film
+     * was watched, and the two had been the same column for too long.
+     *
+     * Letterboxd exports both. ratings.csv dates the *rating*; watched.csv dates the film
+     * being *marked as watched*, which is far closer to the evening itself. On a real export
+     * they disagree for 122 films out of 738, by a median of two weeks and by as much as
+     * sixteen months — one sitting spent rating eight films put all eight on the same square
+     * of the calendar, and that is exactly how this surfaced.
+     *
+     * So watchedDate now belongs to watched.csv and diary.csv, and this column keeps what
+     * ratings.csv said. It has to be kept: telling a second opinion from the same rating
+     * exported again is done by watching this date move, and reading that from watchedDate —
+     * which watched.csv now corrects backwards — would invent a re-rating on every import.
+     */
+    #[ORM\Column(type: Types::DATE_IMMUTABLE, nullable: true)]
+    private ?\DateTimeImmutable $ratedOn = null;
+
     /** 0.5 to 5.0 by 0.5 steps, matching the Letterboxd star scale. */
     #[ORM\Column(type: Types::DECIMAL, precision: 2, scale: 1, nullable: true)]
     private ?string $rating = null;
@@ -98,6 +116,18 @@ class Watch
     public function setWatchedDate(?\DateTimeImmutable $watchedDate): static
     {
         $this->watchedDate = $watchedDate;
+
+        return $this;
+    }
+
+    public function getRatedOn(): ?\DateTimeImmutable
+    {
+        return $this->ratedOn;
+    }
+
+    public function setRatedOn(?\DateTimeImmutable $ratedOn): static
+    {
+        $this->ratedOn = $ratedOn;
 
         return $this;
     }

@@ -61,7 +61,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 416 tests, 1 699 assertions |
+| PHPUnit | 11.5.56 | 431 tests, 1 772 assertions |
 
 ### Frontend
 
@@ -983,7 +983,7 @@ plus.
 
 ## Qualité
 
-- **416 tests, 1 699 assertions**, répartis en trois couches : unitaires (logique pure —
+- **431 tests, 1 772 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

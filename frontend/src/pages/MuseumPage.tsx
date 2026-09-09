@@ -12,7 +12,21 @@ import type { MediaType, MoviePoster, MovieSortField } from '@/types/api'
 import { PageMeta } from '@/components/PageMeta'
 
 export function MuseumPage() {
-  const [sort, setSort] = useState<MovieSortField>('added')
+  /*
+   * The wall opens on your best films, not on your most recent ones.
+   *
+   * It used to default to "Date d'ajout", which reads as "recently watched" and is not that.
+   * Every date in this library comes from ratings.csv, where the date is when a rating was
+   * logged — the Letterboxd diary holds one entry out of seven hundred and eighty. Rating
+   * eight Harry Potter films from memory in one sitting therefore put eight films at the
+   * front of the wall as if they had been watched that afternoon, which is exactly how this
+   * was reported.
+   *
+   * Sorting on the rating drops the date question entirely. It is also the better wall: a
+   * museum hangs what it thinks is worth hanging, and "Date d'ajout" is still one item down
+   * in the selector for anyone who wants it.
+   */
+  const [sort, setSort] = useState<MovieSortField>('rating')
   const [kind, setKind] = useState<string>('')
   const [focused, setFocused] = useState<MoviePoster | null>(null)
 

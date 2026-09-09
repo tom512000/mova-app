@@ -86,13 +86,24 @@ final class RatingsImporter extends AbstractCsvImporter
             return $this->record($user, $movie, $loggedDate, $rating, WatchSource::CSV_IMPORT);
         }
 
+        // Compared against the *rating* date on record, never against the viewing date.
+        // They used to be the same column; watched.csv now corrects the viewing date
+        // backwards, so reading this from it would see the export's later date as a change
+        // and mint a re-rating for the same film on every single import.
+        //
+        // A diary row carries no rating date — diary.csv does not export one — so it falls
+        // back to its viewing date, which is when that entry was logged and is exactly the
+        // date to compare against. The fallback is safe precisely because watched.csv refuses
+        // to touch a diary row, so nothing has moved that date underneath us.
+        $lastRatedOn = $latest->getRatedOn() ?? $latest->getWatchedDate();
+
         // No date to compare against, on either side. Nothing can be told apart, so the
         // safest reading is that this is the same viewing being re-imported.
-        if (null === $loggedDate || null === $latest->getWatchedDate()) {
+        if (null === $loggedDate || null === $lastRatedOn) {
             return $this->updateInPlace($latest, $movie, $rating, $loggedDate);
         }
 
-        $comparison = $loggedDate <=> $latest->getWatchedDate();
+        $comparison = $loggedDate <=> $lastRatedOn;
 
         if ($comparison > 0) {
             // The date has moved forward since the last import: a second opinion, recorded
@@ -121,7 +132,16 @@ final class RatingsImporter extends AbstractCsvImporter
         }
 
         $latest->setRating($rating);
-        $latest->setWatchedDate($loggedDate ?? $latest->getWatchedDate());
+        $latest->setRatedOn($loggedDate ?? $latest->getRatedOn());
+
+        // The viewing date is deliberately not written here any more. This file knows when a
+        // rating was logged and nothing whatever about when the film was watched; watched.csv
+        // runs next and does know. Writing it from here was what put a whole evening's worth
+        // of ratings on one square of the calendar.
+        if (null === $latest->getWatchedDate()) {
+            // Unless there is nothing at all, in which case an approximate date beats none.
+            $latest->setWatchedDate($loggedDate);
+        }
 
         return $movie;
     }
@@ -130,6 +150,9 @@ final class RatingsImporter extends AbstractCsvImporter
     {
         $watch = new Watch($user, $movie, $source);
         $watch->setRating($rating);
+        $watch->setRatedOn($watchedDate);
+        // The best guess available from this file alone. watched.csv runs next and moves it
+        // back to the day the film was actually marked as seen, when it knows better.
         $watch->setWatchedDate($watchedDate);
         // isRewatch is deliberately left at its default of false, including for a re-rating.
         // Every other writer of that flag is copying something Letterboxd actually declared

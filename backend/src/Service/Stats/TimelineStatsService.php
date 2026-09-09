@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service\Stats;
 
 use App\DTO\Stats\TimelineBucketDto;
+use App\Entity\Enum\WatchSource;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -32,9 +33,17 @@ final class TimelineStatsService
             JOIN movie m ON m.id = w.movie_id
             WHERE w.watched_date IS NOT NULL
               AND w.user_id = :userId
+              AND w.source <> :deduced
             GROUP BY period
             ORDER BY period ASC",
-            ['format' => $format, 'userId' => (string) $user->getId()]
+            [
+                'format' => $format,
+                'userId' => (string) $user->getId(),
+                // Same line the calendar and the overview draw: this counts evenings, and a
+                // note revised in August is not one of August's. Left in, it also added the
+                // film's whole running time to that month a second time.
+                'deduced' => WatchSource::CSV_RERATING->value,
+            ]
         )->fetchAllAssociative();
 
         return array_map(

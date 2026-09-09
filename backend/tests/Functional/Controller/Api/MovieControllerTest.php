@@ -348,6 +348,22 @@ final class MovieControllerTest extends WebTestCase
         self::assertSame([], $this->titlesFor('watchedOn=2024-04-02&genre='.self::COMEDY));
     }
 
+    public function testADayOpensOnExactlyWhatItsSquareCounted(): void
+    {
+        // The square and the listing behind it read the same rows, and for a while they did
+        // not: ActivityStatsService excluded revised notes and this filter did not, so a
+        // square marked four films opened onto five. The fifth was a film whose rating had
+        // merely been changed that day.
+        //
+        // Two assertions and not one. The first is the bug; the second is what makes it a
+        // bug rather than a preference — the day the film was actually watched must still
+        // name it, or excluding the revision would have cost a real viewing.
+        $this->revise('Dune', 0.5);
+
+        self::assertSame([], $this->titlesFor('watchedOn=2026-09-01'));
+        self::assertSame(['Dune'], $this->titlesFor('watchedOn=2024-04-02'));
+    }
+
     public function testAnUnusableWatchedOnIsNoFilterAtAllRatherThanAnEmptyLibrary(): void
     {
         $whole = $this->titlesFor('');

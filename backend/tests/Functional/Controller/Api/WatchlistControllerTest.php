@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace App\Tests\Functional\Controller\Api;
 
 use App\Entity\Enum\MediaType;
+use App\Entity\Enum\WatchSource;
 use App\Entity\Genre;
 use App\Entity\Movie;
 use App\Entity\User;
+use App\Entity\Watch;
 use App\Entity\WatchlistEntry;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
@@ -111,6 +113,36 @@ final class WatchlistControllerTest extends WebTestCase
         self::assertSame(600, $facets['longestRuntime']);
     }
 
+    public function testAFilmAlreadyWatchedIsNotOnTheWatchlistAnyMore(): void
+    {
+        // Letterboxd takes a film off your watchlist the moment you log it, so a stored entry
+        // for something already seen is a leftover, never a state you chose. Twenty-two of two
+        // hundred and seven real entries were exactly this.
+        self::assertContains('ZZ Court', $this->titles($this->get('/api/watchlist')));
+
+        $this->watch('ZZ Court');
+
+        self::assertNotContains('ZZ Court', $this->titles($this->get('/api/watchlist')));
+    }
+
+    public function testAWatchedFilmIsGoneFromTheFacetsAndTheDrawToo(): void
+    {
+        // The filter lives in the one query builder all three share, so this pins that it was
+        // put there rather than in the listing alone — a draw that answers with a film you
+        // have already seen is the same bug wearing a different hat.
+        $this->watch('ZZ Serie Fleuve');
+
+        $facets = $this->get('/api/watchlist/facets');
+        self::assertNotContains('ZZ-Serie-Genre', $facets['genres']);
+
+        for ($attempt = 0; $attempt < 12; ++$attempt) {
+            $drawn = $this->get('/api/watchlist/pick');
+            if (null !== ($drawn['movie'] ?? null)) {
+                self::assertNotSame('ZZ Serie Fleuve', $drawn['movie']['title']);
+            }
+        }
+    }
+
     public function testTheDrawAnswersWithSomethingThatMatchesTheFilters(): void
     {
         // Only one entry fits, so the draw has no choice and the assertion can be exact.
@@ -211,6 +243,26 @@ final class WatchlistControllerTest extends WebTestCase
         $entry = new WatchlistEntry($this->user, $movie);
         $entry->setAddedDate(new \DateTimeImmutable($addedDate));
         $this->entityManager->persist($entry);
+    }
+
+    /**
+     * Records a viewing for a film already in the fixture's watchlist.
+     */
+    private function watch(string $title): void
+    {
+        $movie = $this->entityManager->getRepository(Movie::class)->findOneBy(['title' => $title]);
+        self::assertNotNull($movie);
+
+        // Re-read rather than reuse $this->user: the login request ran through the kernel and
+        // left the seeded instance detached, so persisting against it asks Doctrine to cascade
+        // into an entity it no longer manages.
+        $owner = $this->entityManager->getRepository(User::class)->findOneBy(['email' => self::EMAIL]);
+        self::assertNotNull($owner);
+
+        $watch = new Watch($owner, $movie, WatchSource::CSV_IMPORT);
+        $watch->setWatchedDate(new \DateTimeImmutable('2026-09-04'));
+        $this->entityManager->persist($watch);
+        $this->entityManager->flush();
     }
 
     private function login(): void

@@ -58,9 +58,26 @@ abstract class AbstractCsvImporter implements ImporterInterface
             }
         }
 
+        // Before the flush, so anything a reconciliation deletes leaves in the same
+        // transaction as the rows this file added.
+        $this->afterRows($user, array_values($touchedMovies), $batch);
+
         $this->entityManager->flush();
 
         return array_values(array_unique(array_map(static fn (Movie $m) => (string) $m->getId(), $touchedMovies)));
+    }
+
+    /**
+     * Called once the whole file has been read, with every film it named.
+     *
+     * The hook exists for the one thing a row-by-row importer cannot see: what the file did
+     * *not* contain. Most exports are additive and want nothing here, which is why the
+     * default does nothing — only watchlist.csv is a snapshot whose absences mean something.
+     *
+     * @param list<Movie> $touchedMovies every film this file named, in the order first seen
+     */
+    protected function afterRows(User $user, array $touchedMovies, ImportBatch $batch): void
+    {
     }
 
     /**

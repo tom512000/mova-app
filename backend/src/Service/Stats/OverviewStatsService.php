@@ -6,6 +6,7 @@ namespace App\Service\Stats;
 
 use App\DTO\Stats\MovieRuntimeDto;
 use App\DTO\Stats\OverviewStatsDto;
+use App\Entity\Enum\WatchSource;
 use App\Entity\User;
 use Doctrine\ORM\EntityManagerInterface;
 
@@ -27,14 +28,20 @@ final class OverviewStatsService
         $conn = $this->entityManager->getConnection();
         $userId = (string) $user->getId();
 
+        // The counts are of *viewings*, so a revised rating is not one of them — the same
+        // line the calendar draws. The average below is of *ratings*, where a revision
+        // belongs: that split is the whole convention, and it is why the two queries do not
+        // share a WHERE clause.
+        $params = ['userId' => $userId, 'deduced' => WatchSource::CSV_RERATING->value];
+
         $totals = $conn->executeQuery(
             'SELECT
                 COUNT(DISTINCT w.movie_id) AS total_movies,
                 COUNT(w.id) AS total_watches,
                 COUNT(*) FILTER (WHERE w.is_rewatch) AS total_rewatches
             FROM watch w
-            WHERE w.user_id = :userId',
-            ['userId' => $userId]
+            WHERE w.user_id = :userId AND w.source <> :deduced',
+            $params
         )->fetchAssociative();
 
         $ratings = array_map(
@@ -42,15 +49,23 @@ final class OverviewStatsService
             $conn->executeQuery('SELECT rating FROM watch WHERE rating IS NOT NULL AND user_id = :userId', ['userId' => $userId])->fetchAllAssociative()
         );
 
-        $totalWatchlist = $conn->executeQuery('SELECT COUNT(*) FROM watchlist_entry WHERE user_id = :userId', ['userId' => $userId])->fetchOne();
+        // Films already watched are hidden from the watchlist page, so counting them here
+        // would put a number on the dashboard that the page itself contradicts.
+        $totalWatchlist = $conn->executeQuery(
+            'SELECT COUNT(*) FROM watchlist_entry we
+            WHERE we.user_id = :userId
+              AND NOT EXISTS (SELECT 1 FROM watch w WHERE w.movie_id = we.movie_id AND w.user_id = :userId)',
+            ['userId' => $userId]
+        )->fetchOne();
 
         $watchTime = $conn->executeQuery(
             'SELECT COALESCE(SUM(m.runtime_minutes), 0) AS total_minutes
             FROM watch w
             JOIN movie m ON m.id = w.movie_id
             WHERE m.runtime_minutes IS NOT NULL
-              AND w.user_id = :userId',
-            ['userId' => $userId]
+              AND w.user_id = :userId
+              AND w.source <> :deduced',
+            $params
         )->fetchOne();
 
         // Films only, for the same reason as the extremes: this is billed as the average
