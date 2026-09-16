@@ -29,6 +29,7 @@ const MuseumPage = lazy(() => import('@/pages/MuseumPage').then((m) => ({ defaul
 const ImportPage = lazy(() => import('@/pages/ImportPage').then((m) => ({ default: m.ImportPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then((m) => ({ default: m.AccountPage })))
 const SharePage = lazy(() => import('@/pages/SharePage').then((m) => ({ default: m.SharePage })))
+const BadgesPage = lazy(() => import('@/pages/BadgesPage').then((m) => ({ default: m.BadgesPage })))
 const PeoplePage = lazy(() => import('@/pages/PeoplePage').then((m) => ({ default: m.PeoplePage })))
 const PersonPage = lazy(() => import('@/pages/PersonPage').then((m) => ({ default: m.PersonPage })))
 const RetrospectivePage = lazy(() =>
@@ -74,6 +75,7 @@ export function App() {
             <Route path="games/timeline/:mode" element={<TimelineGamePage />} />
             <Route path="import" element={<ImportPage />} />
             <Route path="account" element={<AccountPage />} />
+            <Route path="badges" element={<BadgesPage />} />
             <Route path="share/:token" element={<SharePage />} />
 
             {/* Inside the layout, so an unknown address still arrives on a page with a way

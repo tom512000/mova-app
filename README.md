@@ -25,17 +25,18 @@ partage.
   - [Fiche d'une œuvre](#2-fiche-dune-œuvre)
   - [Annuaire des personnes](#3-annuaire-des-personnes)
   - [Fiche d'une personne](#4-fiche-dune-personne)
-  - [Dashboard statistique](#5-dashboard-statistique)
-  - [La rétrospective annuelle](#6-la-rétrospective-annuelle)
-  - [Le musée](#7-le-musée)
-  - [Watchlist](#8-watchlist--quest-ce-que-je-regarde-ce-soir-)
-  - [Import Letterboxd](#9-import-letterboxd)
-  - [Enrichissement TMDB](#10-enrichissement-tmdb)
-  - [Synchronisation RSS](#11-synchronisation-rss)
-  - [Les jeux](#12-les-jeux)
-  - [Profils partagés](#13-profils-partagés)
-  - [Compte et authentification](#14-compte-et-authentification)
-  - [Identité visuelle](#15-identité-visuelle)
+  - [Badges](#5-badges)
+  - [Dashboard statistique](#6-dashboard-statistique)
+  - [La rétrospective annuelle](#7-la-rétrospective-annuelle)
+  - [Le musée](#8-le-musée)
+  - [Watchlist](#9-watchlist--quest-ce-que-je-regarde-ce-soir-)
+  - [Import Letterboxd](#10-import-letterboxd)
+  - [Enrichissement TMDB](#11-enrichissement-tmdb)
+  - [Synchronisation RSS](#12-synchronisation-rss)
+  - [Les jeux](#13-les-jeux)
+  - [Profils partagés](#14-profils-partagés)
+  - [Compte et authentification](#15-compte-et-authentification)
+  - [Identité visuelle](#16-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -62,7 +63,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 445 tests, 1 840 assertions |
+| PHPUnit | 11.5.56 | 473 tests, 1 937 assertions |
 
 ### Frontend
 
@@ -280,7 +281,59 @@ les compilations de courts métrages, et Tom Cruise de 96 à 51 crédits d'inter
 - **Jamais de filmographie pour une création de série** : TMDB n'a pas cette notion sur `/tv`.
   La ligne retombe alors sur ce que la bibliothèque sait, ce qui vaut mieux qu'un tiret.
 
-### 5. Dashboard statistique
+### 5. Badges
+
+Une étagère, sur la page **Mon compte** : les cinq meilleurs badges en bande, puis une page
+entière pour le reste.
+
+Un badge est un **sujet** et non un trophée par palier — « Comédie » est un badge qui monte, pas
+trois badges du même nom. C'est à ça que sert le numéro dans le coin du timbre.
+
+**Dix catégories** : genre, pays de production, décennie, tranche de budget (du petit film au
+blockbuster), studio, et les cinq métiers — réalisation, création de série, scénario,
+interprétation, production. Les cinq dernières sont séparées et non fondues en une catégorie
+« personne » : quelqu'un qui joue dans vingt films et en réalise cinq a gagné deux choses
+différentes, et un badge unique n'en dirait aucune.
+
+**L'échelle double.** Le premier niveau coûte cinq œuvres, et chaque niveau suivant coûte le
+double du précédent : 5, 10, 20, 40, 80, 160, 320. La règle évidente — un niveau tous les cinq —
+ne survit pas au contact d'une vraie bibliothèque : 444 films américains en sortaient au niveau
+88, ce qui n'est pas une récompense mais un compteur avec un ruban. En doublant, le haut d'une
+bibliothèque de sept cents œuvres plafonne au niveau 7, le premier badge tombe toujours à
+exactement cinq, et chaque niveau veut dire la même chose : tu en as revu autant qu'il en a fallu
+pour arriver là.
+
+**Rien n'est stocké.** Aucune table, aucune migration : l'étagère est recalculée à chaque appel
+depuis les lignes de visionnage. Une table de badges gagnés devrait être écrite par l'import, par
+la synchro RSS et par chaque correction manuelle, et dériverà la première oubliée. Dérivée, elle
+dit toujours exactement ce que dit la bibliothèque.
+
+- **La date est déduite, elle aussi**, et c'est ce qui rend le calcul intéressant : le jour où un
+  niveau a été atteint est la date de visionnage de l'œuvre qui l'a franchi — la 320e, dans
+  l'ordre où elles ont été vues. Une fonction de fenêtrage donne ce rang, et le badge porte donc
+  une vraie date pour les sept cents œuvres importées bien avant que la fonctionnalité existe. Une
+  date enregistrée n'aurait jamais pu dire ça.
+- **Une note révisée n'est pas une soirée.** Les lignes déduites d'une renotation sont exclues de
+  l'ordre, sans quoi une note déplacée changerait quelle œuvre est la 320e et daterait le badge
+  d'un soir où personne n'a rien regardé.
+- **Une œuvre créditée deux fois compte une fois.** TMDB crédite régulièrement le même acteur sous
+  deux noms de personnage sur un même film ; au niveau du crédit, c'est un palier offert.
+
+**L'image est automatique** : chaque badge porte une image d'un des films qui l'ont fait gagner —
+le `backdrop` TMDB, cette autre image disponible en plus de l'affiche, présente sur 703 des 711
+œuvres vues. Le tirage est un hachage du sujet du badge et non un aléatoire : un badge qui
+changerait de visage d'une visite à l'autre ne se lirait pas comme le même badge. Carré et non
+rond, parce que la feuille de style force `border-radius: 0` sans exception — ce qui donne un
+timbre, et un timbre est exactement ce qu'est un badge : une preuve, imprimée petit.
+
+**Ce que ça donne** : 686 badges sur une bibliothèque de 711 œuvres, dont 541 de personnes et
+109 de studios. Le
+tri par niveau décroissant est ce qui rend ce nombre lisible — la bande du profil montre la
+poignée de niveau 7, et la longue traîne des acteurs vus cinq fois reste où doit être une longue
+traîne. Le filtre par catégorie fait le reste : « tous mes genres » et « tous mes acteurs » ne
+sont pas la même question.
+
+### 6. Dashboard statistique
 
 Quinze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
@@ -416,7 +469,7 @@ leurs quatre requêtes ne partent pas du tout.
     arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
     rien ne la signalerait.
 
-### 6. La rétrospective annuelle
+### 7. La rétrospective annuelle
 
 Le rituel de fin d'année de Letterboxd, en local. Une page par année, atteignable depuis la
 barre de navigation et depuis un bandeau en tête du dashboard qui porte déjà les chiffres de
@@ -471,7 +524,7 @@ genre qui a pris le dessus, et la page doit se lire comme une année calme, pas 
 cassée. Une année sans année précédente n'affiche aucune comparaison : « +419 visionnages » face
 à une année qui n'existe pas se lirait comme une croissance plutôt que comme un début.
 
-### 7. Le musée
+### 8. Le musée
 
 Toutes les affiches accrochées sur un mur unique, en perspective, parcouru horizontalement à la
 molette ou au glisser.
@@ -484,7 +537,7 @@ molette ou au glisser.
   et note.
 - Rendu plafonné à 44 colonnes simultanées, quelle que soit la largeur de fenêtre.
 
-### 8. Watchlist — « Qu'est-ce que je regarde ce soir ? »
+### 9. Watchlist — « Qu'est-ce que je regarde ce soir ? »
 
 - **Filtre par temps disponible** — « Peu importe », moins d'1 h 30, moins de 2 h, moins de 2 h 30.
   Une œuvre dont la durée est inconnue est **exclue** dès qu'un budget temps est posé : une durée
@@ -499,7 +552,7 @@ molette ou au glisser.
 - **Recherche** par titre.
 - Les facettes exposent aussi la durée la plus courte et la plus longue de la watchlist.
 
-### 9. Import Letterboxd
+### 10. Import Letterboxd
 
 Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le fichier est stocké, un
 `ImportBatch` est créé, et le traitement part en tâche de fond via Messenger.
@@ -576,7 +629,7 @@ unique le perdrait définitivement.
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
 
-### 10. Enrichissement TMDB
+### 11. Enrichissement TMDB
 
 Un export Letterboxd ne contient aucun identifiant TMDB. La résolution se fait en trois temps, par
 message asynchrone et par film :
@@ -626,7 +679,7 @@ producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pa
 réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
 sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
-### 11. Synchronisation RSS
+### 12. Synchronisation RSS
 
 Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux exports.
 
@@ -669,7 +722,7 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
     redémarrage, au plus tard dans l'heure — c'est écrit sous la case, sans quoi le délai se lirait
     comme un réglage non sauvegardé.
 
-### 12. Les jeux
+### 13. Les jeux
 
 Huit jeux, tous construits sur **la bibliothèque de la personne qui joue** — donc sur des films
 qu'elle a vraiment vus. Chacun se joue en **mode quotidien** (une grille par jour, la même du premier
@@ -721,7 +774,7 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 13. Profils partagés
+### 14. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -738,7 +791,7 @@ différemment, pas cinq films de cinq années distinctes.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 14. Compte et authentification
+### 15. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -751,7 +804,7 @@ différemment, pas cinq films de cinq années distinctes.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 15. Identité visuelle
+### 16. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -807,7 +860,7 @@ d'unicité sur le couple profil + position), `LetterboxdSyncState`.
 
 **Jeux** — `GameSession` (jeu, mode, date de grille, propositions, lettres, plateau, manches, statut).
 
-Treize énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
+Quatorze énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
 si un état mérite une nouvelle tentative, `ImportFileType` sait dans quel ordre les fichiers doivent
 passer, `WatchSource` sait si un visionnage a été déclaré ou déduit, `GameKind` sait si un jeu se
 joue en nommant un film, `MovieSortField`, `WatchlistSortField` et `PersonSortField` savent dans quel
@@ -825,6 +878,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Personnes** | `GET /people`, `GET /people/{id}`, `GET /people/{id}/filmography` — les deux derniers sont séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB. Pas de route de facettes : les métiers sont une énumération fermée que le client connaît déjà, et un aller-retour pour cinq constantes n'en est pas un |
+| **Badges** | `GET /badges` — une seule route pour les deux surfaces : la bande du profil demande les cinq premiers, l'étagère une page complète, éventuellement réduite à une catégorie |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release`, `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
@@ -1040,7 +1094,7 @@ plus.
 
 ## Qualité
 
-- **445 tests, 1 840 assertions**, répartis en trois couches : unitaires (logique pure —
+- **473 tests, 1 937 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

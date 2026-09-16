@@ -590,6 +590,54 @@ export interface WatchlistFacets {
   longestRuntime: number | null
 }
 
+/**
+ * What a badge is earned on. The last five mirror CreditRole one for one: somebody who acts
+ * in twenty films and directs five has earned two different things.
+ */
+export type BadgeCategory =
+  | 'genre'
+  | 'country'
+  | 'decade'
+  | 'budget'
+  | 'studio'
+  | 'director'
+  | 'creator'
+  | 'writer'
+  | 'actor'
+  | 'producer'
+
+/**
+ * One badge, at the level it currently stands.
+ *
+ * A subject rather than a trophy per threshold: "Comédie" is one badge that climbs, which
+ * is what the number in the stamp's corner is for. Nothing about it is stored — the whole
+ * shelf is derived from the watch rows on every request.
+ */
+export interface Badge {
+  category: BadgeCategory
+  /** What it is about, as the client needs it to link back. Not all of them lead anywhere. */
+  subjectId: string
+  /** The subject's own name. Budget brackets carry their bounds; the client words them. */
+  label: string
+  level: number
+  workCount: number
+  /** How many more works the next level needs. Never zero: there is always a next one. */
+  worksToNextLevel: number
+  /** The watch date of the work that crossed the current level, not the day it was read. */
+  earnedOn: string | null
+  /** A still from one of the works that earned it, drawn stably from the badge's subject. */
+  imageUrl: string | null
+}
+
+export interface BadgeListResponse {
+  items: Badge[]
+  total: number
+  page: number
+  perPage: number
+  /** Null while the shelf is narrowed: it has nothing to say about what it excluded. */
+  counts: Record<BadgeCategory, number> | null
+}
+
 /** How the directory of people is ordered. A person has no release year and no runtime. */
 export type PersonSortField = 'name' | 'works' | 'rating' | 'recent' | 'random'
 

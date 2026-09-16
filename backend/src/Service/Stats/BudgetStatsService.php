@@ -27,8 +27,11 @@ final class BudgetStatsService
     /**
      * Upper bounds in US dollars, exclusive. The band above the last one is open-ended, so
      * four bounds' worth of brackets come out of three numbers.
+     *
+     * Public because BadgeService brackets the same works the same way, and two lists of
+     * numbers meant to agree do not stay in agreement when they are written down twice.
      */
-    private const BOUNDS = [5_000_000, 30_000_000, 100_000_000];
+    public const BOUNDS = [5_000_000, 30_000_000, 100_000_000];
 
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

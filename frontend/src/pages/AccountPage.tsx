@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 import { Check } from 'lucide-react'
 import { useSession } from '@/hooks/useSession'
+import { BadgeStrip } from '@/components/BadgeStrip'
 import { LetterboxdProfilePanel } from '@/components/LetterboxdProfilePanel'
 import { changePassword } from '@/services/authService'
 import { Button } from '@/components/ui/Button'
@@ -75,6 +76,8 @@ export function AccountPage() {
 
       <div className="flex flex-col gap-8">
         <LetterboxdProfilePanel />
+
+        <BadgeStrip />
 
         <section className="border border-ink p-5 sm:p-6">
           <h2 className="font-serif text-2xl font-bold">Changer de mot de passe</h2>
