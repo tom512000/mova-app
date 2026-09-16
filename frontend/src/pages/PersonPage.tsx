@@ -51,11 +51,13 @@ export function PersonPage() {
   return (
     <div className="flex flex-col gap-8">
       <PageMeta title={person.name} />
+      {/* Back to the directory rather than to the films: this page is reached from a dozen
+          places, and the one it belongs to is the listing of everybody else. */}
       <Link
-        to="/movies"
+        to="/people"
         className="inline-flex w-fit items-center gap-2 font-mono text-xs uppercase tracking-widest text-subtle hover:text-accent"
       >
-        <ArrowLeft className="h-4 w-4" /> Films et séries
+        <ArrowLeft className="h-4 w-4" /> Personnes
       </Link>
 
       <PersonHeader person={person} />

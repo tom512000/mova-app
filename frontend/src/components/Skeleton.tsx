@@ -160,6 +160,38 @@ export function SkeletonDonut() {
   )
 }
 
+/**
+ * Matches PersonCard: a 2:3 portrait, a rule, then the name, the jobs and the tally row.
+ * One line taller than a film card, which is exactly why it cannot borrow that one — the
+ * grid would resize by a line when the names land.
+ */
+export function SkeletonPersonCard() {
+  return (
+    <div className="border border-ink bg-paper">
+      <Skeleton className="aspect-2/3 w-full" />
+      <div className="border-t border-ink p-3">
+        <Skeleton className="h-3.5 w-4/5" />
+        <Skeleton className="mt-1 h-2.5 w-2/3" />
+        <div className="mt-1.5 flex items-center justify-between">
+          <Skeleton className="h-2.5 w-14" />
+          <Skeleton className="h-2.5 w-16" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** The directory grid — six across on a wide screen, exactly like the real one. */
+export function SkeletonPeopleGrid({ count = 12 }: { count?: number }) {
+  return (
+    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
+      {Array.from({ length: count }, (_, index) => (
+        <SkeletonPersonCard key={index} />
+      ))}
+    </div>
+  )
+}
+
 /** The four "most-watched people" panels: name in serif, a mono line of counts under it. */
 export function SkeletonPersonGrid({ count = 6 }: { count?: number }) {
   return (

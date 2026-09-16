@@ -34,4 +34,21 @@ enum CreditRole: string
      * ranking is only worth reading if every row earned its place the same way.
      */
     case PRODUCER = 'producer';
+
+    /**
+     * Puts a person's jobs in the order a credit block does — direction first, performance
+     * last — rather than in the alphabetical one an ARRAY_AGG or a STRING_AGG hands back.
+     * The cases below are declared in that order, so the enum is its own reference.
+     *
+     * @param list<self> $roles
+     *
+     * @return list<self>
+     */
+    public static function sortByCreditOrder(array $roles): array
+    {
+        usort($roles, static fn (self $a, self $b) => array_search($a, self::cases(), true)
+            <=> array_search($b, self::cases(), true));
+
+        return $roles;
+    }
 }

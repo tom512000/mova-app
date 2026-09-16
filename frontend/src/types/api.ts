@@ -590,6 +590,40 @@ export interface WatchlistFacets {
   longestRuntime: number | null
 }
 
+/** How the directory of people is ordered. A person has no release year and no runtime. */
+export type PersonSortField = 'name' | 'works' | 'rating' | 'recent' | 'random'
+
+/**
+ * One card in the directory of people.
+ *
+ * Every figure is narrowed by whatever narrowed the listing: filtered on "Réalisation", a
+ * name that also acts comes back with its directing tally and its directing average, never
+ * a blend of the two.
+ */
+export interface PersonSummary {
+  id: string
+  name: string
+  profileUrl: string | null
+  /** Every job they hold on the works counted here, in credit-block order. */
+  roles: CreditRole[]
+  /** Distinct works watched — the same tally the dashboard rankings use. */
+  watchedCount: number
+  /** Works of theirs waiting in the watchlist, never watched. */
+  watchlistCount: number
+  /** Both of the above together: everything of theirs the library holds. */
+  workCount: number
+  /** Averaged per work, so a film seen four times weighs once. */
+  averageRating: number | null
+  lastWatchedDate: string | null
+}
+
+export interface PersonListResponse {
+  items: PersonSummary[]
+  total: number
+  page: number
+  perPage: number
+}
+
 /**
  * One job a person holds in the library, counted apart from their others.
  *

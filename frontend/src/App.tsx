@@ -29,6 +29,7 @@ const MuseumPage = lazy(() => import('@/pages/MuseumPage').then((m) => ({ defaul
 const ImportPage = lazy(() => import('@/pages/ImportPage').then((m) => ({ default: m.ImportPage })))
 const AccountPage = lazy(() => import('@/pages/AccountPage').then((m) => ({ default: m.AccountPage })))
 const SharePage = lazy(() => import('@/pages/SharePage').then((m) => ({ default: m.SharePage })))
+const PeoplePage = lazy(() => import('@/pages/PeoplePage').then((m) => ({ default: m.PeoplePage })))
 const PersonPage = lazy(() => import('@/pages/PersonPage').then((m) => ({ default: m.PersonPage })))
 const RetrospectivePage = lazy(() =>
   import('@/pages/RetrospectivePage').then((m) => ({ default: m.RetrospectivePage }))
@@ -58,6 +59,7 @@ export function App() {
             <Route index element={<DashboardPage />} />
             <Route path="movies" element={<MoviesPage />} />
             <Route path="movies/:id" element={<MovieDetailPage />} />
+            <Route path="people" element={<PeoplePage />} />
             <Route path="people/:id" element={<PersonPage />} />
             <Route path="watchlist" element={<WatchlistPage />} />
             <Route path="museum" element={<MuseumPage />} />

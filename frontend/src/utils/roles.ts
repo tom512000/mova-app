@@ -7,6 +7,15 @@ import type { CreditRole } from '@/types/api'
  * "Réalisateur·rice·s". Inclusive plurals are unreadable in a badge or a table cell, and
  * the surrounding context always says whose page it is anyway.
  */
+/**
+ * Every job, in the order a credit block names them — direction first, performance last.
+ *
+ * Written out rather than derived from ROLE_LABEL's keys: the order is the point, and an
+ * object's key order is an implementation detail nobody should have to know to read this.
+ * It mirrors the declaration order of CreditRole on the backend.
+ */
+export const CREDIT_ROLES: CreditRole[] = ['director', 'creator', 'writer', 'actor', 'producer']
+
 export const ROLE_LABEL: Record<CreditRole, string> = {
   director: 'Réalisation',
   creator: 'Création',

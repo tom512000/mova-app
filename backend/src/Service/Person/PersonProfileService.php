@@ -143,10 +143,7 @@ final class PersonProfileService
 
         // Sorted on the enum's own order rather than alphabetically, so a triple credit
         // reads the way a credit block does: direction first, performance last.
-        usort($roles, static fn (CreditRole $a, CreditRole $b) => array_search($a, CreditRole::cases(), true)
-            <=> array_search($b, CreditRole::cases(), true));
-
-        return $roles;
+        return CreditRole::sortByCreditOrder($roles);
     }
 
     /**

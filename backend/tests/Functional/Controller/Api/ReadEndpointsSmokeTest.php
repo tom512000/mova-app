@@ -76,6 +76,7 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'movies' => ['/api/movies'];
         yield 'movie posters' => ['/api/movies/posters'];
         yield 'movie facets' => ['/api/movies/facets'];
+        yield 'people' => ['/api/people'];
         yield 'profiles' => ['/api/profiles'];
         yield 'share link' => ['/api/profiles/share-link'];
         yield 'letterboxd profile' => ['/api/profiles/letterboxd'];

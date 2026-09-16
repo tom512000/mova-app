@@ -30,6 +30,9 @@ type NavItem = NavLinkItem | NavMenuItem
 const NAV_ITEMS: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true },
   { to: '/movies', label: 'Films et séries' },
+  // Beside the films rather than under them: the two are the same library read down
+  // two axes, and neither is a subsection of the other.
+  { to: '/people', label: 'Personnes' },
   { to: '/watchlist', label: 'Watchlist' },
   // Read-only like the listings, so it stays available while viewing someone else's profile.
   { to: '/museum', label: 'Musée' },

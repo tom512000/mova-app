@@ -23,18 +23,19 @@ partage.
 - [Fonctionnalités](#fonctionnalités)
   - [Bibliothèque](#1-bibliothèque--films-et-séries)
   - [Fiche d'une œuvre](#2-fiche-dune-œuvre)
-  - [Fiche d'une personne](#3-fiche-dune-personne)
-  - [Dashboard statistique](#4-dashboard-statistique)
-  - [La rétrospective annuelle](#5-la-rétrospective-annuelle)
-  - [Le musée](#6-le-musée)
-  - [Watchlist](#7-watchlist--quest-ce-que-je-regarde-ce-soir-)
-  - [Import Letterboxd](#8-import-letterboxd)
-  - [Enrichissement TMDB](#9-enrichissement-tmdb)
-  - [Synchronisation RSS](#10-synchronisation-rss)
-  - [Les jeux](#11-les-jeux)
-  - [Profils partagés](#12-profils-partagés)
-  - [Compte et authentification](#13-compte-et-authentification)
-  - [Identité visuelle](#14-identité-visuelle)
+  - [Annuaire des personnes](#3-annuaire-des-personnes)
+  - [Fiche d'une personne](#4-fiche-dune-personne)
+  - [Dashboard statistique](#5-dashboard-statistique)
+  - [La rétrospective annuelle](#6-la-rétrospective-annuelle)
+  - [Le musée](#7-le-musée)
+  - [Watchlist](#8-watchlist--quest-ce-que-je-regarde-ce-soir-)
+  - [Import Letterboxd](#9-import-letterboxd)
+  - [Enrichissement TMDB](#10-enrichissement-tmdb)
+  - [Synchronisation RSS](#11-synchronisation-rss)
+  - [Les jeux](#12-les-jeux)
+  - [Profils partagés](#13-profils-partagés)
+  - [Compte et authentification](#14-compte-et-authentification)
+  - [Identité visuelle](#15-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -61,7 +62,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 431 tests, 1 772 assertions |
+| PHPUnit | 11.5.56 | 445 tests, 1 840 assertions |
 
 ### Frontend
 
@@ -161,7 +162,62 @@ facettes calculées sur la bibliothèque réelle (aucune option morte n'est prop
   dit ce qu'elle sait (la note a changé, ce jour-là, de tant à tant) et rien de plus.
 - **Critiques**, avec marqueur de spoiler et repli du texte quand il en contient un.
 
-### 3. Fiche d'une personne
+### 3. Annuaire des personnes
+
+La bibliothèque lue selon son autre axe : non plus ce qui a été vu, mais **qui**. La question
+n'avait pas de page. Le dashboard classe le top 25 de quatre métiers et s'arrête là — pas de
+recherche, pas de pagination, rien du tout pour un cinquième métier — et un nom n'était sinon
+atteignable qu'en sachant déjà quel film ouvrir pour le trouver.
+
+Vingt-quatre par page, la même barre de filtres, les mêmes cartes que la bibliothèque : les deux
+listes sont le même fonds lu selon deux axes, et elles doivent se ressembler.
+
+- **Recherche par nom**, insensible à la casse, où `%` et `_` sont des caractères littéraux et
+  non des jokers.
+- **Filtre par métier** — réalisation, création de série, scénario, interprétation, production.
+  Les cinq, toujours, et non ceux que la bibliothèque contient. C'est l'inverse de la règle que
+  suivent les autres menus, et c'est voulu : un genre absent d'une bibliothèque est un fait sur
+  cette bibliothèque, alors qu'un métier absent est presque toujours un fait sur son
+  enrichissement — les producteur·rice·s sont arrivées après que la plupart des films aient été
+  enrichis, et les créateur·rice·s de série n'existent qu'une fois qu'il y a une série. Un menu
+  qui perd discrètement une entrée se lit comme une fonctionnalité manquante, pas comme une
+  donnée manquante. Choisir un métier que personne n'exerce renvoie donc une page vide, ce que
+  la page dit platement plutôt que de faire disparaître le choix.
+- **Filtre par type** : compter sur les films seuls, sur les séries seules, ou sur les deux.
+- **Cinq tris** : œuvres vues, nom, ta note, vu récemment, aléatoire — avec la même graine stable
+  et le même bouton de remélange que la bibliothèque. Aucun tri n'a été repris tel quel : une
+  personne n'a ni année de sortie ni durée, et « date de visionnage » n'y veut pas dire la même
+  chose qu'un nombre d'œuvres vues.
+- **Tri par défaut : les plus vus d'abord**, là où la bibliothèque ouvre sur l'alphabet. Un fonds
+  tient quelques centaines de titres pour plusieurs milliers de noms, en écrasante majorité des
+  visages de scène de foule : les interprètes y sont plus de dix fois plus nombreux que les
+  réalisateurs. Ouvrir sur les A, c'est ouvrir sur les gens dont on a le moins à faire.
+- Chaque carte porte la photo, le nom, ses métiers, le nombre d'œuvres vues et ta note moyenne en
+  étoiles — plus une pastille « 8 à voir » quand sa watchlist en contient.
+
+**Le filtre par métier recompte.** Filtré sur « Réalisation », quelqu'un qui joue aussi ressort
+avec son total et sa moyenne de réalisation, jamais un mélange des deux. Un filtre qui annonce une
+chose au-dessus de chiffres qui en disent une autre vaut moins que pas de filtre du tout.
+
+**Ce qui entre dans l'annuaire** : les personnes créditées sur une œuvre *vue ou en watchlist par
+le profil*, et elles seules. `movie` est un catalogue partagé entre les comptes — sans cette
+condition, chaque compte parcourrait les distributions des autres. C'est la seule assertion de la
+page qui relève de la sécurité, et elle est testée comme telle. Effet voulu au passage : quelqu'un
+rencontré uniquement dans la watchlist a sa carte, à zéro œuvre vue. C'est toute la différence
+avec les classements du dashboard, qui ne comptent que ce qui a été vu.
+
+**Une agrégation en deux temps**, et c'est ce qui coûte le plus cher dans la requête. TMDB crédite
+parfois deux fois la même personne sur un même film — deux noms de personnage dans une
+distribution chorale — et quelqu'un qui écrit et réalise ses propres films y porte deux crédits
+sur chacun d'eux. À plat, ces films pesaient double : un film noté 4 crédité deux fois comptait
+comme deux films notés 4, soit une œuvre de trop et une moyenne tirée vers cette note, précisément
+pour les gens sur qui la page a le plus de chances d'être ouverte. Une première passe replie donc
+les crédits à une ligne par personne et par œuvre ; comptes et moyennes se calculent sur elle.
+
+**Le sens du retour.** Le lien de retour d'une fiche pointait vers la bibliothèque, faute de mieux.
+Il pointe maintenant vers l'annuaire — vers la liste de tous les autres.
+
+### 4. Fiche d'une personne
 
 Cliquer un nom filtrait la bibliothèque, et c'était tout. Utile, mais ce n'était pas une page :
 pas de photo, pas de note moyenne, aucune idée de la part de son œuvre déjà vue, et — le plus
@@ -224,7 +280,7 @@ les compilations de courts métrages, et Tom Cruise de 96 à 51 crédits d'inter
 - **Jamais de filmographie pour une création de série** : TMDB n'a pas cette notion sur `/tv`.
   La ligne retombe alors sur ce que la bibliothèque sait, ce qui vaut mieux qu'un tiret.
 
-### 4. Dashboard statistique
+### 5. Dashboard statistique
 
 Quinze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
@@ -360,7 +416,7 @@ leurs quatre requêtes ne partent pas du tout.
     arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
     rien ne la signalerait.
 
-### 5. La rétrospective annuelle
+### 6. La rétrospective annuelle
 
 Le rituel de fin d'année de Letterboxd, en local. Une page par année, atteignable depuis la
 barre de navigation et depuis un bandeau en tête du dashboard qui porte déjà les chiffres de
@@ -415,7 +471,7 @@ genre qui a pris le dessus, et la page doit se lire comme une année calme, pas 
 cassée. Une année sans année précédente n'affiche aucune comparaison : « +419 visionnages » face
 à une année qui n'existe pas se lirait comme une croissance plutôt que comme un début.
 
-### 6. Le musée
+### 7. Le musée
 
 Toutes les affiches accrochées sur un mur unique, en perspective, parcouru horizontalement à la
 molette ou au glisser.
@@ -428,7 +484,7 @@ molette ou au glisser.
   et note.
 - Rendu plafonné à 44 colonnes simultanées, quelle que soit la largeur de fenêtre.
 
-### 7. Watchlist — « Qu'est-ce que je regarde ce soir ? »
+### 8. Watchlist — « Qu'est-ce que je regarde ce soir ? »
 
 - **Filtre par temps disponible** — « Peu importe », moins d'1 h 30, moins de 2 h, moins de 2 h 30.
   Une œuvre dont la durée est inconnue est **exclue** dès qu'un budget temps est posé : une durée
@@ -443,7 +499,7 @@ molette ou au glisser.
 - **Recherche** par titre.
 - Les facettes exposent aussi la durée la plus courte et la plus longue de la watchlist.
 
-### 8. Import Letterboxd
+### 9. Import Letterboxd
 
 Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le fichier est stocké, un
 `ImportBatch` est créé, et le traitement part en tâche de fond via Messenger.
@@ -520,7 +576,7 @@ unique le perdrait définitivement.
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
 
-### 9. Enrichissement TMDB
+### 10. Enrichissement TMDB
 
 Un export Letterboxd ne contient aucun identifiant TMDB. La résolution se fait en trois temps, par
 message asynchrone et par film :
@@ -570,7 +626,7 @@ producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pa
 réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
 sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
-### 10. Synchronisation RSS
+### 11. Synchronisation RSS
 
 Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux exports.
 
@@ -613,7 +669,7 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
     redémarrage, au plus tard dans l'heure — c'est écrit sous la case, sans quoi le délai se lirait
     comme un réglage non sauvegardé.
 
-### 11. Les jeux
+### 12. Les jeux
 
 Huit jeux, tous construits sur **la bibliothèque de la personne qui joue** — donc sur des films
 qu'elle a vraiment vus. Chacun se joue en **mode quotidien** (une grille par jour, la même du premier
@@ -665,7 +721,7 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 12. Profils partagés
+### 13. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -682,7 +738,7 @@ différemment, pas cinq films de cinq années distinctes.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 13. Compte et authentification
+### 14. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -695,7 +751,7 @@ différemment, pas cinq films de cinq années distinctes.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 14. Identité visuelle
+### 15. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -751,11 +807,12 @@ d'unicité sur le couple profil + position), `LetterboxdSyncState`.
 
 **Jeux** — `GameSession` (jeu, mode, date de grille, propositions, lettres, plateau, manches, statut).
 
-Douze énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
+Treize énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
 si un état mérite une nouvelle tentative, `ImportFileType` sait dans quel ordre les fichiers doivent
 passer, `WatchSource` sait si un visionnage a été déclaré ou déduit, `GameKind` sait si un jeu se
-joue en nommant un film, `MovieSortField` et `WatchlistSortField` savent dans quel sens un lectorat
-s'attend à lire chaque tri.
+joue en nommant un film, `MovieSortField`, `WatchlistSortField` et `PersonSortField` savent dans quel
+sens un lectorat s'attend à lire chaque tri — et `CreditRole` sait dans quel ordre un générique
+nomme les métiers, ce que ni l'alphabet ni un `ARRAY_AGG` ne savent.
 
 ---
 
@@ -767,7 +824,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 |---|---|
 | **Auth** | `POST /auth/login`, `POST /auth/logout`, `POST /auth/register`, `GET /auth/me`, `PUT /auth/password` |
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
-| **Personnes** | `GET /people/{id}`, `GET /people/{id}/filmography` — séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB |
+| **Personnes** | `GET /people`, `GET /people/{id}`, `GET /people/{id}/filmography` — les deux derniers sont séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB. Pas de route de facettes : les métiers sont une énumération fermée que le client connaît déjà, et un aller-retour pour cinq constantes n'en est pas un |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release`, `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
@@ -983,7 +1040,7 @@ plus.
 
 ## Qualité
 
-- **431 tests, 1 772 assertions**, répartis en trois couches : unitaires (logique pure —
+- **445 tests, 1 840 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée
