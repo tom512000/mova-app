@@ -11,6 +11,7 @@ use App\Service\Stats\ActivityStatsService;
 use App\Service\Stats\BudgetStatsService;
 use App\Service\Stats\CountryStatsService;
 use App\Service\Stats\DecadeStatsService;
+use App\Service\Stats\DiscoveryStatsService;
 use App\Service\Stats\DivergenceStatsService;
 use App\Service\Stats\FranchiseStatsService;
 use App\Service\Stats\GenreStatsService;
@@ -91,13 +92,18 @@ final class StatsController
     /**
      * Sagas started and not finished, the one left to finish first. Films only - TMDB has
      * no collections for series. See FranchiseStatsService.
+     *
+     * `upcoming=1` counts announced films that have not come out. Off by default, because
+     * thirty-seven of this library's seventy-one "unfinished" sagas were finished and
+     * waiting on a film nobody could have watched — which is noise, not a to-do list.
      */
     #[Route('/franchises', methods: ['GET'])]
     public function franchises(Request $request, FranchiseStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getIncompleteFranchises(
             $this->profileResolver->getViewedUser(),
-            $this->limitFrom($request),
+            $this->limitFrom($request, 12),
+            $request->query->getBoolean('upcoming'),
         ));
     }
 
@@ -214,6 +220,26 @@ final class StatsController
     public function activity(ActivityStatsService $service): JsonResponse
     {
         return new JsonResponse($service->getActivity($this->profileResolver->getViewedUser()));
+    }
+
+    /**
+     * The faces a year brought in, for the dashboard's "discoveries" block.
+     *
+     * The year is read as forgivingly as the retrospective's, but falls back to the current
+     * one rather than to the latest with anything in it: this block sits on a dashboard that
+     * is about now, and an empty January is a true answer rather than a broken page.
+     */
+    #[Route('/discoveries', methods: ['GET'])]
+    public function discoveries(Request $request, DiscoveryStatsService $service): JsonResponse
+    {
+        $requested = (int) $request->query->get('year', 0);
+        $year = $requested >= 1900 && $requested <= 2999 ? $requested : (int) date('Y');
+
+        return new JsonResponse($service->getDiscoveries(
+            $this->profileResolver->getViewedUser(),
+            $year,
+            $this->limitFrom($request, 9),
+        ));
     }
 
     #[Route('/at-release', methods: ['GET'])]

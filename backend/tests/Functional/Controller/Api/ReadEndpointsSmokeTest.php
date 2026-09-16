@@ -100,6 +100,8 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'stats franchises' => ['/api/stats/franchises'];
         yield 'stats countries' => ['/api/stats/countries'];
         yield 'stats activity' => ['/api/stats/activity'];
+        yield 'stats discoveries' => ['/api/stats/discoveries'];
+        yield 'stats discoveries for a year' => ['/api/stats/discoveries?year=2026'];
         yield 'stats at release' => ['/api/stats/at-release'];
         yield 'stats retrospective' => ['/api/stats/retrospective'];
         // With a year, and with one the profile has nothing for: both have to answer, since

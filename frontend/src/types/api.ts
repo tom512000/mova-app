@@ -411,9 +411,17 @@ export interface FranchiseStat {
   franchiseId: string
   name: string
   watchedCount: number
+  /**
+   * Films counted in the saga, which is not always what TMDB lists: an announced film
+   * nobody can have watched is left out unless the request asked for it.
+   */
   totalCount: number
-  /** Unwatched titles, oldest first and capped - the tally is watchedCount vs totalCount. */
+  /** Films not out yet, reported whether or not they were counted above. */
+  upcomingCount: number
+  /** Counted and unwatched, oldest first, capped for display. */
   missing: string[]
+  /** Not out yet, same order and same cap. */
+  upcoming: string[]
 }
 
 export interface GenreStat {
@@ -636,6 +644,23 @@ export interface BadgeListResponse {
   perPage: number
   /** Null while the shelf is narrowed: it has nothing to say about what it excluded. */
   counts: Record<BadgeCategory, number> | null
+}
+
+/**
+ * Somebody met for the first time in a given year, and what came of it.
+ *
+ * Not the retrospective's person of the year, which asks who filled a year whether or not
+ * they were new: this one only counts people with no earlier work at all in the library.
+ */
+export interface Discovery {
+  personId: string
+  name: string
+  profileUrl: string | null
+  /** Direction wins over performance when somebody does both — the stronger claim. */
+  role: CreditRole
+  workCount: number
+  averageRating: number | null
+  firstSeenOn: string
 }
 
 /** How the directory of people is ordered. A person has no release year and no runtime. */

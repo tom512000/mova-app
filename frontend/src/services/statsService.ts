@@ -4,6 +4,7 @@ import type {
   BudgetStats,
   CountryStat,
   DecadeStat,
+  Discovery,
   DivergenceStats,
   FranchiseStat,
   GenreStat,
@@ -49,8 +50,14 @@ export async function fetchDivergenceStats(): Promise<DivergenceStats> {
 }
 
 /** Sagas started and not finished, the one left to finish first. */
-export async function fetchFranchiseStats(limit = 12): Promise<FranchiseStat[]> {
-  const { data } = await apiClient.get<FranchiseStat[]>('/stats/franchises', { params: { limit } })
+/**
+ * Sagas started and not finished. `includeUpcoming` counts announced films that are not out,
+ * which is off by default — a saga waiting on next year's sequel is finished, not pending.
+ */
+export async function fetchFranchiseStats(limit = 12, includeUpcoming = false): Promise<FranchiseStat[]> {
+  const { data } = await apiClient.get<FranchiseStat[]>('/stats/franchises', {
+    params: { limit, upcoming: includeUpcoming ? 1 : undefined },
+  })
   return data
 }
 
@@ -104,5 +111,14 @@ export async function fetchActivityStats(): Promise<ActivityStats> {
 
 export async function fetchReleaseWindowStats(): Promise<ReleaseWindowStats> {
   const { data } = await apiClient.get<ReleaseWindowStats>('/stats/at-release')
+  return data
+}
+
+/**
+ * The faces a year brought in. The year defaults server-side to the current one, which is
+ * what the dashboard block wants — it is a page about now.
+ */
+export async function fetchDiscoveries(year?: number, limit = 9): Promise<Discovery[]> {
+  const { data } = await apiClient.get<Discovery[]>('/stats/discoveries', { params: { year, limit } })
   return data
 }

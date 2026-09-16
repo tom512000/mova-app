@@ -100,6 +100,80 @@ final class FranchiseStatsServiceTest extends KernelTestCase
         self::assertSame(['En attente'], $stats[0]->missing);
     }
 
+    public function testAFilmNobodyCanWatchYetIsNotMissing(): void
+    {
+        // Thirty-seven of this library's seventy-one "unfinished" sagas were finished and
+        // waiting on an announcement. A saga you have seen every released film of is done,
+        // and "2 / 3" for it is not a to-do list, it is a wrong number.
+        $saga = $this->saga('Suite annoncee', ['Un', 'Deux', 'Le troisieme'], [2 => null]);
+        $this->watched($this->filmOf($saga, 'Un'));
+        $this->watched($this->filmOf($saga, 'Deux'));
+
+        self::assertSame([], $this->service->getIncompleteFranchises($this->user));
+    }
+
+    public function testTheUpcomingFilmComesBackWhenAskedFor(): void
+    {
+        $saga = $this->saga('Suite annoncee', ['Un', 'Deux', 'Le troisieme'], [2 => null]);
+        $this->watched($this->filmOf($saga, 'Un'));
+        $this->watched($this->filmOf($saga, 'Deux'));
+
+        $stats = $this->service->getIncompleteFranchises($this->user, 12, includeUpcoming: true);
+
+        self::assertCount(1, $stats);
+        self::assertSame(2, $stats[0]->watchedCount);
+        self::assertSame(3, $stats[0]->totalCount);
+        self::assertSame(['Le troisieme'], $stats[0]->missing);
+        // Named apart, so the card can say it is coming rather than let it read as something
+        // somebody forgot to watch.
+        self::assertSame(['Le troisieme'], $stats[0]->upcoming);
+        self::assertSame(1, $stats[0]->upcomingCount);
+    }
+
+    public function testAWatchedFilmCountsEvenWithoutItsSagaStamp(): void
+    {
+        // The bug this block shipped with. The tally used to come from movie.franchise_id
+        // while the missing titles came from the TMDB id, and the backfill that stamps that
+        // foreign key does not reach every film: Bad Boys 2 sat in the library, watched and
+        // unstamped, so the saga claimed one film short and could not name which.
+        $saga = $this->saga('Bad Boys', ['Un', 'Deux']);
+
+        $stamped = $this->filmOf($saga, 'Un');
+        $this->watched($stamped);
+
+        $unstamped = $this->filmOf($saga, 'Deux');
+        $unstamped->setFranchise(null);
+        $this->entityManager->flush();
+        $this->watched($unstamped);
+
+        self::assertSame([], $this->service->getIncompleteFranchises($this->user), 'both films are watched');
+    }
+
+    public function testTheTallyAndTheNamedTitlesCannotDisagree(): void
+    {
+        // The other half of the same bug: whatever the counts say is missing, the card has
+        // to be able to name it. An empty list under "il t'en manque 1" is the symptom.
+        $saga = $this->saga('Mission', ['Un', 'Deux', 'Trois']);
+        $this->watched($this->filmOf($saga, 'Un'));
+
+        $unstamped = $this->filmOf($saga, 'Deux');
+        $unstamped->setFranchise(null);
+        $this->entityManager->flush();
+        $this->watched($unstamped);
+
+        $stats = $this->service->getIncompleteFranchises($this->user);
+
+        self::assertCount(1, $stats);
+        self::assertSame(2, $stats[0]->watchedCount);
+        self::assertSame(3, $stats[0]->totalCount);
+        self::assertSame(['Trois'], $stats[0]->missing);
+        self::assertCount(
+            $stats[0]->totalCount - $stats[0]->watchedCount,
+            $stats[0]->missing,
+            'what is counted as missing is what gets named'
+        );
+    }
+
     public function testAnotherAccountsViewingsAreNotMine(): void
     {
         $other = $this->createUser('somebody-else-franchises@example.com');
@@ -113,8 +187,14 @@ final class FranchiseStatsServiceTest extends KernelTestCase
      * A saga and the films TMDB lists in it. Nothing is in the library yet — filmOf() puts
      * one there.
      *
-     * @param list<string> $titles
-     * @param list<string> $dates
+     * Every film is out by default, and given a date to say so. That is load-bearing now:
+     * the service reads a missing date as "announced, not released" and leaves such a film
+     * out of the tally, which is exactly what TMDB's undated rows are — "Untitled James
+     * Bond Film", "Gladiator III". A fixture without dates would be testing sagas made
+     * entirely of films nobody can watch.
+     *
+     * @param list<string>              $titles
+     * @param array<int, string|null>   $dates  a date per film, or null to make it upcoming
      */
     private function saga(string $name, array $titles, array $dates = []): Franchise
     {
@@ -123,9 +203,12 @@ final class FranchiseStatsServiceTest extends KernelTestCase
 
         foreach ($titles as $index => $title) {
             $part = new FranchiseFilm($saga, ++$this->tmdbId, $title);
-            if (isset($dates[$index])) {
-                $part->setReleaseDate(new \DateTimeImmutable($dates[$index]));
+
+            $date = \array_key_exists($index, $dates) ? $dates[$index] : '2001-01-01';
+            if (null !== $date) {
+                $part->setReleaseDate(new \DateTimeImmutable($date));
             }
+
             $saga->addFilm($part);
             $this->entityManager->persist($part);
         }

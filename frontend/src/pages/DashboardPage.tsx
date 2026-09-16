@@ -7,6 +7,7 @@ import {
   fetchBudgetStats,
   fetchCountryStats,
   fetchDecadeStats,
+  fetchDiscoveries,
   fetchDivergenceStats,
   fetchFranchiseStats,
   fetchCreatorStats,
@@ -22,7 +23,9 @@ import {
 } from '@/services/statsService'
 import { fetchRetrospective } from '@/services/retrospectiveService'
 import type {
+  Discovery,
   DivergenceStats,
+  FranchiseStat,
   DivergentWork,
   PersonStat,
   ReleaseWindowStats,
@@ -39,6 +42,8 @@ import {
   SkeletonStatGrid,
 } from '@/components/Skeleton'
 import { ErrorState } from '@/components/ErrorState'
+import { ROLE_LABEL } from '@/utils/roles'
+import { formatCalendarDay } from '@/utils/format'
 import { EmptyState } from '@/components/EmptyState'
 import { TimelineChart } from '@/charts/TimelineChart'
 import { RatingDistributionChart } from '@/charts/RatingDistributionChart'
@@ -357,6 +362,8 @@ export function DashboardPage() {
         </>
       )}
 
+      <DiscoveriesOfTheYear />
+
       <Rankings />
     </div>
   )
@@ -429,27 +436,56 @@ function ReleaseWindowPanel({ stats }: { stats: ReleaseWindowStats }) {
 const SAGAS_SHOWN = 9
 
 /**
- * Sagas started and not finished.
+ * Sagas started and not finished — one block, where there were briefly two.
+ *
+ * The split into "un film et c'est fini" and a progress board was a mistake: both answered
+ * the same question and differed only in how much was left, which is what the ordering
+ * already says. What was worth keeping from the first is that a saga one film short names
+ * that film, and it still does — with one left, "il t'en manque 1" is followed by the title
+ * and the card is the to-do list the separate block was trying to be.
  *
  * Ordered by what is left rather than by what has been seen: a saga missing one film is
  * something you might do tonight, a saga missing seven is a project. That ordering is what
  * makes this a tool rather than another tally — the top of the list is the actionable end.
  *
- * The missing titles are named. "Four of seven" without saying which three is half an
- * answer, and the half that cannot be acted on.
+ * The toggle is there because TMDB lists films that do not exist yet. Counted, they turned
+ * thirty-seven finished sagas here into unfinished ones waiting on an announcement, so they
+ * are out by default — and the switch brings them back for whoever wants to see what is
+ * coming rather than what is missing.
  */
 function UnfinishedSagas() {
+  const [countUpcoming, setCountUpcoming] = useState(false)
+
   const { data, isLoading, isError, error } = useQuery({
-    queryKey: ['stats', 'franchises'],
-    queryFn: () => fetchFranchiseStats(SAGAS_SHOWN),
+    queryKey: ['stats', 'franchises', SAGAS_SHOWN, countUpcoming],
+    queryFn: () => fetchFranchiseStats(SAGAS_SHOWN, countUpcoming),
   })
 
   return (
     <section className="border border-ink p-5 sm:p-6">
-      <h2 className="mb-1 font-serif text-2xl font-bold">Sagas à finir</h2>
-      <p className="mb-5 font-mono text-xs text-subtle">
-        Sagas TMDB dont il te manque au moins un film · celles qu'il reste le moins à finir d'abord
-      </p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-serif text-2xl font-bold">Sagas à finir</h2>
+          <p className="mt-1 font-mono text-xs text-subtle">
+            Sagas TMDB dont il te manque au moins un film &middot; celles qu'il reste le moins à
+            finir d'abord
+          </p>
+        </div>
+
+        {/* aria-pressed rather than a checkbox, like the dashboard's other toggle: one
+            control with an on and an off state is exactly what that announces. */}
+        <button
+          type="button"
+          onClick={() => setCountUpcoming((current) => !current)}
+          aria-pressed={countUpcoming}
+          className={cn(
+            'shrink-0 border border-ink px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-colors duration-200',
+            countUpcoming ? 'bg-ink text-paper' : 'text-ink hover:bg-surface'
+          )}
+        >
+          Compter les films à venir
+        </button>
+      </div>
 
       {isLoading && <SkeletonLines count={6} />}
       {isError && <ErrorState message={(error as Error).message} />}
@@ -457,48 +493,142 @@ function UnfinishedSagas() {
         (data.length > 0 ? (
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {data.map((saga) => (
-              <Link
-                key={saga.franchiseId}
-                // Chronological, like the panel on a film's page: a saga read in
-                // alphabetical order is a saga read in no order at all.
-                to={`/movies?franchiseId=${saga.franchiseId}&sort=year`}
-                className="hard-shadow-hover group block border border-ink/30 p-4"
-              >
-                <p className="font-serif text-lg font-bold leading-tight group-hover:text-accent">
-                  {franchiseLabel(saga.name)}
-                </p>
-                <p className="mt-0.5 font-mono text-xs text-subtle">
-                  <b className="text-ink">
-                    {saga.watchedCount} / {saga.totalCount}
-                  </b>{' '}
-                  · il t'en manque {saga.totalCount - saga.watchedCount}
-                </p>
-
-                {/* A bar reads before the numbers do, and the numbers are right above it for
-                    whoever wants the exact count. aria-hidden because it says nothing the
-                    line above has not already said in words. */}
-                <div aria-hidden className="mt-2 h-1 w-full bg-muted">
-                  <div
-                    className="h-full bg-ink"
-                    style={{ width: `${Math.round((saga.watchedCount / saga.totalCount) * 100)}%` }}
-                  />
-                </div>
-
-                {saga.missing.length > 0 && (
-                  <p className="mt-2 line-clamp-3 text-xs italic text-subtle">
-                    {saga.missing.join(' · ')}
-                  </p>
-                )}
-              </Link>
+              <SagaCard key={saga.franchiseId} saga={saga} />
             ))}
           </div>
         ) : (
           <p className="text-sm text-subtle">
-            Aucune saga commencée à finir — soit tu les as toutes termin&eacute;es, soit tes films
-            n'ont pas encore été rattachés à leur saga TMDB.
+            {countUpcoming
+              ? "Aucune saga commencée à finir — soit tu les as toutes terminées, soit tes films n'ont pas encore été rattachés à leur saga TMDB."
+              : "Aucune saga commencée à finir. Il en reste peut-être qui attendent un film pas encore sorti — le bouton ci-dessus les compte."}
           </p>
         ))}
     </section>
+  )
+}
+
+function SagaCard({ saga }: { saga: FranchiseStat }) {
+  const left = saga.totalCount - saga.watchedCount
+  // Which of the missing titles are not out yet, so the card can say so rather than let a
+  // 2027 sequel read like something somebody forgot to watch.
+  const upcoming = new Set(saga.upcoming)
+
+  return (
+    <Link
+      // Chronological, like the panel on a film's page: a saga read in alphabetical order
+      // is a saga read in no order at all.
+      to={`/movies?franchiseId=${saga.franchiseId}&sort=year`}
+      className="hard-shadow-hover group block border border-ink/30 p-4"
+    >
+      <p className="font-serif text-lg font-bold leading-tight group-hover:text-accent">
+        {franchiseLabel(saga.name)}
+      </p>
+      <p className="mt-0.5 font-mono text-xs text-subtle">
+        <b className="text-ink">
+          {saga.watchedCount} / {saga.totalCount}
+        </b>{' '}
+        &middot; il t'en manque {left}
+      </p>
+
+      {/* A bar reads before the numbers do, and the numbers are right above it for whoever
+          wants the exact count. aria-hidden because it says nothing the line above has not
+          already said in words. */}
+      <div aria-hidden className="mt-2 h-1 w-full bg-muted">
+        <div
+          className="h-full bg-ink"
+          style={{ width: `${Math.round((saga.watchedCount / saga.totalCount) * 100)}%` }}
+        />
+      </div>
+
+      {saga.missing.length > 0 && (
+        <p className="mt-2 line-clamp-3 text-xs italic text-subtle">
+          {saga.missing
+            .map((title) => (upcoming.has(title) ? `${title} (à venir)` : title))
+            .join(' · ')}
+        </p>
+      )}
+    </Link>
+  )
+}
+
+/**
+ * The people a year brought in.
+ *
+ * Ranked by what followed the meeting rather than by the meeting itself — everybody here met
+ * the library exactly once, so the date alone would order them by nothing in particular.
+ *
+ * On a diary two years deep this reads close to the most-watched rankings further down,
+ * because almost everybody is new. That is a fact about the diary and not about the block:
+ * the two come apart as a library ages, and the date is the part neither the rankings nor
+ * the retrospective's person of the year ever says.
+ */
+function DiscoveriesOfTheYear() {
+  const year = new Date().getFullYear()
+  const { data, isLoading, isError, error } = useQuery({
+    queryKey: ['stats', 'discoveries', year],
+    queryFn: () => fetchDiscoveries(year),
+  })
+
+  return (
+    <section className="border border-ink p-5 sm:p-6">
+      <h2 className="mb-1 font-serif text-2xl font-bold">Tes découvertes de {year}</h2>
+      <p className="mb-5 font-mono text-xs text-subtle">
+        Rencontrées cette année et jamais avant &middot; classées par ce que tu en as vu depuis
+      </p>
+
+      {isLoading && <SkeletonPersonGrid count={6} />}
+      {isError && <ErrorState message={(error as Error).message} />}
+      {data &&
+        (data.length > 0 ? (
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {data.map((person) => (
+              <DiscoveryCard key={person.personId} person={person} />
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-subtle">
+            Personne de nouveau cette année pour l&apos;instant — tout ce que tu as vu était
+            déjà signé par quelqu&apos;un que ta bibliothèque connaissait.
+          </p>
+        ))}
+    </section>
+  )
+}
+
+function DiscoveryCard({ person }: { person: Discovery }) {
+  return (
+    <Link
+      to={`/people/${person.personId}`}
+      className="hard-shadow-hover group flex items-center gap-3 border border-ink/30 p-4"
+    >
+      <div className="aspect-2/3 w-12 shrink-0 overflow-hidden border border-ink/30 bg-surface-2">
+        {person.profileUrl ? (
+          <img
+            src={person.profileUrl}
+            alt=""
+            loading="lazy"
+            className="h-full w-full object-cover grayscale transition-all duration-300 group-hover:grayscale-0 group-hover:sepia-[.5]"
+          />
+        ) : (
+          <div className="h-full w-full bg-[radial-gradient(currentColor_1px,transparent_1px)] bg-size-[10px_10px] text-ink/10" />
+        )}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate font-serif text-lg font-bold leading-tight group-hover:text-accent" title={person.name}>
+          {person.name}
+        </p>
+        <p className="mt-0.5 font-mono text-xs text-subtle">
+          <b className="text-ink">{person.workCount}</b> œuvre{person.workCount > 1 ? 's' : ''} &middot;{' '}
+          {ROLE_LABEL[person.role]}
+        </p>
+        {/* Read as UTC: firstSeenOn is a calendar day, and rendering midnight UTC west of
+            Greenwich would name the evening before. */}
+        <p className="mt-0.5 truncate font-body text-xs italic text-subtle">
+          rencontré·e le {formatCalendarDay(person.firstSeenOn)}
+        </p>
+      </div>
+    </Link>
   )
 }
 

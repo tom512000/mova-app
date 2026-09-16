@@ -63,7 +63,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 473 tests, 1 937 assertions |
+| PHPUnit | 11.5.56 | 486 tests, 1 973 assertions |
 
 ### Frontend
 
@@ -335,7 +335,7 @@ sont pas la même question.
 
 ### 6. Dashboard statistique
 
-Quinze agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
+Dix-sept agrégations, toutes calculées en SQL sur la base et jamais en mémoire côté client.
 
 Un bouton **Vue détaillée** en tête de page replie les quatre blocs les plus fins — la
 divergence avec le public, les décennies, les budgets et le rythme — pour ne garder que la
@@ -468,6 +468,48 @@ leurs quatre requêtes ne partent pas du tout.
     `CREATOR` séparé de `DIRECTOR` — un classement ne vaut d'être lu que si chaque ligne y est
     arrivée de la même façon. La restriction est écrite sous le titre du bloc, faute de quoi
     rien ne la signalerait.
+
+**Sur « Sagas à finir »**, un bloc après en avoir brièvement fait deux : « un film et c'est fini »
+et le tableau de progression répondaient à la même question et ne différaient que par ce qu'il
+restait, ce que le tri dit déjà. Ce qui valait la peine d'être gardé du premier, c'est qu'une saga
+à un film de la fin nomme ce film — elle le fait toujours.
+
+Deux bugs corrigés au passage, et ils rendaient le bloc faux :
+
+- **Deux comptages pour une seule question.** Le total des films vus venait de
+  `movie.franchise_id` pendant que les titres manquants venaient de `franchise_film.tmdb_id`.
+  Ce sont deux questions différentes, et elles divergeaient sur six sagas ici : le backfill qui
+  estampille `franchise_id` n'atteint pas tous les films, si bien que *Bad Boys 2* — en
+  bibliothèque, vu — ne portait pas sa saga. Le bloc annonçait « il te manque 1 film » sans
+  pouvoir le nommer. Tout passe désormais par l'identifiant TMDB seul, qui est aussi la façon
+  dont le panneau saga d'une fiche de film le lit : une ligne de `franchise_film` est un fait sur
+  la saga, et que la bibliothèque ait pensé à poser sa clé étrangère n'en fait pas partie.
+- **Des films qui n'existent pas encore.** TMDB liste les suites annoncées, et **37 des 71**
+  sagas « non terminées » de cette bibliothèque étaient terminées : elles attendaient un film que
+  personne n'aurait pu voir. Les lignes sans date sont exactement celles-là — « Untitled James
+  Bond Film », « Gladiator III ». Elles sortent du compte par défaut, parce que « 3 / 4 » pour
+  une saga dont on a tout vu n'est pas une chose à faire, c'est un chiffre faux.
+
+Un **interrupteur** « Compter les films à venir » les fait revenir, marqués comme tels. Un film
+déjà vu compte toujours, quoi que dise sa date : une date future erronée sur un film qu'on a vu
+ne doit pas le faire disparaître du total et rendre une saga finie à nouveau inachevée.
+
+**Tes découvertes de l'année** — les gens rencontrés pour la première fois cette année, classés
+par ce que tu en as vu depuis. Le mot qui porte tout est **première** : tous les autres blocs
+annuels filtrent les œuvres, celui-ci filtre la personne, sur son œuvre la plus ancienne dans
+toute la bibliothèque. Quelqu'un vu une fois en 2019 n'est pas une découverte de 2026, siège-t-il
+en tête du classement de l'année.
+
+- **Réalisation et interprétation seulement**, les deux mêmes métiers que la personne de l'année
+  de la rétrospective et pour la même raison : un crédit de production n'est pas ce qui a fait
+  choisir un film.
+- **Classé par ce qui a suivi**, pas par la date : tout le monde ici a rencontré la bibliothèque
+  exactement une fois, donc la date seule ne trierait rien.
+- **Honnêteté sur ce que le bloc vaut aujourd'hui** : sur un journal de deux ans, il ressemble
+  beaucoup aux classements des plus vus plus bas, parce que presque tout le monde est nouveau.
+  C'est un fait sur le journal et non sur le bloc — les deux se séparent à mesure qu'une
+  bibliothèque vieillit, et la date de rencontre est la seule chose que ni les classements ni la
+  rétrospective ne disent jamais.
 
 ### 7. La rétrospective annuelle
 
@@ -880,7 +922,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Personnes** | `GET /people`, `GET /people/{id}`, `GET /people/{id}/filmography` — les deux derniers sont séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB. Pas de route de facettes : les métiers sont une énumération fermée que le client connaît déjà, et un aller-retour pour cinq constantes n'en est pas un |
 | **Badges** | `GET /badges` — une seule route pour les deux surfaces : la bande du profil demande les cinq premiers, l'étagère une page complète, éventuellement réduite à une catégorie |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
-| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises`, `/countries`, `/activity`, `/at-release`, `/retrospective` |
+| **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises` (`?upcoming=1` pour compter les films pas encore sortis), `/countries`, `/activity`, `/at-release`, `/discoveries` (`?year=`), `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
 | **Synchro** | `GET /sync/letterboxd`, `PUT /sync/letterboxd` (pseudo et synchro auto), `POST /sync/letterboxd` (déclenchement) |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
@@ -1094,7 +1136,7 @@ plus.
 
 ## Qualité
 
-- **473 tests, 1 937 assertions**, répartis en trois couches : unitaires (logique pure —
+- **486 tests, 1 973 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée
