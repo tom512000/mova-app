@@ -8,6 +8,7 @@ import { ErrorState } from '@/components/ErrorState'
 import { PageMeta } from '@/components/PageMeta'
 import { Skeleton } from '@/components/Skeleton'
 import { StatCard } from '@/components/StatCard'
+import { TrophyShelf } from '@/components/TrophyShelf'
 import { Button } from '@/components/ui/Button'
 import { FilterSelect, Option } from '@/components/ui/FilterSelect'
 import { badgeHref, badgeTitle, BADGE_CATEGORIES, BADGE_CATEGORY_LABEL } from '@/utils/badges'
@@ -78,9 +79,20 @@ export function BadgesPage() {
         <div>
           <h1 className="text-balance font-serif text-5xl font-black tracking-tighter sm:text-6xl">Badges</h1>
           <p className="mt-2 font-mono text-[11px] uppercase tracking-widest text-subtle">
-            Un premier niveau à 5 œuvres, puis un de plus à chaque fois que tu doubles
+            Des trophées à décrocher, et un badge pour tout ce que tu regardes souvent
           </p>
         </div>
+      </div>
+
+      {/* First, and on a shelf of its own: fourteen named trophies would otherwise sit
+          behind hundreds of generated badges. */}
+      <TrophyShelf />
+
+      <div className="mt-4 border-b border-ink pb-3">
+        <h2 className="font-serif text-3xl font-black tracking-tight">Tous les badges</h2>
+        <p className="mt-1 font-mono text-[11px] uppercase tracking-widest text-subtle">
+          Un premier niveau à 5 œuvres, puis un de plus à chaque fois que tu doubles
+        </p>
       </div>
 
       {whole && (

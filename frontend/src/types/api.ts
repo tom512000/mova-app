@@ -598,6 +598,45 @@ export interface WatchlistFacets {
   longestRuntime: number | null
 }
 
+/** The shelves trophies are grouped on. More arrive as more of the catalogue is built. */
+export type TrophyFamily = 'regularity' | 'special_dates'
+
+export type TrophyKey =
+  | 'groundhog_day'
+  | 'weekends'
+  | 'dirty_dozen'
+  | 'return_of_the_jedi'
+  | 'old_timers'
+  | 'christmas'
+  | 'new_year'
+  | 'valentine'
+  | 'easter'
+  | 'labour_day'
+  | 'bastille_day'
+  | 'halloween'
+  | 'friday_the_13th'
+  | 'leap_day'
+
+/**
+ * One trophy, won or not. Unlike badges, locked ones come back too: there are fourteen, and
+ * a trophy not yet won is something to go and get rather than something silently missing.
+ */
+export interface Trophy {
+  key: TrophyKey
+  family: TrophyFamily
+  /** The rungs, ascending. A single rung means the trophy is won once and has no levels. */
+  tiers: number[]
+  /**
+   * What the rungs are measured against — the longest run of days, full weekends, the longest
+   * pause, years, or days that fell on the date. Reported even while locked.
+   */
+  value: number
+  /** Rungs reached. Zero means locked. */
+  level: number
+  /** The day the current rung was reached. Null while locked. */
+  earnedOn: string | null
+}
+
 /**
  * What a badge is earned on. The last five mirror CreditRole one for one: somebody who acts
  * in twenty films and directs five has earned two different things.

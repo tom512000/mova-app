@@ -63,7 +63,7 @@ partage.
 | Doctrine Migrations | 3.7 | 18 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 486 tests, 1 973 assertions |
+| PHPUnit | 11.5.56 | 522 tests, 2 092 assertions |
 
 ### Frontend
 
@@ -327,11 +327,47 @@ rond, parce que la feuille de style force `border-radius: 0` sans exception — 
 timbre, et un timbre est exactement ce qu'est un badge : une preuve, imprimée petit.
 
 **Ce que ça donne** : 686 badges sur une bibliothèque de 711 œuvres, dont 541 de personnes et
-109 de studios. Le
-tri par niveau décroissant est ce qui rend ce nombre lisible — la bande du profil montre la
-poignée de niveau 7, et la longue traîne des acteurs vus cinq fois reste où doit être une longue
-traîne. Le filtre par catégorie fait le reste : « tous mes genres » et « tous mes acteurs » ne
-sont pas la même question.
+109 de studios. Le tri par niveau décroissant est ce qui rend ce nombre lisible — la bande du
+profil montre la poignée de niveau 7, et la longue traîne des acteurs vus cinq fois reste où doit
+être une longue traîne. Le filtre par catégorie fait le reste : « tous mes genres » et « tous mes
+acteurs » ne sont pas la même question.
+
+#### Trophées
+
+Une étagère **à part**, en tête de la page des badges. Les badges sont générés — un par genre,
+pays ou personne vus assez souvent, des centaines — alors qu'un trophée est **une chose nommée,
+écrite à la main, avec une blague** : le nom est toujours un titre de film. Sur la même étagère,
+*Le Père Noël est une ordure* se retrouverait page douze, derrière des acteurs vus cinq fois.
+
+Quatorze trophées, en deux familles pour commencer (le catalogue en prévoit neuf) :
+
+| Famille | Trophées |
+|---|---|
+| **Régularité** | *Un jour sans fin* (jours d'affilée : 3 · 7 · 14 · 30 · 60 · 100), *Samedi soir, dimanche matin* (week-ends complets : 5 · 20 · 50), *Les Douze Salopards* (douze mois d'affilée), *Le Retour du Jedi* (revenir après trente jours sans film), *Les Vieux de la vieille* (1 · 3 · 5 · 10 ans de journal) |
+| **Dates spéciales** | *Le Père Noël est une ordure* (24–25 décembre), *La Bonne Année* (31 décembre–1er janvier), *Seul au monde* (14 février), *Qui veut la peau de Roger Rabbit ?* (Pâques), *Les Temps modernes* (1er mai), *Quatorze Juillet*, *La Nuit des morts-vivants* (31 octobre), *Vendredi 13* (1 · 5 · 13), *Le Jour le plus long* (29 février) |
+
+- **Les trophées verrouillés s'affichent**, grisés, avec leur condition et, quand elle se
+  mesure, la distance au palier — contrairement aux badges, dont la liste complète serait celle
+  de tout TMDB. Ils gardent leur place dans le catalogue au lieu de se ranger derrière les
+  trophées gagnés : en gagner un remplit une case, il ne rebat pas l'étagère.
+- **Calculés en PHP, pas en SQL**, à l'inverse des badges. Un badge est une agrégation sur des
+  milliers de crédits ; un trophée est une règle de calendrier — séries de jours, samedis suivis
+  d'un dimanche, pauses, anniversaires, Pâques — et quatorze de ces règles écrites en fonctions de
+  fenêtrage feraient quatorze énigmes. L'entrée est petite : un journal tient quelques centaines
+  de jours distincts. Une seule requête les récupère, et `TrophyCalculator` ne voit jamais la
+  base, ce qui rend chaque règle testable unitairement.
+- **Pâques est calculé** par l'algorithme anonyme grégorien (Meeus, Jones, Butcher) : Postgres
+  n'a pas de fonction pour ça, et le `easter_days()` de PHP vit dans `ext-calendar`, absente du
+  conteneur.
+- **L'ancienneté part du premier film au journal**, pas de la création du compte : le premier
+  compte de l'app a été créé par une migration, bien après le début du journal qu'il contient.
+- ***Vendredi 13* compte des jours, pas des films** : un double programme un vendredi 13 reste un
+  seul vendredi 13, sinon un marathon vaudrait treize ans de superstition.
+- **Une pause se compte en jours sans film** : le 1er et le 31 janvier sont à trente jours d'écart
+  mais n'ont que vingt-neuf jours vides entre eux. *Le Retour du Jedi* est daté du jour du
+  retour, et une pause encore en cours ne compte pas — personne n'en est encore revenu.
+- **Même règle que partout** : les notes révisées ne sont pas des soirées, et ne peuvent ni gagner
+  *Seul au monde* pour une note déplacée un 14 février, ni couper une série en deux.
 
 ### 6. Dashboard statistique
 
@@ -902,7 +938,7 @@ d'unicité sur le couple profil + position), `LetterboxdSyncState`.
 
 **Jeux** — `GameSession` (jeu, mode, date de grille, propositions, lettres, plateau, manches, statut).
 
-Quatorze énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
+Seize énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
 si un état mérite une nouvelle tentative, `ImportFileType` sait dans quel ordre les fichiers doivent
 passer, `WatchSource` sait si un visionnage a été déclaré ou déduit, `GameKind` sait si un jeu se
 joue en nommant un film, `MovieSortField`, `WatchlistSortField` et `PersonSortField` savent dans quel
@@ -921,6 +957,7 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Bibliothèque** | `GET /movies`, `GET /movies/facets`, `GET /movies/posters`, `GET /movies/{id}` |
 | **Personnes** | `GET /people`, `GET /people/{id}`, `GET /people/{id}/filmography` — les deux derniers sont séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB. Pas de route de facettes : les métiers sont une énumération fermée que le client connaît déjà, et un aller-retour pour cinq constantes n'en est pas un |
 | **Badges** | `GET /badges` — une seule route pour les deux surfaces : la bande du profil demande les cinq premiers, l'étagère une page complète, éventuellement réduite à une catégorie |
+| **Trophées** | `GET /trophies` — le catalogue entier, gagnés et verrouillés, sans pagination : il y en a quatorze |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises` (`?upcoming=1` pour compter les films pas encore sortis), `/countries`, `/activity`, `/at-release`, `/discoveries` (`?year=`), `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
@@ -1136,7 +1173,7 @@ plus.
 
 ## Qualité
 
-- **486 tests, 1 973 assertions**, répartis en trois couches : unitaires (logique pure —
+- **522 tests, 2 092 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée
