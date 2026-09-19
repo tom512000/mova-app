@@ -213,12 +213,12 @@ function FilterBar({
 }) {
   return (
     <div className="flex flex-col gap-4 border border-ink p-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
+      <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
         <FilterSelect
           label="J'ai"
           value={filters.maxRuntime}
           onChange={(maxRuntime) => onChange({ maxRuntime })}
-          className="sm:w-44"
+          className="col-span-2 sm:w-44"
         >
           {TIME_BUDGETS.map((budget) => (
             <Option key={budget.label} value={budget.value}>

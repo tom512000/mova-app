@@ -257,7 +257,9 @@ function WatchlistStrip({ works }: { works: PersonWork[] }) {
         Ses œuvres déjà dans ta watchlist
       </p>
 
-      <div className="mt-4 grid grid-cols-3 gap-4 sm:grid-cols-4 lg:grid-cols-6">
+      {/* Two across on a phone, like the library: three left a card 93 pixels wide, and a
+          series in the watchlist carries a badge in each top corner that then overlapped. */}
+      <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4 lg:grid-cols-6">
         {works.map((work) => (
           <WorkCard key={work.movieId} work={work} />
         ))}

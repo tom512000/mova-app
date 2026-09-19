@@ -35,7 +35,7 @@ export function PeopleFilters({
 
   return (
     <div className="flex flex-col gap-4 border border-ink p-4">
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
+      <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
         {/* The five jobs, always, and not the ones this library happens to hold. The other
             filters are drawn from facets because a genre absent from a library is a fact
             about that library; a job absent from it is usually a fact about the enrichment
@@ -66,7 +66,7 @@ export function PeopleFilters({
 
         {/* The same rule the library draws: everything left of it narrows the list,
             everything right of it only reorders what is left. */}
-        <div className="flex items-end gap-3 sm:ml-auto sm:border-l sm:border-muted sm:pl-6">
+        <div className="col-span-2 flex items-end gap-3 sm:ml-auto sm:border-l sm:border-muted sm:pl-6">
           <FilterSelect
             label="Trier par"
             value={state.sort}

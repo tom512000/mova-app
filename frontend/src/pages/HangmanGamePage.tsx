@@ -68,7 +68,9 @@ export function HangmanGamePage() {
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:gap-8">
               <Gallows livesLeft={board.livesLeft} lives={board.lives} />
 
-              <div className="flex min-w-0 flex-1 flex-col gap-4">
+              {/* w-full: in the stacked phone layout the column centres its children, and a
+                  title wider than the box spilled out of both sides of it at once. */}
+              <div className="flex w-full min-w-0 flex-1 flex-col gap-4">
                 <MaskedTitle board={board} />
                 <p className="font-mono text-xs uppercase tracking-widest text-subtle">
                   {board.livesLeft} vie{board.livesLeft > 1 ? 's' : ''} sur {board.lives}
@@ -143,12 +145,12 @@ function MaskedTitle({ board }: { board: HangmanBoard }) {
 
   return (
     <p
-      className="flex flex-wrap items-end gap-x-4 gap-y-3"
+      className="flex flex-wrap items-end gap-x-3 gap-y-3 sm:gap-x-4"
       role="img"
       aria-label={`Titre à trouver : ${board.chars.map((char) => char ?? '_').join('')}`}
     >
       {words.map((word, wordIndex) => (
-        <span key={wordIndex} className="flex gap-1" aria-hidden>
+        <span key={wordIndex} className="flex gap-0.5 sm:gap-1" aria-hidden>
           {word.map((char, index) => (
             <Slot key={index} char={char} />
           ))}
@@ -166,7 +168,9 @@ function Slot({ char }: { char: string | null }) {
   return (
     <span
       className={cn(
-        'inline-flex h-9 min-w-5 items-end justify-center font-serif text-3xl font-black leading-none',
+        // Smaller below sm, where a word never breaks and the box is 246 pixels wide at 320:
+        // at the full size a twelve-letter word took 284 of them.
+        'inline-flex h-7 min-w-3.5 items-end justify-center font-serif text-xl font-black leading-none sm:h-9 sm:min-w-5 sm:text-3xl',
         isLetter && 'border-b-2 border-ink'
       )}
     >

@@ -55,9 +55,17 @@ export function MuseumPage() {
         <div>
           <h1 className="font-serif text-5xl font-black leading-[0.95] tracking-tighter sm:text-6xl">Le musée</h1>
           <p className="mt-2 max-w-xl font-body text-sm italic text-subtle">
-            {data
-              ? `${data.length} affiches accrochées au mur. Longe-le à la molette ou en le tirant ; vise une affiche pour la décrocher.`
-              : 'Toutes tes affiches, accrochées au même mur.'}
+            {data ? (
+              <>
+                {data.length} affiches accrochées au mur.{' '}
+                <span className="touch:hidden">Longe-le à la molette ou en le tirant ; vise une affiche pour la décrocher.</span>
+                <span className="hidden touch:inline">
+                  Longe-le en le tirant ; touche une affiche pour la décrocher, et une seconde fois pour l'ouvrir.
+                </span>
+              </>
+            ) : (
+              'Toutes tes affiches, accrochées au même mur.'
+            )}
           </p>
         </div>
 
@@ -140,11 +148,16 @@ function Cartouche({ poster }: { poster: MoviePoster | null }) {
       <div className={cn('min-w-0 transition-opacity duration-200', poster ? 'opacity-100' : 'opacity-40')}>
         <p className="truncate font-serif text-2xl font-bold">{poster?.title ?? 'Aucune affiche visée'}</p>
         <p className="mt-0.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
-          {poster
-            ? [poster.mediaType === 'series' ? 'Série' : null, poster.releaseYear ?? 'Année inconnue']
-                .filter(Boolean)
-                .join(' · ')
-            : 'Passe le curseur sur le mur'}
+          {poster ? (
+            [poster.mediaType === 'series' ? 'Série' : null, poster.releaseYear ?? 'Année inconnue']
+              .filter(Boolean)
+              .join(' · ')
+          ) : (
+            <>
+              <span className="touch:hidden">Passe le curseur sur le mur</span>
+              <span className="hidden touch:inline">Touche une affiche du mur</span>
+            </>
+          )}
         </p>
       </div>
       {poster && <StarRating rating={poster.myAverageRating} size="md" />}

@@ -30,7 +30,7 @@ export function FilterSelect({
           onChange={(event) => onChange(event.target.value)}
           // appearance-none drops the platform arrow so the lucide chevron can sit on the
           // rule; pr-6 reserves its room.
-          className="w-full cursor-pointer appearance-none truncate border-0 border-b-2 border-ink bg-transparent py-1 pl-0 pr-6 font-sans text-sm text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          className="w-full cursor-pointer appearance-none truncate border-0 border-b-2 border-ink bg-transparent py-1 pl-0 pr-6 font-sans text-sm pointer-coarse:py-3 text-ink focus:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {children}
         </select>

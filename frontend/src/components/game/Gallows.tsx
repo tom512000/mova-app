@@ -22,7 +22,7 @@ export function Gallows({ livesLeft, lives }: { livesLeft: number; lives: number
   return (
     <svg
       viewBox="0 0 130 140"
-      className="h-40 w-auto shrink-0 stroke-ink"
+      className="h-28 w-auto shrink-0 stroke-ink sm:h-40"
       fill="none"
       strokeWidth={3}
       strokeLinecap="square"

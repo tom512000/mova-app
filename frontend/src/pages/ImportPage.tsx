@@ -60,12 +60,16 @@ export function ImportPage() {
         }}
         onClick={() => fileInputRef.current?.click()}
         className={cn(
-          'flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed p-16 text-center transition-colors duration-200',
+          'flex cursor-pointer flex-col items-center justify-center gap-3 border-2 border-dashed px-6 py-12 text-center transition-colors duration-200 sm:p-16',
           dragOver ? 'border-accent bg-accent/5' : 'border-ink/40 hover:border-ink'
         )}
       >
         <UploadCloud className="h-8 w-8 text-subtle" strokeWidth={1.5} />
-        <p className="font-serif text-lg font-bold">Glisse ton fichier ici, ou clique pour parcourir</p>
+        {/* Nothing is dragged anywhere on a phone: the whole box is the button there. */}
+        <p className="font-serif text-lg font-bold">
+          <span className="touch:hidden">Glisse ton fichier ici, ou clique pour parcourir</span>
+          <span className="hidden touch:inline">Touche ici pour choisir ton fichier</span>
+        </p>
         <p className="font-mono text-[11px] uppercase tracking-widest text-subtle">Formats acceptés : .zip, .csv (max 100 Mo)</p>
         <input ref={fileInputRef} type="file" accept=".zip,.csv" className="hidden" onChange={(e) => handleFile(e.target.files?.[0])} />
       </div>

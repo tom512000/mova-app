@@ -64,28 +64,37 @@ export function MovieDetailPage() {
       </Link>
 
       {movie.backdropUrl && (
-        <div className="relative -mx-4 h-64 overflow-hidden border-y-4 border-ink sm:h-80">
+        <div className="relative -mx-4 h-44 overflow-hidden border-y-4 border-ink sm:h-64 lg:h-80">
           <img src={movie.backdropUrl} alt="" className="h-full w-full object-cover grayscale" />
           <div className="absolute inset-0 bg-linear-to-t from-paper via-transparent to-transparent" />
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-4">
+      {/* Below lg the poster is a thumbnail beside the title rather than a column of its
+          own above it. Stacked, a poster the width of the screen was a screen and a half of
+          picture before the page said which film it was on — two screens on a tablet, where
+          it came out 1,100 pixels tall. The title block sits beside it and everything else
+          runs full width underneath; from lg the poster spans both rows, as it always has,
+          and the 1fr row takes whatever height it has over the text. */}
+      <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:gap-x-8">
+        <div className="lg:col-span-4 lg:row-span-2">
           <div className="border border-ink bg-surface-2">
             {movie.posterUrl ? (
               <img src={movie.posterUrl} alt={movie.title} className="w-full grayscale" />
             ) : (
-              <div className="flex aspect-2/3 items-center justify-center font-mono text-xs uppercase tracking-widest text-subtle">
+              <div className="flex aspect-2/3 items-center justify-center p-2 text-center font-mono text-xs uppercase tracking-widest text-subtle">
                 Pas d'affiche
               </div>
             )}
           </div>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-widest text-subtle">Fig. 1 &mdash; {movie.title}</p>
+          {/* A caption under a thumbnail would wrap a word to a line. */}
+          <p className="mt-2 hidden font-mono text-[10px] uppercase tracking-widest text-subtle lg:block">
+            Fig. 1 &mdash; {movie.title}
+          </p>
         </div>
 
-        <div className="lg:col-span-8">
-          <h1 className="font-serif text-4xl font-black leading-[0.95] tracking-tight sm:text-5xl">
+        <div className="min-w-0 lg:col-span-8">
+          <h1 className="font-serif text-3xl font-black leading-[0.95] tracking-tight sm:text-4xl lg:text-5xl">
             {movie.title} {movie.releaseYear && <span className="font-normal text-subtle">({airedYears(movie)})</span>}
           </h1>
           {movie.originalTitle && movie.originalTitle !== movie.title && (
@@ -111,9 +120,12 @@ export function MovieDetailPage() {
               <Badge key={c}>{c}</Badge>
             ))}
           </div>
+        </div>
 
+        <div className="col-span-2 lg:col-span-8 lg:col-start-5">
+          {/* Justified from sm only: on a phone's measure it opens rivers between the words. */}
           {movie.synopsis && (
-            <p className="mt-6 max-w-2xl text-justify font-body text-sm leading-relaxed text-ink/80 first-letter:float-left first-letter:pr-2 first-letter:font-serif first-letter:text-7xl first-letter:font-black first-letter:leading-[0.75] first-letter:text-ink">
+            <p className="mt-6 max-w-2xl font-body sm:text-justify text-sm leading-relaxed text-ink/80 first-letter:float-left first-letter:pr-2 first-letter:font-serif first-letter:text-7xl first-letter:font-black first-letter:leading-[0.75] first-letter:text-ink">
               {movie.synopsis}
             </p>
           )}

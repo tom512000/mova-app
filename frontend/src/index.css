@@ -4,6 +4,12 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 /*
+ * Screens with nothing to hover with — phones and tablets. For copy that would otherwise
+ * tell somebody to "click" or to "point the cursor" at something they can only touch.
+ */
+@custom-variant touch (@media (hover: none));
+
+/*
  * "Newsprint" design tokens. Light = the original spec (paper/ink on warm
  * off-white). Dark ("Midnight Edition") inverts it — near-black stock, warm
  * off-white ink, a hotter red so the accent still reads at full strength
@@ -96,6 +102,18 @@ body {
    (chart tooltips, etc.) would otherwise slip through. */
 #root * {
   border-radius: 0 !important;
+}
+
+/* Safari on iOS zooms the whole page into any field whose text is under 16px the moment it
+   takes focus, and leaves it zoomed. Every field here is set at 10 to 14px, so on a phone
+   each search, each filter and each guess in a game pushed the layout off the side of the
+   screen. Enforced globally, like the corners above, rather than trusted to each field's
+   className — including the ones added later. Coarse pointers only: on a desktop the
+   smaller type is the design. */
+@media (pointer: coarse) {
+  #root :is(input:not([type='checkbox'], [type='radio'], [type='range'], [type='file']), select, textarea) {
+    font-size: 16px;
+  }
 }
 
 ::selection {

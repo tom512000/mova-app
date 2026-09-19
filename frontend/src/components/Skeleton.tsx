@@ -247,17 +247,18 @@ export function SkeletonMovieDetail() {
   return (
     <div className="flex flex-col gap-8">
       <Skeleton className="h-3 w-32" />
-      <Skeleton className="-mx-4 h-64 sm:h-80" />
+      <Skeleton className="-mx-4 h-44 sm:h-64 lg:h-80" />
 
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-12">
-        <div className="lg:col-span-4">
+      {/* The page's grid: a thumbnail beside the title below lg, a column of its own from lg. */}
+      <div className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-x-4 sm:grid-cols-[11rem_minmax(0,1fr)] sm:gap-x-6 lg:grid-cols-12 lg:grid-rows-[auto_1fr] lg:gap-x-8">
+        <div className="lg:col-span-4 lg:row-span-2">
           <Skeleton className="aspect-2/3 w-full border border-ink" />
-          <Skeleton className="mt-2 h-2.5 w-40" />
+          <Skeleton className="mt-2 hidden h-2.5 w-40 lg:block" />
         </div>
 
-        <div className="flex flex-col gap-6 lg:col-span-8">
+        <div className="flex min-w-0 flex-col gap-4 lg:col-span-8">
           <div>
-            <Skeleton className="h-10 w-3/4 sm:h-12" />
+            <Skeleton className="h-8 w-3/4 sm:h-10 lg:h-12" />
             <Skeleton className="mt-2 h-3.5 w-1/2" />
           </div>
           {/* The badge row: type, runtime, genres, countries — a queue of short pills. */}
@@ -266,6 +267,9 @@ export function SkeletonMovieDetail() {
               <Skeleton key={index} className="h-5" style={{ width: `${width * 4}px` }} />
             ))}
           </div>
+        </div>
+
+        <div className="col-span-2 flex flex-col gap-6 pt-6 lg:col-span-8 lg:col-start-5">
           <SkeletonLines count={4} className="max-w-2xl" />
           <Skeleton className="h-3.5 w-64" />
           <Skeleton className="h-3.5 w-80 max-w-full" />
@@ -403,11 +407,12 @@ export function SkeletonTimelineStrip() {
   return (
     <div className="border border-ink p-5 sm:p-6">
       <Skeleton className="h-2.5 w-40" />
-      <div className="mt-4 flex gap-2 sm:gap-3">
+      {/* Down the page on a phone, across from sm — the same turn the real strip takes. */}
+      <div className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-3">
         {Array.from({ length: 5 }, (_, index) => (
-          <div key={index} className="min-w-0 flex-1">
-            <Skeleton className="aspect-2/3 w-full border border-ink" />
-            <Skeleton className="mx-auto mt-1 h-2.5 w-3/4" />
+          <div key={index} className="flex items-center gap-3 border border-ink sm:block sm:min-w-0 sm:flex-1 sm:border-0">
+            <Skeleton className="aspect-2/3 w-12 shrink-0 sm:w-full sm:border sm:border-ink" />
+            <Skeleton className="h-3.5 w-2/3 sm:mx-auto sm:mt-1 sm:h-2.5 sm:w-3/4" />
           </div>
         ))}
       </div>

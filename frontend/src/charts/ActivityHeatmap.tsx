@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useRef, useState, type KeyboardEvent } from 'react'
+import { Fragment, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { ActivityDay } from '@/types/api'
 import { formatCalendarDay } from '@/utils/format'
@@ -59,6 +59,16 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
   const days = useMemo(() => weeks.flat().filter((cell) => cell.count > 0), [weeks])
 
   const gridRef = useRef<HTMLDivElement>(null)
+  const scrollerRef = useRef<HTMLDivElement>(null)
+
+  // Where a narrow screen opens the strip: on its right-hand end, the weeks just gone. Left
+  // at its natural origin it showed the oldest months and hid the recent half off-screen,
+  // which is the end anybody opening this is asking about. A layout effect, so the first
+  // paint is already there rather than jumping to it.
+  useLayoutEffect(() => {
+    const scroller = scrollerRef.current
+    if (scroller) scroller.scrollLeft = scroller.scrollWidth
+  }, [weeks.length])
   const [focusKey, setFocusKey] = useState<string | null>(null)
   // One tab stop for the whole calendar. Without this every day you have ever watched a film
   // would be a stop of its own, and reaching the section below would take four hundred
@@ -102,7 +112,7 @@ export function ActivityHeatmap({ data }: { data: ActivityDay[] }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className="overflow-x-auto">
+      <div ref={scrollerRef} className="overflow-x-auto">
         <div
           ref={gridRef}
           // The half-pixel each of seventy-odd 1fr tracks rounds up with has to go

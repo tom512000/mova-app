@@ -95,7 +95,9 @@ export function TimelineGamePage() {
 }
 
 /**
- * The board being arranged: five posters in a strip, dragged into order left to right.
+ * The board being arranged: five posters in a strip, dragged into order left to right —
+ * or top to bottom on a phone, where five across left each card 40 pixels wide and cut
+ * every title off mid-word.
  *
  * The array is not touched while a drag is in flight. Reordering it live would move the
  * card out from under the pointer and make it jump, so instead every card is offset with a
@@ -142,20 +144,26 @@ function Arranger({
     if (rendered.some((slot) => slot === null)) return
 
     // Measured from the DOM rather than computed from a width and a gap: the strip is
-    // fluid, and this way the arithmetic below cannot drift from what is on screen.
+    // fluid, and this way the arithmetic below cannot drift from what is on screen. The
+    // axis comes from the same measure — whether the second card sits beside the first or
+    // under it — so the drag follows the layout without knowing its breakpoint.
     const boxes = (rendered as HTMLDivElement[]).map((slot) => slot.getBoundingClientRect())
-    centers.current = boxes.map((box) => box.left + box.width / 2)
-    grabbedAt.current = event.clientX
+    const axis: Axis =
+      boxes.length > 1 && Math.abs(boxes[1].top - boxes[0].top) > Math.abs(boxes[1].left - boxes[0].left) ? 'y' : 'x'
+    const start = (box: DOMRect) => (axis === 'x' ? box.left : box.top)
+
+    centers.current = boxes.map((box) => start(box) + (axis === 'x' ? box.width : box.height) / 2)
+    grabbedAt.current = axis === 'x' ? event.clientX : event.clientY
 
     event.currentTarget.setPointerCapture(event.pointerId)
-    setDrag({ from: index, to: index, dx: 0, step: boxes.length > 1 ? boxes[1].left - boxes[0].left : 0 })
+    setDrag({ from: index, to: index, axis, travel: 0, step: boxes.length > 1 ? start(boxes[1]) - start(boxes[0]) : 0 })
   }
 
   function continueDrag(event: ReactPointerEvent<HTMLDivElement>) {
     if (!drag) return
 
-    const dx = event.clientX - grabbedAt.current
-    const carried = centers.current[drag.from] + dx
+    const travel = (drag.axis === 'x' ? event.clientX : event.clientY) - grabbedAt.current
+    const carried = centers.current[drag.from] + travel
 
     // The slot the card is nearest to, which is the one the eye has already picked.
     let to = 0
@@ -163,7 +171,7 @@ function Arranger({
       if (Math.abs(center - carried) < Math.abs(centers.current[to] - carried)) to = index
     })
 
-    setDrag({ ...drag, to, dx })
+    setDrag({ ...drag, to, travel })
   }
 
   function endDrag() {
@@ -184,7 +192,13 @@ function Arranger({
   }
 
   function moveWithKeyboard(event: ReactKeyboardEvent<HTMLDivElement>, index: number) {
-    const step = event.key === 'ArrowLeft' ? -1 : event.key === 'ArrowRight' ? 1 : 0
+    // Both pairs, whichever way the strip runs: the keys mean "earlier" and "later".
+    const step =
+      event.key === 'ArrowLeft' || event.key === 'ArrowUp'
+        ? -1
+        : event.key === 'ArrowRight' || event.key === 'ArrowDown'
+          ? 1
+          : 0
     const to = index + step
     if (step === 0 || isPending || to < 0 || to >= arrangement.length) return
 
@@ -206,11 +220,14 @@ function Arranger({
 
       <div className="border border-dashed border-ink/40 p-3 sm:p-4">
         <div className="mb-3 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-widest text-subtle">
-          <span>&larr; Le plus ancien</span>
-          <span>Le plus récent &rarr;</span>
+          <span>
+            <span className="sm:hidden">&uarr;</span>
+            <span className="hidden sm:inline">&larr;</span> Le plus ancien
+          </span>
+          <span className="hidden sm:inline">Le plus récent &rarr;</span>
         </div>
 
-        <div className="flex gap-2 sm:gap-3">
+        <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
           {arrangement.map((movieId, index) => {
             const card = byId.get(movieId)
             if (!card) return null
@@ -227,15 +244,22 @@ function Arranger({
                 // the closest role there is, and the label says what the keys do.
                 role="button"
                 tabIndex={isPending ? -1 : 0}
-                aria-label={`${card.title}, position ${index + 1} sur ${arrangement.length}. Flèches gauche et droite pour le déplacer.`}
+                aria-label={`${card.title}, position ${index + 1} sur ${arrangement.length}. Flèches pour le déplacer.`}
                 onPointerDown={(event) => beginDrag(event, index)}
                 onPointerMove={continueDrag}
                 onPointerUp={endDrag}
                 onPointerCancel={endDrag}
                 onKeyDown={(event) => moveWithKeyboard(event, index)}
-                style={{ transform: `translateX(${offsetOf(index, drag)}px)` }}
+                // One transform function for both axes, so a card easing back after the drop
+                // interpolates along a straight line rather than between two functions.
+                style={{
+                  transform:
+                    drag?.axis === 'y'
+                      ? `translate(0px, ${offsetOf(index, drag)}px)`
+                      : `translate(${offsetOf(index, drag)}px, 0px)`,
+                }}
                 className={cn(
-                  'min-w-0 flex-1 cursor-grab touch-none select-none border border-ink bg-surface',
+                  'flex min-w-0 cursor-grab touch-none select-none items-center gap-3 border border-ink bg-surface sm:block sm:flex-1',
                   'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent',
                   held
                     ? // No transition on the one under the pointer: it has to track the
@@ -249,18 +273,22 @@ function Arranger({
                     src={card.posterUrl}
                     alt=""
                     draggable={false}
-                    className="aspect-2/3 w-full object-cover grayscale"
+                    className="aspect-2/3 w-12 shrink-0 object-cover grayscale sm:w-full"
                   />
                 ) : (
-                  <span className="block aspect-2/3 w-full bg-surface-2" aria-hidden />
+                  <span className="block aspect-2/3 w-12 shrink-0 bg-surface-2 sm:w-full" aria-hidden />
                 )}
-                <span className="block px-1.5 py-2 text-center font-serif text-xs font-bold leading-tight sm:px-2 sm:text-sm">
+                <span className="block min-w-0 py-2 pr-2 font-serif text-sm font-bold leading-tight sm:px-2 sm:text-center">
                   {card.title}
                 </span>
               </div>
             )
           })}
         </div>
+
+        <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-subtle sm:hidden">
+          &darr; Le plus récent
+        </p>
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-4">
@@ -275,11 +303,16 @@ function Arranger({
   )
 }
 
+/** Across on a wide screen, down on a phone. */
+type Axis = 'x' | 'y'
+
 /** A drag in flight: where it started, the slot it is over, and how far it has travelled. */
 interface Drag {
   from: number
   to: number
-  dx: number
+  axis: Axis
+  /** Distance travelled along the axis. */
+  travel: number
   /** Distance between two slots, so a displaced card knows how far to slide. */
   step: number
 }
@@ -292,7 +325,7 @@ interface Drag {
  */
 function offsetOf(index: number, drag: Drag | null): number {
   if (!drag) return 0
-  if (index === drag.from) return drag.dx
+  if (index === drag.from) return drag.travel
   if (drag.from < drag.to && index > drag.from && index <= drag.to) return -drag.step
   if (drag.to < drag.from && index >= drag.to && index < drag.from) return drag.step
 
@@ -316,13 +349,14 @@ function Solution({ board, status }: { board: TimelineBoard; status: GameStatus 
       </p>
       <h2 className="mt-2 font-serif text-3xl font-black leading-tight">Le bon ordre</h2>
 
-      <ol className="mt-4 flex gap-2 sm:gap-3">
+      {/* Down the page on a phone, like the board it answers, and across from sm. */}
+      <ol className="mt-4 flex flex-col gap-2 sm:flex-row sm:gap-3">
         {(board.solution ?? []).map((movieId) => {
           const card = byId.get(movieId)
 
           return (
-            <li key={movieId} className="min-w-0 flex-1">
-              <Link to={`/movies/${movieId}`} className="block border border-current">
+            <li key={movieId} className="flex min-w-0 items-center gap-3 sm:block sm:flex-1">
+              <Link to={`/movies/${movieId}`} className="block w-12 shrink-0 border border-current sm:w-auto">
                 {card?.posterUrl ? (
                   <img src={card.posterUrl} alt="" className="aspect-2/3 w-full object-cover grayscale" />
                 ) : (
@@ -332,7 +366,7 @@ function Solution({ board, status }: { board: TimelineBoard; status: GameStatus 
                   {card?.releaseYear ?? '—'}
                 </span>
               </Link>
-              <span className="mt-1 block text-center font-serif text-[11px] font-bold leading-tight opacity-70">
+              <span className="block min-w-0 font-serif text-sm font-bold leading-tight opacity-70 sm:mt-1 sm:text-center sm:text-[11px]">
                 {card?.title ?? 'Film inconnu'}
               </span>
             </li>
@@ -411,9 +445,11 @@ function AttemptRow({
                   )}
                 </span>
               </div>
+              {/* From sm only: a phone's column is 40 pixels wide, which cut every title off
+                  mid-word, and the posters and the marks are what a row is read for. */}
               <span
                 className={cn(
-                  'mt-1 block text-center font-serif text-[11px] leading-tight',
+                  'mt-1 hidden text-center font-serif text-[11px] leading-tight sm:block',
                   right ? 'font-bold' : 'font-normal text-subtle'
                 )}
               >

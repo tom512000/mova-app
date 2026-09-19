@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query'
-import { useRef, useState, type KeyboardEvent } from 'react'
+import { useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   fetchActivityStats,
@@ -373,7 +373,8 @@ export function DashboardPage() {
 function ChartHint() {
   return (
     <p className="mt-3 font-mono text-[10px] uppercase tracking-widest text-subtle">
-      Clique une barre pour filtrer les films et séries
+      <span className="touch:hidden">Clique</span>
+      <span className="hidden touch:inline">Touche</span> une barre pour filtrer les films et séries
     </p>
   )
 }
@@ -911,6 +912,26 @@ const ENTRIES_SHOWN = 9
 function Rankings() {
   const [active, setActive] = useState<string>('director')
   const listRef = useRef<HTMLDivElement>(null)
+  const stripRef = useRef<HTMLDivElement>(null)
+  const [isClipped, setIsClipped] = useState(false)
+
+  // Whether segments are still hidden past the right edge. A phone draws the first four and
+  // hides its scrollbar, so without a cue "Production" and "Studios" simply did not exist.
+  useLayoutEffect(() => {
+    const strip = stripRef.current
+    if (!strip) return
+
+    const update = () => setIsClipped(strip.scrollLeft + strip.clientWidth < strip.scrollWidth - 1)
+    update()
+
+    strip.addEventListener('scroll', update, { passive: true })
+    const observer = new ResizeObserver(update)
+    observer.observe(strip)
+    return () => {
+      strip.removeEventListener('scroll', update)
+      observer.disconnect()
+    }
+  }, [])
 
   const ranking = RANKINGS.find((entry) => entry.id === active) ?? RANKINGS[0]
   const { data, isLoading, isError, error } = useQuery({
@@ -957,7 +978,14 @@ function Rankings() {
           them would read as two controls instead of one. The focus ring is drawn inside each
           segment for the same reason today's square is on the heatmap — anything outside the
           box is what this scroll container clips off the first and last of them. */}
-      <div className="overflow-x-auto">
+      {/* The fade is the cue that the strip goes on, and it lifts once the end is reached. */}
+      <div
+        ref={stripRef}
+        className={cn(
+          'overflow-x-auto',
+          isClipped && '[mask-image:linear-gradient(to_right,#000_calc(100%-3rem),transparent)]'
+        )}
+      >
         <div
           ref={listRef}
           role="tablist"

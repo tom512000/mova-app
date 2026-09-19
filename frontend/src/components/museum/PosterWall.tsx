@@ -29,6 +29,9 @@ const LIFT_SCALE = 1.04
 /** A backstop on how much is drawn at once, however wide the window gets. */
 const MAX_COLUMNS = 44
 
+/** How far a press travels before it stops being a click and starts walking the wall. */
+const DRAG_THRESHOLD_PX = 5
+
 interface Props {
   posters: MoviePoster[]
   onFocus: (poster: MoviePoster | null) => void
@@ -139,7 +142,15 @@ export function PosterWall({ posters, onFocus }: Props) {
     return () => element.removeEventListener('wheel', onWheel)
   }, [pan])
 
-  const drag = useRef<{ pointerId: number; x: number; velocity: number; time: number } | null>(null)
+  const drag = useRef<{
+    pointerId: number
+    startX: number
+    x: number
+    velocity: number
+    time: number
+    /** Whether the press has travelled far enough to be a drag rather than a click. */
+    engaged: boolean
+  } | null>(null)
   const glide = useRef<number | null>(null)
 
   const stopGlide = () => {
@@ -152,13 +163,34 @@ export function PosterWall({ posters, onFocus }: Props) {
   const onPointerDown = (event: React.PointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return
     stopGlide()
-    drag.current = { pointerId: event.pointerId, x: event.clientX, velocity: 0, time: performance.now() }
-    event.currentTarget.setPointerCapture(event.pointerId)
+    drag.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      x: event.clientX,
+      velocity: 0,
+      time: performance.now(),
+      engaged: false,
+    }
   }
 
   const onPointerMove = (event: React.PointerEvent<HTMLDivElement>) => {
     const state = drag.current
     if (!state || state.pointerId !== event.pointerId) return
+
+    // Released somewhere the wall never heard about — outside the frame, before any capture.
+    if ((event.buttons & 1) === 0) {
+      drag.current = null
+      return
+    }
+
+    // The pointer is captured only once the press has become a drag. Captured on the way
+    // down, it took the click with it: the click is dispatched to whatever holds the
+    // capture, so it landed on the frame instead of the poster, and no poster ever opened.
+    if (!state.engaged) {
+      if (Math.abs(event.clientX - state.startX) < DRAG_THRESHOLD_PX) return
+      event.currentTarget.setPointerCapture(event.pointerId)
+      state.engaged = true
+    }
 
     const dx = event.clientX - state.x
     const elapsed = Math.max(1, performance.now() - state.time)
@@ -167,10 +199,19 @@ export function PosterWall({ posters, onFocus }: Props) {
     drag.current = { ...state, x: event.clientX, velocity: -dx / elapsed, time: performance.now() }
   }
 
-  const onPointerUp = () => {
+  const onPointerUp = (event: React.PointerEvent<HTMLDivElement>) => {
     const state = drag.current
     drag.current = null
-    if (!state || Math.abs(state.velocity) < 0.05) return
+    if (!state) return
+
+    // A press that never became a drag. With a mouse the poster's own click handles it; a
+    // finger's has to be found here — see tap().
+    if (!state.engaged) {
+      if (event.pointerType !== 'mouse') tap(event.clientX, event.clientY)
+      return
+    }
+
+    if (Math.abs(state.velocity) < 0.05) return
 
     // Momentum, decayed per frame. Without it a long wall takes a dozen drags to cross.
     let velocity = state.velocity * 16
@@ -199,9 +240,49 @@ export function PosterWall({ posters, onFocus }: Props) {
   // exists only to hide where the drawing stops — has nothing left to hide and lifts.
   const hazeOpacity = Math.min(1, (layout.maxOffset - offset) / (layout.columnWidth * 6))
 
+  // Touchscreens have nothing to hover with, so the first tap does what hovering does —
+  // lifts the poster and names it in the cartouche — and a second tap on the same one opens
+  // it. Tracked apart from `hovered`: a tap can focus the button before it is handled, so
+  // `hovered` may already point at the poster by the time the first tap is.
+  const [armed, setArmed] = useState<number | null>(null)
+
+  // When a tap was last handled by tap(), so the click an engine may still deliver to the
+  // poster itself afterwards does not handle the same tap a second time.
+  const lastTapAt = useRef(0)
+
   const focus = (poster: MoviePoster | null, index: number | null) => {
     setHovered(index)
     onFocus(poster)
+    if (index === null) setArmed(null)
+  }
+
+  const open = (poster: MoviePoster, index: number) => {
+    if (armed !== index && window.matchMedia('(hover: none)').matches) {
+      setArmed(index)
+      focus(poster, index)
+      return
+    }
+    navigate(`/movies/${poster.id}`)
+  }
+
+  /**
+   * A tap, resolved by position. Chromium's touch hit-test stops at the tilted layer rather
+   * than descending into the preserve-3d posters on it: the tap and the click after it both
+   * land on the layer, and the poster under the finger never hears about either. Asking for
+   * the element at that point does descend, the way the mouse's hit-test does.
+   */
+  const tap = (x: number, y: number) => {
+    const target = document.elementFromPoint(x, y)?.closest<HTMLElement>('[data-poster]')
+    if (!target) return
+
+    const index = Number(target.dataset.poster)
+    lastTapAt.current = performance.now()
+    open(posters[index], index)
+  }
+
+  const openFromClick = (poster: MoviePoster, index: number) => {
+    if (performance.now() - lastTapAt.current < 700) return
+    open(poster, index)
   }
 
   return (
@@ -211,7 +292,11 @@ export function PosterWall({ posters, onFocus }: Props) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        // A cancelled press is the browser taking over — a vertical scroll, usually — and is
+        // neither a tap nor a throw.
+        onPointerCancel={() => {
+          drag.current = null
+        }}
         onMouseLeave={() => focus(null, null)}
         className="relative h-[62vh] min-h-[340px] cursor-grab touch-pan-y overflow-hidden border border-ink bg-surface-2 active:cursor-grabbing"
         style={{ perspective: `${PERSPECTIVE_PX}px` }}
@@ -238,7 +323,7 @@ export function PosterWall({ posters, onFocus }: Props) {
                 layout={layout}
                 hovered={hovered}
                 onEnter={focus}
-                onOpen={(id) => navigate(`/movies/${id}`)}
+                onOpen={openFromClick}
               />
             ))}
           </div>
@@ -301,7 +386,7 @@ const Column = memo(function Column({
   layout: Layout
   hovered: number | null
   onEnter: (poster: MoviePoster | null, index: number | null) => void
-  onOpen: (id: string) => void
+  onOpen: (poster: MoviePoster, index: number) => void
 }) {
   return (
     <div
@@ -326,7 +411,8 @@ const Column = memo(function Column({
             onMouseEnter={() => onEnter(poster, index)}
             onFocus={() => onEnter(poster, index)}
             onBlur={() => onEnter(null, null)}
-            onClick={() => onOpen(poster.id)}
+            onClick={() => onOpen(poster, index)}
+            data-poster={index}
             title={`${poster.title}${poster.releaseYear ? ` (${poster.releaseYear})` : ''}`}
             className={cn(
               'absolute block overflow-hidden border-2 transition-[transform,filter,opacity,border-color] duration-200 ease-out',

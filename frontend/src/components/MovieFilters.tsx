@@ -90,7 +90,9 @@ export function MovieFilters({
         </div>
       )}
 
-      <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
+      {/* Two columns on a phone rather than a stack: one select under another pushed the
+          first film below the fold, 900 pixels down an 812-pixel screen. */}
+      <div className="grid grid-cols-2 gap-4 sm:flex sm:flex-row sm:flex-wrap sm:items-end sm:gap-x-6">
         <FilterSelect
           label="Type"
           value={state.mediaType}
@@ -149,7 +151,7 @@ export function MovieFilters({
 
         {/* The sort group sits behind a rule: everything left of it narrows the list,
             everything right of it only reorders what is left. */}
-        <div className="flex items-end gap-3 sm:ml-auto sm:border-l sm:border-muted sm:pl-6">
+        <div className="col-span-2 flex items-end gap-3 sm:ml-auto sm:border-l sm:border-muted sm:pl-6">
           <FilterSelect
             label="Trier par"
             value={state.sort}

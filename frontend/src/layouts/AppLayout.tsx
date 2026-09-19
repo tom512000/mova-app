@@ -1,15 +1,16 @@
-import { Suspense, useState } from 'react'
+import { Suspense, useEffect, useId, useState } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
-import { LogOut, Moon, Share2, Sun, UserRound } from 'lucide-react'
+import { LogOut, Menu, Moon, Share2, Sun, UserRound, X } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
 import { useSession } from '@/hooks/useSession'
 import { ProfileSwitcher } from '@/components/ProfileSwitcher'
 import { NavDropdown, type NavDropdownEntry } from '@/components/NavDropdown'
-import { navItemClass } from '@/layouts/navItemClass'
+import { menuItemClass, navItemClass } from '@/layouts/navItemClass'
 import { ShareProfileDialog } from '@/components/ShareProfileDialog'
 import { MovaLogo } from '@/components/MovaLogo'
 import { PageMeta } from '@/components/PageMeta'
 import { SkeletonPage } from '@/components/Skeleton'
+import { cn } from '@/utils/cn'
 
 interface NavLinkItem {
   to: string
@@ -69,8 +70,54 @@ export function AppLayout() {
   const { theme, toggleTheme } = useTheme()
   const { user, activeProfile, isViewingOtherProfile, logout } = useSession()
   const [isSharing, setIsSharing] = useState(false)
+  const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const menuId = useId()
 
   const navItems = NAV_ITEMS.filter((item) => !item.ownerOnly || !isViewingOtherProfile)
+  const closeMenu = () => setIsMenuOpen(false)
+
+  useEffect(() => {
+    if (!isMenuOpen) return
+
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') setIsMenuOpen(false)
+    }
+
+    document.addEventListener('keydown', onKeyDown)
+    return () => document.removeEventListener('keydown', onKeyDown)
+  }, [isMenuOpen])
+
+  /**
+   * The share button, the account and the logout, drawn twice: in the masthead's top rule
+   * from lg up, and at the foot of the menu below that. On a phone the rule could not hold
+   * them — it overflowed at 320 pixels, and each one was a fifteen-pixel-high tap target.
+   */
+  const sessionControls = (itemClassName: string) => (
+    <>
+      <ProfileSwitcher />
+      {!isViewingOtherProfile && (
+        <button
+          type="button"
+          onClick={() => {
+            closeMenu()
+            setIsSharing(true)
+          }}
+          className={itemClassName}
+        >
+          <Share2 className="h-3 w-3" strokeWidth={2} />
+          Partager
+        </button>
+      )}
+      <Link to="/account" onClick={closeMenu} className={itemClassName}>
+        <UserRound className="h-3 w-3" strokeWidth={2} />
+        <span className="max-w-32 truncate">{user?.displayName ?? 'Mon compte'}</span>
+      </Link>
+      <button type="button" onClick={() => void logout()} className={itemClassName}>
+        <LogOut className="h-3 w-3" strokeWidth={2} />
+        Déconnexion
+      </button>
+    </>
+  )
 
   return (
     <div className="min-h-screen bg-paper text-ink">
@@ -79,7 +126,11 @@ export function AppLayout() {
           whole reason it lives at the layout rather than on each screen. */}
       <PageMeta noindex />
 
-      <header className="sticky top-0 z-40 border-b-4 border-ink bg-paper">
+      {/* Sticky from lg only. Below it the full nav wrapped onto three rows and the sticky
+          masthead kept 293 pixels of an 812-pixel phone for itself on every scroll — 57% of
+          a 568-pixel one. The compact bar scrolls away with the page instead, which matters
+          most in the games, where the on-screen keyboard takes the other half. */}
+      <header className="z-40 border-b-4 border-ink bg-paper lg:sticky lg:top-0">
         <div className="mx-auto max-w-screen-xl px-4">
           <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-ink/15 py-1.5 font-mono text-[10px] uppercase tracking-widest text-subtle">
             {/* A masthead names the edition you are holding, and this one is real: it
@@ -94,38 +145,15 @@ export function AppLayout() {
               <span className="hidden sm:inline"> &middot; {EDITION_DATE}</span>
             </span>
 
-            <div className="flex items-center gap-4">
-              <ProfileSwitcher />
-              {!isViewingOtherProfile && (
-                <button
-                  onClick={() => setIsSharing(true)}
-                  className="inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent"
-                >
-                  <Share2 className="h-3 w-3" strokeWidth={2} />
-                  Partager
-                </button>
-              )}
-              <Link
-                to="/account"
-                className="inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent"
-              >
-                <UserRound className="h-3 w-3" strokeWidth={2} />
-                <span className="max-w-32 truncate">{user?.displayName ?? 'Mon compte'}</span>
-              </Link>
-              <button
-                onClick={() => void logout()}
-                className="inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent"
-              >
-                <LogOut className="h-3 w-3" strokeWidth={2} />
-                Déconnexion
-              </button>
+            <div className="hidden items-center gap-4 lg:flex">
+              {sessionControls('inline-flex items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent')}
             </div>
           </div>
 
-          <div className="flex flex-col items-center gap-3 py-3.5 sm:flex-row sm:justify-between sm:gap-4">
-            <div className="flex flex-col items-center sm:items-start">
-              <NavLink to="/" aria-label="Mova, retour au dashboard" className="block">
-                <MovaLogo mark="wordmark" className="h-9 w-auto sm:h-11" />
+          <div className="flex items-center justify-between gap-4 py-3 lg:py-3.5">
+            <div className="flex min-w-0 flex-col items-start">
+              <NavLink to="/" onClick={closeMenu} aria-label="Mova, retour au dashboard" className="block">
+                <MovaLogo mark="wordmark" className="h-9 w-auto lg:h-11" />
               </NavLink>
               {isViewingOtherProfile && activeProfile && (
                 <p className="mt-1 font-mono text-[10px] uppercase tracking-widest text-accent">
@@ -134,8 +162,8 @@ export function AppLayout() {
               )}
             </div>
 
-            <div className="flex flex-wrap items-center justify-center gap-1">
-              <nav className="flex flex-wrap items-center justify-center gap-1" aria-label="Navigation principale">
+            <div className="flex shrink-0 items-center gap-1">
+              <nav className="hidden items-center gap-1 lg:flex" aria-label="Navigation principale">
                 {navItems.map((item) =>
                   'items' in item ? (
                     <NavDropdown
@@ -160,12 +188,71 @@ export function AppLayout() {
               <button
                 onClick={toggleTheme}
                 aria-label={theme === 'dark' ? 'Passer en édition papier (clair)' : 'Passer en édition nuit (sombre)'}
-                className="flex h-10 w-10 items-center justify-center border border-ink text-ink transition-colors duration-200 hover:bg-ink hover:text-paper"
+                className="flex h-11 w-11 items-center justify-center border border-ink text-ink transition-colors duration-200 hover:bg-ink hover:text-paper"
               >
                 {theme === 'dark' ? <Sun className="h-4 w-4" strokeWidth={1.5} /> : <Moon className="h-4 w-4" strokeWidth={1.5} />}
               </button>
+
+              <button
+                type="button"
+                onClick={() => setIsMenuOpen((open) => !open)}
+                aria-expanded={isMenuOpen}
+                aria-controls={menuId}
+                className={cn(
+                  'flex h-11 items-center gap-2 border border-ink px-3 font-sans text-xs font-semibold uppercase tracking-widest transition-colors duration-200 lg:hidden',
+                  isMenuOpen ? 'bg-ink text-paper' : 'text-ink hover:bg-ink hover:text-paper'
+                )}
+              >
+                {isMenuOpen ? <X className="h-4 w-4" strokeWidth={1.5} /> : <Menu className="h-4 w-4" strokeWidth={1.5} />}
+                Menu
+              </button>
             </div>
           </div>
+
+          {/* The same entries as the row above, laid out for a thumb: two columns of
+              44-pixel rows, and the games spelled out as a group of their own rather than
+              behind a dropdown, which has nowhere to open inside a panel this size. */}
+          {isMenuOpen && (
+            <nav id={menuId} aria-label="Navigation principale" className="border-t border-ink/15 pb-3 lg:hidden">
+              <ul className="grid grid-cols-2 gap-x-4 pt-1">
+                {navItems.map((item) =>
+                  'items' in item ? null : (
+                    <li key={item.to}>
+                      <NavLink
+                        to={item.to}
+                        end={item.end}
+                        onClick={closeMenu}
+                        className={({ isActive }) => menuItemClass(isActive)}
+                      >
+                        {item.label}
+                      </NavLink>
+                    </li>
+                  )
+                )}
+              </ul>
+
+              {navItems.map((item) =>
+                'items' in item ? (
+                  <div key={item.label} className="mt-1 border-t border-ink/15 pt-3">
+                    <p className="font-mono text-[10px] uppercase tracking-widest text-subtle">{item.label}</p>
+                    <ul className="grid grid-cols-2 gap-x-4">
+                      {item.items.map((entry) => (
+                        <li key={entry.to}>
+                          <NavLink to={entry.to} onClick={closeMenu} className={({ isActive }) => menuItemClass(isActive)}>
+                            {entry.label}
+                          </NavLink>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null
+              )}
+
+              <div className="mt-1 flex flex-wrap items-center gap-x-5 border-t border-ink/15 pt-1 font-mono text-[10px] uppercase tracking-widest text-subtle">
+                {sessionControls('inline-flex min-h-11 items-center gap-1.5 uppercase tracking-widest transition-colors hover:text-accent')}
+              </div>
+            </nav>
+          )}
         </div>
       </header>
 
