@@ -11,6 +11,8 @@ use App\Entity\ImportBatch;
 use App\Entity\Movie;
 use App\Entity\User;
 use App\Entity\Watch;
+use App\Message\EnrichMovieMessage;
+use App\Message\RebuildCardCatalogueMessage;
 use App\Service\Import\ImportOrchestrator;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -127,7 +129,7 @@ final class ImportOrchestratorTest extends KernelTestCase
         self::getContainer()->get(ImportOrchestrator::class)->process($this->createBatch());
 
         // Two rows carry a usable film; the third has no title and never gets that far.
-        self::assertCount(2, $this->transport()->getSent());
+        self::assertCount(2, $this->enrichmentsSent());
     }
 
     public function testAFilmTheLibraryAlreadyKnowsEverythingAboutIsNotQueuedAgain(): void
@@ -144,7 +146,7 @@ final class ImportOrchestratorTest extends KernelTestCase
 
         self::assertSame(
             [],
-            $this->transport()->getSent(),
+            $this->enrichmentsSent(),
             'an enriched film has nothing to ask TMDB, so it should not cost a message either'
         );
     }
@@ -161,7 +163,7 @@ final class ImportOrchestratorTest extends KernelTestCase
         $this->transport()->reset();
         $orchestrator->process($this->createBatch());
 
-        self::assertSame([], $this->transport()->getSent());
+        self::assertSame([], $this->enrichmentsSent());
     }
 
     public function testAFilmWhoseEnrichmentFailedIsQueuedAgain(): void
@@ -176,7 +178,19 @@ final class ImportOrchestratorTest extends KernelTestCase
         $this->transport()->reset();
         $orchestrator->process($this->createBatch());
 
-        self::assertCount(2, $this->transport()->getSent());
+        self::assertCount(2, $this->enrichmentsSent());
+    }
+
+    public function testAnImportAsksForTheCardCatalogueToBeRescored(): void
+    {
+        $this->transport()->reset();
+        self::getContainer()->get(ImportOrchestrator::class)->process($this->createBatch());
+
+        // Once per import, not once per film: a card's tier is a fact about the whole
+        // catalogue, so there is no such thing as rescoring part of it.
+        $rebuilds = $this->sentOfType(RebuildCardCatalogueMessage::class);
+        self::assertCount(1, $rebuilds);
+        self::assertSame((string) $this->user->getId(), $rebuilds[0]->userId);
     }
 
     private function setStatusOfEveryFilm(EnrichmentStatus $status): void
@@ -185,6 +199,42 @@ final class ImportOrchestratorTest extends KernelTestCase
             $movie->setEnrichmentStatus($status);
         }
         $this->entityManager->flush();
+    }
+
+    /**
+     * The enrichment jobs only.
+     *
+     * An import dispatches more than one kind of message — a rescore of the card catalogue
+     * rides along at the end — and these tests are about which films were queued for TMDB.
+     * Filtering by type rather than counting everything keeps them saying what they mean,
+     * and stops the next message added to the import path from breaking four assertions
+     * that were never about it.
+     *
+     * @return list<EnrichMovieMessage>
+     */
+    private function enrichmentsSent(): array
+    {
+        return $this->sentOfType(EnrichMovieMessage::class);
+    }
+
+    /**
+     * @template T of object
+     *
+     * @param class-string<T> $class
+     *
+     * @return list<T>
+     */
+    private function sentOfType(string $class): array
+    {
+        $messages = [];
+        foreach ($this->transport()->getSent() as $envelope) {
+            $message = $envelope->getMessage();
+            if ($message instanceof $class) {
+                $messages[] = $message;
+            }
+        }
+
+        return $messages;
     }
 
     private function transport(): InMemoryTransport

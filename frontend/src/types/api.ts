@@ -879,3 +879,170 @@ export interface RetrospectivePage {
   availableYears: number[]
   retrospective: Retrospective | null
 }
+
+/* --------------------------------------------------------------- Le Cabinet */
+
+export type CardSubject = 'work' | 'person' | 'studio' | 'franchise'
+
+/** Six tiers, ordered. The French names live in utils/cards.ts with the rest of the copy. */
+export type CardRarity = 'common' | 'uncommon' | 'rare' | 'super_rare' | 'ultra_rare' | 'legendary'
+
+export type CardPackKind = 'free' | 'reel' | 'boxset'
+
+export type CardSetFamily = 'decade' | 'genre' | 'country' | 'studio' | 'franchise'
+
+export type CardFeatFamily = 'collection' | 'completion' | 'economy' | 'speciality'
+
+export type CardFeatKey =
+  | 'collector'
+  | 'pack_rat'
+  | 'first_legendary'
+  | 'completionist'
+  | 'full_house'
+  | 'saga'
+  | 'big_spender'
+  | 'salvage'
+  | 'auteur'
+  | 'mogul'
+
+export interface Card {
+  id: Id
+  subject: CardSubject
+  label: string
+  /** Null for every studio, and for anyone TMDB has no photo of — the face then sets type. */
+  imageUrl: string | null
+  /** Works only. */
+  releaseYear: number | null
+  /** 1 for a work; how many watched works the subject reaches, otherwise. */
+  workCount: number
+  /**
+   * What the card *is*: frozen at the pull, or the live tier while nobody owns it. This is
+   * the one the album, the showcase and every grid display.
+   */
+  rarity: CardRarity
+  /**
+   * What it would be worth in today's catalogue. Differs from `rarity` only once the library
+   * has grown under an owned card — the face says so rather than hiding it.
+   */
+  liveRarity: CardRarity
+  /** 0 to 1 within the card's own subject, 0 being the best. */
+  percentile: number
+  copies: number
+  owned: boolean
+  /** False once the subject left the library: owned, kept, no longer drawable. */
+  inCatalogue: boolean
+  showcasePosition: number | null
+}
+
+export interface CardListResponse {
+  items: Card[]
+  total: number
+  page: number
+  perPage: number
+  /** Only on an unfiltered read — a tally of what a filter excluded is noise. */
+  counts: Record<CardRarity, number> | null
+}
+
+export interface CardFacets {
+  byRarity: Record<CardRarity, number>
+  ownedByRarity: Record<CardRarity, number>
+  bySubject: Record<CardSubject, number>
+  ownedBySubject: Record<CardSubject, number>
+  total: number
+  owned: number
+  outOfCatalogue: number
+}
+
+export interface CardDetail {
+  card: Card
+  score: number
+  catalogueRank: number
+  firstOwnedAt: string | null
+  /** The two tiers disagree: the library grew and the card was re-valued. */
+  revalued: boolean
+}
+
+export interface CardSet {
+  family: CardSetFamily
+  /** The set's identity as the grouping produced it: a decade, a name, or a UUID. */
+  key: string
+  label: string
+  total: number
+  owned: number
+  rarePlus: number
+  ownedRarePlus: number
+  complete: boolean
+  claimed: boolean
+  bonus: number
+  imageUrl: string | null
+}
+
+export interface CardFeat {
+  key: CardFeatKey
+  family: CardFeatFamily
+  /** 0 means not yet won. */
+  level: number
+  value: number
+  currentTier: number
+  /** Null at the top of the ladder. */
+  nextTier: number | null
+}
+
+export interface Cabinet {
+  ownerDisplayName: string
+  workCount: number
+  cardCount: number
+  ownedCount: number
+  minimumWorks: number
+  unlocked: boolean
+  catalogueBuiltAt: string | null
+  /**
+   * The till. Null while viewing somebody else's profile: a collection is worth showing,
+   * the money belongs to whoever is doing the looking.
+   */
+  balance: number | null
+  lifetimeEarned: number | null
+  lifetimeSpent: number | null
+  packsOpened: number | null
+  streakDays: number | null
+  dailyGrantAvailable: boolean | null
+  nextGrantAt: string | null
+  freeSalvageLeft: number | null
+}
+
+export interface PackCard {
+  card: Card
+  isNew: boolean
+  copies: number
+  /** What the duplicate paid, after diminishing returns and the daily cap. 0 if new. */
+  jetons: number
+  /** The pack's last slot, which is the one that guarantees a floor. */
+  wasGuaranteed: boolean
+  /** A pity counter came due — said out loud so a pull that was owed does not read as luck. */
+  wasPity: boolean
+}
+
+export interface PackResult {
+  id: Id
+  kind: CardPackKind
+  cards: PackCard[]
+  cost: number
+  jetonsEarned: number
+  balance: number
+  /** The duplicates in this pack were worth less because the daily cap was reached. */
+  dailyCapReached: boolean
+  openedAt: string
+}
+
+export interface CardShowcase {
+  /** Exactly six entries, gaps included — a slot left empty is not a shorter showcase. */
+  slots: (Card | null)[]
+  ownerDisplayName: string
+}
+
+export interface DailyGrantResult {
+  granted: boolean
+  amount: number
+  balance: number
+  streakDays: number
+}

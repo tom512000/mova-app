@@ -30,6 +30,10 @@ const ImportPage = lazy(() => import('@/pages/ImportPage').then((m) => ({ defaul
 const AccountPage = lazy(() => import('@/pages/AccountPage').then((m) => ({ default: m.AccountPage })))
 const SharePage = lazy(() => import('@/pages/SharePage').then((m) => ({ default: m.SharePage })))
 const BadgesPage = lazy(() => import('@/pages/BadgesPage').then((m) => ({ default: m.BadgesPage })))
+const CabinetPage = lazy(() => import('@/pages/CabinetPage').then((m) => ({ default: m.CabinetPage })))
+const CardAlbumPage = lazy(() => import('@/pages/CardAlbumPage').then((m) => ({ default: m.CardAlbumPage })))
+const CardSetsPage = lazy(() => import('@/pages/CardSetsPage').then((m) => ({ default: m.CardSetsPage })))
+const CardPage = lazy(() => import('@/pages/CardPage').then((m) => ({ default: m.CardPage })))
 const PeoplePage = lazy(() => import('@/pages/PeoplePage').then((m) => ({ default: m.PeoplePage })))
 const PersonPage = lazy(() => import('@/pages/PersonPage').then((m) => ({ default: m.PersonPage })))
 const RetrospectivePage = lazy(() =>
@@ -76,6 +80,10 @@ export function App() {
             <Route path="import" element={<ImportPage />} />
             <Route path="account" element={<AccountPage />} />
             <Route path="badges" element={<BadgesPage />} />
+            <Route path="cabinet" element={<CabinetPage />} />
+            <Route path="cabinet/album" element={<CardAlbumPage />} />
+            <Route path="cabinet/series" element={<CardSetsPage />} />
+            <Route path="cabinet/cartes/:id" element={<CardPage />} />
             <Route path="share/:token" element={<SharePage />} />
 
             {/* Inside the layout, so an unknown address still arrives on a page with a way

@@ -7,6 +7,7 @@ namespace App\Service\Import;
 use App\Entity\Enum\ImportStatus;
 use App\Entity\ImportBatch;
 use App\Message\EnrichMovieMessage;
+use App\Message\RebuildCardCatalogueMessage;
 use App\Repository\MovieRepository;
 use Doctrine\ORM\EntityManagerInterface;
 use Psr\Log\LoggerInterface;
@@ -51,6 +52,11 @@ final class ImportOrchestrator
             foreach ($this->movieRepository->filterNeedingEnrichment($touchedMovieIds) as $movieId) {
                 $this->messageBus->dispatch(new EnrichMovieMessage($movieId));
             }
+
+            // The library just changed, so the card catalogue scored against it is stale.
+            // Dispatched once per import and not once per film: a card's tier is a fact
+            // about the whole catalogue, so there is no such thing as rescoring part of it.
+            $this->messageBus->dispatch(new RebuildCardCatalogueMessage((string) $batch->getUser()->getId()));
         } catch (\Throwable $e) {
             $this->logger->error('Import batch #{id} failed: {message}', [
                 'id' => (string) $batch->getId(),

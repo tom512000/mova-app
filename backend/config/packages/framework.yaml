@@ -21,6 +21,19 @@ framework:
             limit: 5
             interval: '1 hour'
 
+        # Free card packs are unlimited by design, which makes opening one the only write in
+        # this app that anybody can call in a loop without paying for it. Each open runs a
+        # transaction, half a dozen weighted draws and as many updates, so an unthrottled
+        # client could keep the database busy indefinitely.
+        #
+        # Thirty a minute is far more than a person clicking through a five-second reveal can
+        # use, and far less than a script would like. Bucketed per account rather than per
+        # address, because the route requires a session anyway.
+        cabinet_packs:
+            policy: sliding_window
+            limit: 30
+            interval: '1 minute'
+
 when@prod:
     framework:
         # Caddy terminates TLS and proxies /api here, so every request arrives from the

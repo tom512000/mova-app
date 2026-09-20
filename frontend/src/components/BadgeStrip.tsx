@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { Link } from 'react-router-dom'
+import { SectionLink } from '@/components/ui/SectionLink'
 import { BADGE_SUMMARY_KEY, fetchBadgeSummary } from '@/services/badgesService'
 import { useSession } from '@/hooks/useSession'
 import { BadgeStamp } from '@/components/BadgeStamp'
@@ -65,12 +66,7 @@ export function BadgeStrip() {
         <h2 className="font-serif text-2xl font-bold">
           Badges <span className="font-mono text-base font-normal text-subtle">({data.total})</span>
         </h2>
-        <Link
-          to="/badges"
-          className="font-mono text-xs uppercase tracking-widest text-accent underline decoration-2 underline-offset-4 hover:no-underline"
-        >
-          Tout voir
-        </Link>
+        <SectionLink to="/badges">Tout voir</SectionLink>
       </div>
 
       <div className="mt-4 flex flex-wrap items-center gap-3">

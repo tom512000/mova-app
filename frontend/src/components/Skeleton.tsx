@@ -465,3 +465,65 @@ export function SkeletonPage() {
     </div>
   )
 }
+
+/** The album grid, mirroring CardGrid's columns so nothing jumps when it resolves. */
+export function SkeletonCardGrid({ count = 12 }: { count?: number }) {
+  return (
+    <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5 xl:grid-cols-6">
+      {Array.from({ length: count }, (_, index) => (
+        <li key={index}>
+          <Skeleton className="aspect-[2/3] w-full" />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** The Cabinet's hall: masthead, four figures, and the pack shelf. */
+export function SkeletonCabinet() {
+  return (
+    <div className="flex flex-col gap-10">
+      <div className="flex flex-col gap-6 border-b-4 border-ink pb-6">
+        <Skeleton className="h-14 w-64" />
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+          {Array.from({ length: 4 }, (_, index) => (
+            <div key={index} className="flex flex-col gap-2">
+              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-8 w-16" />
+            </div>
+          ))}
+        </div>
+      </div>
+      <SkeletonPackShelf />
+      <SkeletonCardGrid count={6} />
+    </div>
+  )
+}
+
+export function SkeletonPackShelf() {
+  return (
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      {Array.from({ length: 3 }, (_, index) => (
+        <li key={index} className="flex flex-col gap-3 border border-ink/30 p-4">
+          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-11 w-full" />
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+export function SkeletonSetList({ count = 6 }: { count?: number }) {
+  return (
+    <ul className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      {Array.from({ length: count }, (_, index) => (
+        <li key={index} className="flex flex-col gap-3 border border-ink/30 p-4">
+          <Skeleton className="h-5 w-40" />
+          <Skeleton className="h-3 w-24" />
+          <Skeleton className="h-1.5 w-full" />
+        </li>
+      ))}
+    </ul>
+  )
+}

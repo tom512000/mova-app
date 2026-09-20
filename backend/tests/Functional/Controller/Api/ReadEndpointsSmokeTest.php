@@ -79,6 +79,16 @@ final class ReadEndpointsSmokeTest extends WebTestCase
         yield 'people' => ['/api/people'];
         yield 'badges' => ['/api/badges'];
         yield 'trophies' => ['/api/trophies'];
+        // The Cabinet's reads, deliberately exercised against a two-work fixture that is far
+        // below the 500-work gate. That is the assertion worth having: reads answer with a
+        // locked, empty payload, and only opening a pack is gated.
+        yield 'cards' => ['/api/cards'];
+        yield 'card facets' => ['/api/cards/facets'];
+        yield 'card sets' => ['/api/cards/sets'];
+        yield 'card feats' => ['/api/cards/feats'];
+        yield 'card showcase' => ['/api/cards/showcase'];
+        yield 'card recent packs' => ['/api/cards/packs/recent'];
+        yield 'card cabinet' => ['/api/cards/cabinet'];
         yield 'profiles' => ['/api/profiles'];
         yield 'share link' => ['/api/profiles/share-link'];
         yield 'letterboxd profile' => ['/api/profiles/letterboxd'];

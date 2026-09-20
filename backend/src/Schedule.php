@@ -2,6 +2,7 @@
 
 namespace App;
 
+use App\Message\RebuildCardCatalogueMessage;
 use App\Message\SyncLetterboxdRssMessage;
 use App\Repository\UserRepository;
 use Symfony\Component\Scheduler\Attribute\AsSchedule;
@@ -37,6 +38,29 @@ class Schedule implements ScheduleProviderInterface
         foreach ($this->userRepository->findWithRssSyncEnabled() as $user) {
             $schedule->with(
                 RecurringMessage::every('1 hour', new SyncLetterboxdRssMessage((string) $user->getId()))
+            );
+        }
+
+        // A nightly rescore of every card catalogue, whether or not anything came in.
+        //
+        // The import and the RSS sync already queue a rebuild when they change the library,
+        // so this is the safety net rather than the mechanism: enrichment runs per film and
+        // does not know who watched it, so a film whose TMDB data arrived hours after the
+        // import that created it would otherwise keep a score computed from an empty row
+        // until the next import.
+        //
+        // The offset is derived from the account id rather than left at zero. The schedule
+        // is rebuilt on every worker start, so every account's job would otherwise fire in
+        // the same second — which on one machine is a queue and on a busy one is a spike.
+        foreach ($this->userRepository->findAll() as $user) {
+            $schedule->with(
+                RecurringMessage::every(
+                    '1 day',
+                    new RebuildCardCatalogueMessage((string) $user->getId()),
+                    (new \DateTimeImmutable('today 03:00'))->modify(
+                        sprintf('+%d seconds', crc32((string) $user->getId()) % 3600)
+                    )
+                )
             );
         }
 

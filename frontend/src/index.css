@@ -165,3 +165,124 @@ body {
 .dark .hard-shadow-hover:hover {
   box-shadow: 4px 4px 0 0 var(--ink);
 }
+
+/*
+ * Card grounds — the Cabinet's rarity vocabulary.
+ *
+ * Six tiers on a page that is 99% black and white, where --accent is a UI colour and never
+ * carries meaning about data. So rarity escalates through print production values instead:
+ * a flat stock, then a halftone dot field, then a 45-degree hatch, then a crosshatch. Every
+ * one of them is currentColor at low alpha, so they invert with the theme for free and they
+ * still read on the Légendaire's reversed-out stock.
+ *
+ * Documented as a palette extension in the same register as --match-exact: these carry
+ * meaning about data, which is exactly why they are monochrome.
+ */
+.card-ground-halftone {
+  background-image: radial-gradient(color-mix(in srgb, currentColor 35%, transparent) 1px, transparent 1px);
+  background-size: 7px 7px;
+  background-position: 0 0;
+}
+
+.card-ground-hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, currentColor 14%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.card-ground-crosshatch {
+  background-image:
+    repeating-linear-gradient(45deg, color-mix(in srgb, currentColor 16%, transparent) 0 1px, transparent 1px 7px),
+    repeating-linear-gradient(-45deg, color-mix(in srgb, currentColor 16%, transparent) 0 1px, transparent 1px 7px);
+}
+
+/*
+ * The rule that wipes across a Rare or better as it turns over.
+ *
+ * A real one-shot animation and not a transition on a mounted element: as a transition it
+ * arrived at scaleX(1) and simply stayed there, which drew a permanent hairline across the
+ * middle of every Rare card. It has to finish invisible, so the opacity is part of the
+ * keyframes rather than something to be undone afterwards.
+ */
+@keyframes card-rule-wipe {
+  0% { transform: scaleX(0); opacity: 1; }
+  55% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+
+.card-rule-wipe {
+  transform-origin: left center;
+  animation: card-rule-wipe 520ms ease-out 1 both;
+}
+
+/* A single sweep across the ground, spent once when an Ultra Rare turns over. */
+@keyframes card-ground-sweep {
+  from {
+    background-position: -200% 0;
+  }
+  to {
+    background-position: 200% 0;
+  }
+}
+
+.card-sweep {
+  animation: card-ground-sweep 700ms ease-out 1;
+}
+
+/*
+ * The flip. A real CSS 3D rotation rather than two cross-fading images, because a card
+ * turning over is the one moment this feature is actually asking for.
+ *
+ * The click handler belongs on .card-flip's parent and never on a face: Chromium's hit
+ * testing will not descend into preserve-3d children, which is the same trap PosterWall
+ * documents at length.
+ */
+.card-flip {
+  transform-style: preserve-3d;
+  transition: transform 520ms cubic-bezier(0.2, 0.8, 0.25, 1);
+}
+
+.card-flip-face {
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+/* Print misregistration — the Super Rare beat. Two frames of the face drawn off-register,
+   which is a shock native to newsprint and needs no colour at all. */
+@keyframes card-misregister {
+  0% { transform: translate(0, 0); }
+  20% { transform: translate(2px, -2px); }
+  40% { transform: translate(-2px, 1px); }
+  60% { transform: translate(1px, 2px); }
+  100% { transform: translate(0, 0); }
+}
+
+.card-misregister {
+  animation: card-misregister 180ms steps(1, end) 1;
+}
+
+/* The Légendaire stamp: the hard-shadow vocabulary, spent once and loudly. */
+@keyframes card-stamp {
+  0% { box-shadow: 10px 10px 0 0 var(--ink); transform: translate(-5px, -5px); }
+  100% { box-shadow: 0 0 0 0 var(--ink); transform: translate(0, 0); }
+}
+
+.card-stamp {
+  animation: card-stamp 420ms ease-out 1;
+}
+
+/* Every card animation is decoration over data the client already holds, so switching them
+   all off costs nothing but the show. Tailwind's motion-reduce handles the utilities; these
+   are the hand-written keyframes it cannot see. */
+@media (prefers-reduced-motion: reduce) {
+  .card-flip,
+  .card-sweep,
+  .card-misregister,
+  .card-stamp,
+  .card-rule-wipe {
+    animation: none !important;
+    transition: none !important;
+  }
+}

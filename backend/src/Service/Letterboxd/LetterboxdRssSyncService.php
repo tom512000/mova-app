@@ -13,6 +13,7 @@ use App\Entity\User;
 use App\Entity\Watch;
 use App\Exception\LetterboxdRssException;
 use App\Message\EnrichMovieMessage;
+use App\Message\RebuildCardCatalogueMessage;
 use App\Repository\LetterboxdSyncStateRepository;
 use App\Repository\MovieRepository;
 use App\Repository\WatchRepository;
@@ -60,6 +61,13 @@ final class LetterboxdRssSyncService
         try {
             $imported = $this->importNewEntries($user, $username);
             $state->markSuccess($imported);
+
+            // Only when the feed actually brought something. An hourly sync that found
+            // nothing has not changed the library, and rescoring a few thousand cards to
+            // arrive at the identical answer is work nobody asked for.
+            if ($imported > 0) {
+                $this->messageBus->dispatch(new RebuildCardCatalogueMessage((string) $user->getId()));
+            }
         } catch (\Throwable $e) {
             $this->logger->error('Letterboxd RSS sync failed: {message}', ['message' => $e->getMessage(), 'exception' => $e]);
             $state->markFailed($e->getMessage());

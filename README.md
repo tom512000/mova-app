@@ -34,9 +34,10 @@ partage.
   - [Enrichissement TMDB](#11-enrichissement-tmdb)
   - [Synchronisation RSS](#12-synchronisation-rss)
   - [Les jeux](#13-les-jeux)
-  - [Profils partagés](#14-profils-partagés)
-  - [Compte et authentification](#15-compte-et-authentification)
-  - [Identité visuelle](#16-identité-visuelle)
+  - [Le Cabinet](#14-le-cabinet)
+  - [Profils partagés](#15-profils-partagés)
+  - [Compte et authentification](#16-compte-et-authentification)
+  - [Identité visuelle](#17-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -60,10 +61,10 @@ partage.
 | Symfony Scheduler | 7.4 | Tâches récurrentes (synchro RSS horaire) |
 | Doctrine ORM | 3.6.8 | Mapping par attributs |
 | Doctrine DBAL | 4.4.4 | SQL brut pour toutes les agrégations statistiques |
-| Doctrine Migrations | 3.7 | 18 migrations versionnées |
+| Doctrine Migrations | 3.7 | 24 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 522 tests, 2 092 assertions |
+| PHPUnit | 11.5.56 | 619 tests, 23 438 assertions |
 
 ### Frontend
 
@@ -852,7 +853,80 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 14. Profils partagés
+### 14. Le Cabinet
+
+Un jeu de collection de cartes bâti **entièrement sur la bibliothèque du compte**, inspiré de
+[WikiMasters](https://www.wiki-masters.com). Ouvert à partir de **500 œuvres vues**. Quatre sujets
+deviennent des cartes : les films et séries vus, les personnes atteignables par un générique, les
+studios, les sagas.
+
+**La rareté est un rang, pas un seuil.** Chaque carte reçoit un score 0–100, puis son palier vient
+d'une découpe par percentile : 0,6 % de Légendaires, 2,4 % d'Ultra Rares, 5 % de Super Rares, 12 %
+de Rares, 25 % de Peu Communes, 55 % de Communes. Un seuil absolu voudrait dire qu'une petite
+bibliothèque n'a aucune Légendaire et qu'une grande en a des centaines, et que les probabilités
+affichées seraient une promesse différente pour chaque joueur·se. Le rang-puis-coupe donne
+exactement `CEIL(N × part)` cartes par bande, quelle que soit N — c'est ce qui rend les taux
+honnêtes.
+
+**La découpe se fait par sujet.** Les quatre sujets sont scorés sur des échelles incommensurables :
+une carte studio agrège trente-cinq œuvres, une carte film en agrège une, donc le studio sature
+toutes ses courbes logarithmiques pendant que le film n'en maximise jamais plus de deux sur quatre.
+La première calibration sur une bibliothèque réelle de 744 œuvres découpait globalement et a produit
+vingt-neuf Légendaires dont **aucune n'était un film ni une personne** — uniquement des studios et
+des sagas, ce qui est un résultat absurde pour un jeu sur la cinémathèque de quelqu'un. Découper à
+l'intérieur de chaque sujet supprime la question au lieu de la contourner, et l'union retombe sur la
+part annoncée du catalogue.
+
+**Ce que le score regarde.** Pour une œuvre : l'audience TMDB (32 %), la reconnaissance critique
+ramenée vers la moyenne par un a priori bayésien lourd — douze enthousiastes ne font pas un
+chef-d'œuvre (22 %), **ta propre note et tes revisionnages** (28 %), le prestige (18 %). Sur la
+bibliothèque réelle, la note personnelle domine de façon monotone : un film noté 5 finit Super Rare
+ou mieux dans 33 cas sur 52, un film noté 1 reste Commune. Pour une personne, `Person` ne stocke ni
+popularité ni biographie — son rang vient donc entièrement de son empreinte *ici* : combien d'œuvres
+elle touche, à quelle place au générique, et la qualité de ces œuvres.
+
+**Deux raretés par carte, et c'est la décision structurante.** `rarity` flotte avec la bibliothèque,
+parce que les probabilités sont des bandes de percentile et qu'un palier gelé laisserait la bande
+Légendaire dériver jusqu'à ne plus valoir 0,6 % de quoi que ce soit. `owned_rarity` gèle au premier
+tirage, parce qu'une Légendaire tirée en mars qui redeviendrait Rare en juin après un import serait
+une confiscation rétroactive. La collection affiche la gelée ; le doublon est payé sur la vivante.
+
+**L'économie.** Trois paquets — la **Pochette** (gratuite, illimitée, cinq cartes dont une garantie
+au-dessus de Commune), la **Bobine** (500 jetons, une Rare garantie), le **Coffret** (1 500 jetons,
+sept cartes, aucune Commune, une Super Rare garantie). Les paquets gratuits sont vraiment illimités :
+ce qui les tient, ce n'est pas un délai mais trois règles qui ne survivent pas l'une sans l'autre —
+les Ultra Rares et les Légendaires sont **absentes de leur pool** (vérifié deux fois, dans la table
+de probabilités *et* dans le SQL de tirage), elles n'avancent **jamais** la pitié, et les jetons
+récupérés sur leurs doublons **plafonnent à 100 par jour**. Grinder une journée entière rapporte 100 ;
+jouer normalement en rapporte 600. Aucune quantité de clics ne change le 100, ce qui fait
+d'« acheter en grindant » une stratégie strictement dominée. Chaque paquet payant est par ailleurs
+jeton-négatif — on ne recycle jamais un paquet vers son propre prix.
+
+**Les séries et les hauts faits sont dérivés**, comme les badges et pour la même raison : leur
+appartenance vit sur des colonnes que le catalogue joint déjà, et une table stockée dériverait à la
+première correction manquée. La seule chose stockée est de savoir si le bonus a été encaissé, parce
+que cela ne se dérive de rien.
+
+**Six paliers sans couleur.** La feuille de style interdit tout arrondi et le rouge d'accent ne porte
+jamais de sens sur les données, donc la rareté passe par des valeurs de production imprimée, sur
+quatre canaux lisibles indépendamment : le code typographique en cartouche d'angle, le compte de
+pastilles, l'épaisseur du cadre, et la trame de fond qui escalade de la simili à la double hachure.
+L'inversion du papier est réservée à la seule Légendaire — le geste le plus fort de la palette,
+dépensé une fois.
+
+**La vitrine** de six cartes est la seule surface sociale du jeu. Mova n'a ni place de marché ni
+autres joueur·se·s : la seule façon qu'une Légendaire soit vue par quelqu'un d'autre est un profil
+partagé, ce qui est la raison d'être de la vitrine — et pourquoi elle se lit sur le profil consulté
+alors que tout le reste s'écrit sur le compte authentifié.
+
+**Les huit jeux quotidiens alimentent le Cabinet** : chaque tableau gagné vaut 25 jetons, les huit
+dans la même journée en valent 100 de plus. C'est le meilleur rapport de toute l'économie, et
+l'idempotence tient à une contrainte d'unicité sur la session — elle-même adossée à celle qui
+garantissait déjà une partie par tableau et par jour.
+
+---
+
+### 15. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -869,7 +943,7 @@ différemment, pas cinq films de cinq années distinctes.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 15. Compte et authentification
+### 16. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -882,7 +956,7 @@ différemment, pas cinq films de cinq années distinctes.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 16. Identité visuelle
+### 17. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -909,7 +983,7 @@ Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
 ## Modèle de données
 
-20 entités, identifiants **UUID v7** (ordonnables dans le temps).
+25 entités, identifiants **UUID v7** (ordonnables dans le temps).
 
 **Bibliothèque** — `Movie` (films et séries dans une seule table, discriminées par `mediaType`),
 `Genre`, `Country`, `Studio`, `Person`, `Credit` (la personne, l'œuvre, le rôle, l'ordre au
@@ -928,6 +1002,15 @@ saga avec une série qui n'a rien à voir.
 
 **Activité** — `Watch` (un visionnage : date, note, rewatch, critique, spoiler, source, référence
 externe, étiquettes), `Tag`, `WatchlistEntry`.
+
+**Le Cabinet** — `Card` (le catalogue de cartes d'un compte : quatre clés étrangères nullables
+plutôt qu'un identifiant polymorphe, pour qu'un film supprimé emporte sa carte au lieu de laisser
+une ligne qui pointe vers rien ; Postgres autorise les nuls répétés dans un index unique, ce qui
+fait coexister quatre identités partielles dans une table), `CardCabinet` (jetons, compteurs de
+pitié, prime quotidienne — hors de `User`, qui reste l'entité d'identité), `CardPackOpening`,
+`CardSetReward` et `CardGameReward`. Sur ces deux dernières, **la contrainte d'unicité *est*
+l'idempotence** : une récompense réclamée deux fois échoue en base plutôt que d'être gardée par
+une lecture qu'une requête concurrente peut doubler.
 
 **Import** — `ImportBatch`, `ImportRowError`.
 
@@ -958,6 +1041,8 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Personnes** | `GET /people`, `GET /people/{id}`, `GET /people/{id}/filmography` — les deux derniers sont séparés parce que le premier répond depuis la base en quelques millisecondes et que le second attend TMDB. Pas de route de facettes : les métiers sont une énumération fermée que le client connaît déjà, et un aller-retour pour cinq constantes n'en est pas un |
 | **Badges** | `GET /badges` — une seule route pour les deux surfaces : la bande du profil demande les cinq premiers, l'étagère une page complète, éventuellement réduite à une catégorie |
 | **Trophées** | `GET /trophies` — le catalogue entier, gagnés et verrouillés, sans pagination : il y en a quatorze |
+| **Cabinet — lectures** | `GET /cards`, `/cards/facets`, `/cards/sets`, `/cards/feats`, `/cards/showcase`, `/cards/packs/recent`, `/cards/{id}`. Toutes résolvent le *profil consulté* : une vitrine partagée est celle de son propriétaire. Aucune n'applique le seuil des 500 œuvres — en dessous elles répondent 200 avec une charge vide et verrouillée, ce qui est exactement l'état qu'un client doit pouvoir dessiner |
+| **Cabinet — écritures** | `GET /cards/cabinet`, `POST /cards/cabinet/daily`, `POST /cards/cabinet/packs/{free\|reel\|boxset}`, `POST /cards/cabinet/sets/claim`, `PUT /cards/cabinet/showcase`, `POST /cards/cabinet/rebuild`. Toutes résolvent le *compte authentifié* : un `profileId` forgé ne peut pas ouvrir un paquet sur la bibliothèque d'autrui. Le type de paquet est contraint dans la route, donc `packs/mythique` est un 404 et non un refus |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises` (`?upcoming=1` pour compter les films pas encore sortis), `/countries`, `/activity`, `/at-release`, `/discoveries` (`?year=`), `/retrospective` |
 | **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
@@ -1173,7 +1258,7 @@ plus.
 
 ## Qualité
 
-- **522 tests, 2 092 assertions**, répartis en trois couches : unitaires (logique pure —
+- **619 tests, 23 438 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée

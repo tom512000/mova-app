@@ -17,6 +17,7 @@ use App\Mapper\MovieMapper;
 use App\Repository\GameSessionRepository;
 use App\Repository\MovieRepository;
 use App\Repository\WatchRepository;
+use App\Service\Card\CardGameRewardService;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Uid\Uuid;
 
@@ -50,10 +51,17 @@ final class FilmGuessGame
     /**
      * The daily puzzle turns over at midnight in Paris rather than wherever the server
      * happens to be, so "aujourd'hui" means the player's today.
+     *
+     * Public because the Cabinet's daily grant, its free-duplicate cap and its rewards for
+     * winning a board all have to agree with this one about when a day ends — a grant that
+     * renewed at UTC midnight while the boards renewed an hour later would be two different
+     * "todays" in one app, and the bug would file itself the first time somebody played at
+     * half past midnight. CabinetClock reads it rather than restating it.
      */
-    private const PUZZLE_TIMEZONE = 'Europe/Paris';
+    public const PUZZLE_TIMEZONE = 'Europe/Paris';
 
     public function __construct(
+        private readonly CardGameRewardService $gameRewards,
         private readonly EntityManagerInterface $entityManager,
         private readonly GameSessionRepository $sessions,
         private readonly MovieRepository $movies,
@@ -269,6 +277,7 @@ final class FilmGuessGame
         }
 
         $this->entityManager->flush();
+        $this->gameRewards->award($session);
     }
 
     /**
@@ -279,6 +288,7 @@ final class FilmGuessGame
     {
         $session->setBoard([])->finish($status);
         $this->entityManager->flush();
+        $this->gameRewards->award($session);
     }
 
     private function assertOpen(GameSession $session): void
