@@ -113,7 +113,9 @@ export function CabinetPage() {
               />
 
               {opened !== null && (
-                <PackOpener result={opened} onDone={() => setOpened(null)} />
+                // Each pack starts with its own deal and flip state, including when the
+                // previous reveal is still open. Otherwise its face-up cards flash first.
+                <PackOpener key={opened.id} result={opened} onDone={() => setOpened(null)} />
               )}
             </section>
           )}

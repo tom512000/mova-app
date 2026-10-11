@@ -59,7 +59,7 @@ export function CardFace({
         <span
           aria-hidden
           className={cn(
-            'pointer-events-none absolute inset-[3px] border',
+            'pointer-events-none absolute inset-[3px] z-10 border',
             legendary ? 'border-paper/50' : 'border-ink/35'
           )}
         />
@@ -72,7 +72,7 @@ export function CardFace({
               key={corner}
               aria-hidden
               className={cn(
-                'pointer-events-none absolute h-2 w-2',
+                'pointer-events-none absolute z-10 h-2 w-2',
                 legendary ? 'bg-paper' : 'bg-ink',
                 corner
               )}

@@ -916,9 +916,14 @@ que cela ne se dérive de rien.
 **Six paliers sans couleur.** La feuille de style interdit tout arrondi et le rouge d'accent ne porte
 jamais de sens sur les données, donc la rareté passe par des valeurs de production imprimée, sur
 quatre canaux lisibles indépendamment : le code typographique en cartouche d'angle, le compte de
-pastilles, l'épaisseur du cadre, et la trame de fond qui escalade de la simili à la double hachure.
+pastilles, l'épaisseur du cadre, et la trame de fond qui va des rayures à la simili puis à la double
+hachure. Les Peu Communes portent un cadre plus épais et un liseré rayé visible autour des photos.
 L'inversion du papier est réservée à la seule Légendaire — le geste le plus fort de la palette,
 dépensé une fois.
+
+À l'ouverture, les Rares et les paliers supérieurs reçoivent un reflet au-dessus de l'image,
+après le retournement. La secousse et le tampon animent une enveloppe distincte de la rotation,
+et tous ces effets sont désactivés lorsque les mouvements réduits sont demandés.
 
 **La vitrine** de six cartes est la seule surface sociale du jeu. Mova n'a ni place de marché ni
 autres joueur·se·s : la seule façon qu'une Légendaire soit vue par quelqu'un d'autre est un profil

@@ -24,7 +24,7 @@ import type {
  *     signalled;
  *   - the pip count, which stays legible at thumbnail size when a word does not;
  *   - the frame weight, from a hairline to a heavy rule;
- *   - the ground, escalating from flat through halftone and hatch to crosshatch.
+ *   - the ground, escalating from flat through pinstripe, halftone and hatch to crosshatch.
  *
  * Inversion — printing the whole card in negative — is reserved for Légendaire and nothing
  * else. It is the loudest move this palette has, unmistakable at any size, identical in both
@@ -55,7 +55,7 @@ export function rarityRank(rarity: CardRarity): number {
 /** The frame and the stock. Légendaire is the only one printed in negative. */
 export const RARITY_FRAME: Record<CardRarity, string> = {
   common: 'border border-ink/40 bg-surface',
-  uncommon: 'border border-ink bg-surface-2',
+  uncommon: 'border-2 border-ink bg-surface-2',
   rare: 'border-2 border-ink bg-surface',
   super_rare: 'border-2 border-ink bg-surface',
   ultra_rare: 'border-[3px] border-ink bg-surface',
@@ -72,7 +72,7 @@ export const RARITY_FRAME: Record<CardRarity, string> = {
  */
 export const RARITY_GROUND: Record<CardRarity, string> = {
   common: '',
-  uncommon: '',
+  uncommon: 'card-ground-pinstripe',
   rare: 'card-ground-halftone',
   super_rare: 'card-ground-hatch',
   ultra_rare: 'card-ground-crosshatch',
@@ -82,17 +82,16 @@ export const RARITY_GROUND: Record<CardRarity, string> = {
 /**
  * How wide a mat the picture sits in.
  *
- * A hairline for a Rare, a little more for the top tiers — the same thing a better print
- * run buys on a real collectible, and the only reason the ground above is ever visible on a
- * card that has artwork.
+ * Printed edging starts at Peu Commune and grows with the tier. Enough of the texture stays
+ * exposed to identify a card's rarity even when an opaque photo covers the picture area.
  */
 export const RARITY_MAT: Record<CardRarity, string> = {
   common: '',
-  uncommon: '',
-  rare: 'p-[2px]',
-  super_rare: 'p-[3px]',
-  ultra_rare: 'p-[4px]',
-  legendary: 'p-[4px]',
+  uncommon: 'p-[3px]',
+  rare: 'p-[4px]',
+  super_rare: 'p-[5px]',
+  ultra_rare: 'p-[6px]',
+  legendary: 'p-[6px]',
 }
 
 /** Corner squares are the Ultra Rare and Légendaire tell, on top of everything else. */

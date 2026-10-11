@@ -171,8 +171,8 @@ export function PackOpener({
  *
  * The click handler sits on the wrapper and never on a face: Chromium will not hit-test
  * into preserve-3d children, which is the trap PosterWall documents. The beat that plays on
- * landing escalates with the tier and is spent once — a rule wipe at Rare, a print
- * misregistration at Super Rare, a ground sweep at Ultra Rare, and the hard stamp at
+ * reveal escalates with the tier and is spent once — a sheen at Rare, a print
+ * misregistration at Super Rare, a stronger sheen at Ultra Rare, and the hard stamp at
  * Légendaire, which is also the only card printed in negative.
  */
 function RevealedCard({
@@ -193,34 +193,36 @@ function RevealedCard({
         type="button"
         onClick={onFlip}
         aria-label={flipped ? packCard.card.label : 'Retourner la carte'}
-        className="relative block w-full [perspective:1000px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
+        className="card-reveal relative isolate block w-full [perspective:1000px] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent"
       >
         <div
           className={cn(
-            'card-flip relative w-full',
-            flipped && '[transform:rotateY(180deg)]',
-            flipped && rank >= rarityRank('super_rare') && 'card-misregister',
+            'relative z-0 w-full',
+            flipped && rank >= rarityRank('super_rare') && rarity !== 'legendary' && 'card-misregister',
             flipped && rarity === 'legendary' && 'card-stamp'
           )}
         >
-          <div className="card-flip-face">
-            <CardBack />
-          </div>
-          <div className="card-flip-face absolute inset-0 [transform:rotateY(180deg)]">
-            <CardFace
-              card={packCard.card}
-              className={cn(flipped && rank >= rarityRank('ultra_rare') && 'card-sweep')}
-            />
+          {/* Shake and stamp belong outside the rotating layer: their transform keyframes
+              otherwise replace rotateY and briefly turn the card back over. */}
+          <div className={cn('card-flip relative w-full', flipped && '[transform:rotateY(180deg)]')}>
+            <div className="card-flip-face">
+              <CardBack />
+            </div>
+            <div className="card-flip-face absolute inset-0 [transform:rotateY(180deg)]">
+              <CardFace card={packCard.card} />
+            </div>
           </div>
         </div>
 
-        {/* The rule that wipes across from Rare up. One shot, one pixel, no colour — and it
-            has to end invisible, which is the animation's job and not a transition's: as a
-            transition it settled at full width and stayed drawn across the picture. */}
+        {/* Above the entire 3D layer, including opaque artwork. The CSS delay lets the
+            flip finish before the sheen crosses the revealed face, then fades it away. */}
         {flipped && rank >= rarityRank('rare') && (
           <span
             aria-hidden
-            className="card-rule-wipe pointer-events-none absolute inset-x-0 top-1/2 h-px bg-ink"
+            className={cn(
+              'card-reveal-sheen pointer-events-none absolute inset-0 z-10 overflow-hidden',
+              rank >= rarityRank('ultra_rare') && 'card-reveal-sheen-strong'
+            )}
           />
         )}
       </button>

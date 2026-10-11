@@ -171,13 +171,21 @@ body {
  *
  * Six tiers on a page that is 99% black and white, where --accent is a UI colour and never
  * carries meaning about data. So rarity escalates through print production values instead:
- * a flat stock, then a halftone dot field, then a 45-degree hatch, then a crosshatch. Every
+ * a flat stock, then a pinstripe, a halftone dot field, a 45-degree hatch and a crosshatch. Every
  * one of them is currentColor at low alpha, so they invert with the theme for free and they
  * still read on the Légendaire's reversed-out stock.
  *
  * Documented as a palette extension in the same register as --match-exact: these carry
  * meaning about data, which is exactly why they are monochrome.
  */
+.card-ground-pinstripe {
+  background-image: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, currentColor 45%, transparent) 0 1px,
+    transparent 1px 3px
+  );
+}
+
 .card-ground-halftone {
   background-image: radial-gradient(color-mix(in srgb, currentColor 35%, transparent) 1px, transparent 1px);
   background-size: 7px 7px;
@@ -198,37 +206,50 @@ body {
     repeating-linear-gradient(-45deg, color-mix(in srgb, currentColor 16%, transparent) 0 1px, transparent 1px 7px);
 }
 
-/*
- * The rule that wipes across a Rare or better as it turns over.
- *
- * A real one-shot animation and not a transition on a mounted element: as a transition it
- * arrived at scaleX(1) and simply stayed there, which drew a permanent hairline across the
- * middle of every Rare card. It has to finish invisible, so the opacity is part of the
- * keyframes rather than something to be undone afterwards.
- */
-@keyframes card-rule-wipe {
-  0% { transform: scaleX(0); opacity: 1; }
-  55% { transform: scaleX(1); opacity: 1; }
-  100% { transform: scaleX(1); opacity: 0; }
+/* The sheen is an overlay, not a moving background hidden underneath an opaque poster.
+   Start after the flip and end transparent, so no stripe is left across the artwork. */
+.card-reveal {
+  --card-flip-duration: 520ms;
 }
 
-.card-rule-wipe {
-  transform-origin: left center;
-  animation: card-rule-wipe 520ms ease-out 1 both;
+@keyframes card-reveal-sheen {
+  0% { transform: translateX(-150%) skewX(-18deg); opacity: 0; }
+  15% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(400%) skewX(-18deg); opacity: 0; }
 }
 
-/* A single sweep across the ground, spent once when an Ultra Rare turns over. */
-@keyframes card-ground-sweep {
-  from {
-    background-position: -200% 0;
-  }
-  to {
-    background-position: 200% 0;
-  }
+.card-reveal-sheen::before {
+  content: '';
+  position: absolute;
+  top: -20%;
+  left: 0;
+  width: 45%;
+  height: 140%;
+  opacity: 0;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(0 0 0 / 0.12) 20%,
+    rgb(255 255 255 / 0.22) 40%,
+    rgb(255 255 255 / 0.7) 50%,
+    rgb(255 255 255 / 0.22) 60%,
+    transparent
+  );
+  animation: card-reveal-sheen 700ms ease-in-out var(--card-flip-duration) 1 both;
 }
 
-.card-sweep {
-  animation: card-ground-sweep 700ms ease-out 1;
+.card-reveal-sheen-strong::before {
+  width: 60%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgb(0 0 0 / 0.2) 20%,
+    rgb(255 255 255 / 0.4) 40%,
+    rgb(255 255 255 / 0.9) 50%,
+    rgb(255 255 255 / 0.4) 60%,
+    transparent
+  );
 }
 
 /*
@@ -241,7 +262,7 @@ body {
  */
 .card-flip {
   transform-style: preserve-3d;
-  transition: transform 520ms cubic-bezier(0.2, 0.8, 0.25, 1);
+  transition: transform var(--card-flip-duration, 520ms) cubic-bezier(0.2, 0.8, 0.25, 1);
 }
 
 .card-flip-face {
@@ -260,7 +281,7 @@ body {
 }
 
 .card-misregister {
-  animation: card-misregister 180ms steps(1, end) 1;
+  animation: card-misregister 180ms steps(1, end) var(--card-flip-duration) 1;
 }
 
 /* The Légendaire stamp: the hard-shadow vocabulary, spent once and loudly. */
@@ -270,7 +291,7 @@ body {
 }
 
 .card-stamp {
-  animation: card-stamp 420ms ease-out 1;
+  animation: card-stamp 420ms ease-out var(--card-flip-duration) 1;
 }
 
 /* Every card animation is decoration over data the client already holds, so switching them
@@ -278,10 +299,9 @@ body {
    are the hand-written keyframes it cannot see. */
 @media (prefers-reduced-motion: reduce) {
   .card-flip,
-  .card-sweep,
   .card-misregister,
   .card-stamp,
-  .card-rule-wipe {
+  .card-reveal-sheen::before {
     animation: none !important;
     transition: none !important;
   }
