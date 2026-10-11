@@ -4,7 +4,7 @@ import { Badge } from '@/components/ui/Badge'
 import { StarRating } from '@/components/ui/StarRating'
 
 const STATUS_LABEL: Partial<Record<MovieSummary['enrichmentStatus'], string>> = {
-  pending: 'En cours',
+  pending: 'Fiche en attente',
   ambiguous: 'À vérifier',
   failed: 'Échec TMDB',
   excluded: 'Non trouvé sur TMDB',

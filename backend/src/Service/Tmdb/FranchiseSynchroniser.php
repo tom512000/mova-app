@@ -79,8 +79,9 @@ final class FranchiseSynchroniser
     }
 
     /**
-     * Drops the not-yet-flushed cache. Call it after clearing the entity manager, or the
-     * next film would be attached to a Franchise Doctrine has stopped managing.
+     * Releases cached references when a batch explicitly clears the entity manager.
+     * findOrCreate also checks ownership, since Messenger clears Doctrine between messages
+     * without calling this method.
      */
     public function resetCache(): void
     {
@@ -89,7 +90,10 @@ final class FranchiseSynchroniser
 
     private function findOrCreate(int $tmdbId, string $name): Franchise
     {
-        if (isset($this->cache[$tmdbId])) {
+        // A worker keeps this service across messages, but Doctrine clears its entities.
+        // Reload a detached saga rather than attaching it to the next film: flush would
+        // reject that relationship and leave an already-watched film pending forever.
+        if (isset($this->cache[$tmdbId]) && $this->entityManager->contains($this->cache[$tmdbId])) {
             return $this->cache[$tmdbId];
         }
 

@@ -98,6 +98,32 @@ final class FranchiseSynchroniserTest extends KernelTestCase
         $this->synchroniser->attach($this->film('second'), $this->details());
     }
 
+    public function testTwoFilmsOfTheSameSagaCanBeProcessedAcrossAnEntityManagerClear(): void
+    {
+        // Messenger clears Doctrine between messages while this service remains alive.
+        // Army of Thieves succeeded, then Army of the Dead reused its detached saga
+        // and failed at flush, leaving a watched film pending and the saga incomplete.
+        $this->client->expects(self::once())->method('getCollection')->willReturn($this->collection());
+
+        $first = $this->film('premier-message');
+        $franchise = $this->synchroniser->attach($first, $this->details());
+        self::assertNotNull($franchise);
+        $franchiseId = $franchise->getId();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $second = $this->film('second-message');
+        $this->synchroniser->attach($second, $this->details());
+        $secondId = $second->getId();
+        $this->entityManager->flush();
+        $this->entityManager->clear();
+
+        $saved = $this->entityManager->find(Movie::class, $secondId);
+        self::assertNotNull($saved);
+        self::assertTrue($franchiseId->equals($saved->getFranchise()?->getId()));
+        self::assertCount(2, $saved->getFranchise()->getFilms());
+    }
+
     public function testTheSameFilmListedTwiceByTmdbIsStoredOnce(): void
     {
         // Observed on real collections, and the unique index would reject the second row

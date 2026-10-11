@@ -751,6 +751,12 @@ soit 127 titres que la bibliothèque ne contient pas, et c'est cette moitié-là
 ce dernier étant **terminal**. Une entrée confirmée sans correspondance TMDB n'est jamais réessayée,
 ce qui empêche un ré-import de relancer la recherche et de re-choisir un mauvais candidat.
 
+Le badge `pending` indique **« Fiche en attente »** : il concerne les informations du film,
+pas son visionnage. Le cache des sagas ne réutilise que les entités encore gérées par Doctrine ;
+après la remise à zéro entre deux messages, la saga est relue en base. Sans cette vérification,
+le deuxième film d'une même saga pouvait rester en attente malgré son visionnage enregistré,
+et apparaître à tort dans les films manquants.
+
 **Neuf commandes de maintenance** accompagnent le pipeline : audit des correspondances existantes,
 forçage manuel d'un identifiant, remise à l'état ambigu, exclusion définitive, relance des échecs,
 rattrapage des studios, rattrapage des dates de sortie françaises, rattrapage des
