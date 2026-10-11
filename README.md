@@ -1155,6 +1155,11 @@ demande jamais qu'un `/api` relatif. `SITE_ADDRESS` décide seul du schéma : un
 un certificat Let's Encrypt, `localhost` en obtient un de l'autorité interne de Caddy — ce qui
 permet d'essayer la stack de production sur sa propre machine.
 
+**Cache du frontend.** Toutes les pages du SPA sont revalidées, y compris les accès directs
+comme `/cabinet`. Les fichiers présents dans `/assets/` sont immuables et conservés un an ;
+un fichier absent renvoie une erreur 404 non stockable, sans repli vers `index.html`.
+Cela évite de mettre du HTML en cache à la place d'un ancien fichier CSS ou JavaScript.
+
 **Les services**
 
 | Service | Rôle |

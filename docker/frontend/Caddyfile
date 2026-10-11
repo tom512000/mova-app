@@ -35,17 +35,20 @@
 		}
 	}
 
-	handle {
-		# Hashed filenames, so the file at a given URL can never change. A year is the
-		# maximum the specification allows and the correct answer whenever the name carries
-		# the hash.
-		@immutable path /assets/*
-		header @immutable Cache-Control "public, max-age=31536000, immutable"
+	# Assets never use the SPA fallback. A URL from an older deploy must return a 404,
+	# not index.html cached as CSS or JavaScript for a year.
+	handle /assets/* {
+		header Cache-Control "no-store"
+		header Cache-Control "public, max-age=31536000, immutable" {
+			match status 2xx 304
+		}
+		file_server
+	}
 
-		# The opposite case: index.html is what points at the hashed files, so a cached copy
-		# of it pins a visitor to the previous deploy.
-		@html path / /index.html
-		header @html Cache-Control "no-cache"
+	handle {
+		# All SPA routes serve index.html, including /cabinet or /films. Revalidate every
+		# entry point so a cached page cannot keep pointing at a previous deploy's assets.
+		header Cache-Control "no-cache"
 
 		# The share tokens, from the client's side. These pages are reachable only with the
 		# token, but a header costs nothing and does not depend on the client running our JS.
