@@ -19,6 +19,20 @@ use App\Exception\ImportException;
 final class ExportArchiveReader
 {
     /**
+     * Folders left out of the inventory altogether, not merely left unread.
+     *
+     * deleted/ holds what the account owner removed on Letterboxd themselves. Importing it
+     * would undo their own decision, so there is no importer to write for it, and a line per
+     * file would only keep asking a question that already has its answer.
+     *
+     * orphaned/ is undocumented by Letterboxd. Its files mirror the root diary/reviews/
+     * comments columns, and the likeliest reading is entries whose film has since left the
+     * Letterboxd catalogue — a film with no page there has no slug to resolve and nothing
+     * for TMDB enrichment to start from, so it would never become a usable library entry.
+     */
+    private const HIDDEN_FOLDERS = ['deleted/', 'orphaned/'];
+
+    /**
      * @return list<ExportArchiveEntry> every file in the archive, root first, then by path
      *
      * @throws ImportException when the archive cannot be opened at all
@@ -35,7 +49,7 @@ final class ExportArchiveReader
             for ($i = 0; $i < $zip->numFiles; ++$i) {
                 $entryName = $zip->getNameIndex($i);
                 // A trailing slash is a folder, not a file: its contents get their own entries.
-                if (false === $entryName || str_ends_with($entryName, '/')) {
+                if (false === $entryName || str_ends_with($entryName, '/') || $this->isHidden($entryName)) {
                     continue;
                 }
 
@@ -48,6 +62,18 @@ final class ExportArchiveReader
         usort($entries, static fn (ExportArchiveEntry $a, ExportArchiveEntry $b) => [substr_count($a->path, '/'), $a->path] <=> [substr_count($b->path, '/'), $b->path]);
 
         return $entries;
+    }
+
+    private function isHidden(string $entryName): bool
+    {
+        $path = ltrim($entryName, '/');
+        foreach (self::HIDDEN_FOLDERS as $folder) {
+            if (str_starts_with($path, $folder)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function entryFor(string $zipPath, string $entryName, string $sessionDir): ExportArchiveEntry

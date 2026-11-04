@@ -90,7 +90,8 @@ final class ImportControllerTest extends WebTestCase
         // Every file, read or not, root first. The upload used to name only the root CSVs no
         // importer matched — comments.csv — while the subfolders and the .txt vanished
         // before anything could report them: fourteen files out of twenty-one on a real
-        // export. The folder entry itself is not a file and does not get a line.
+        // export. The folder entry itself is not a file and does not get a line, and
+        // deleted/ and orphaned/ are hidden outright: neither will ever be imported.
         self::assertSame(
             [
                 'comments.csv' => 'unsupported',
@@ -98,9 +99,7 @@ final class ImportControllerTest extends WebTestCase
                 'notes-perso.txt' => 'ignored',
                 'profile.csv' => 'queued',
                 'ratings.csv' => 'queued',
-                'deleted/diary.csv' => 'ignored',
                 'lists/a-voir.csv' => 'ignored',
-                'orphaned/reviews.csv' => 'ignored',
             ],
             array_column($files, 'status', 'path')
         );
@@ -289,7 +288,7 @@ final class ImportControllerTest extends WebTestCase
     /**
      * A miniature export: three files the registry knows, one it does not, a non-CSV, and
      * three in subfolders — Letterboxd really does ship deleted/diary.csv and
-     * orphaned/reviews.csv, and neither must be taken for the real one. The explicit folder entry is there because some zip tools
+     * orphaned/reviews.csv, and neither must be taken for the real one nor be listed at all. The explicit folder entry is there because some zip tools
      * write one and some do not.
      */
     private function buildExportZip(): string
