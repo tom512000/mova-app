@@ -4,11 +4,17 @@ declare(strict_types=1);
 
 namespace App\Controller\Api;
 
+use App\DTO\ImportFileReportDto;
+use App\Entity\Enum\ImportFileStatus;
+use App\Entity\Enum\ImportFileType;
 use App\Entity\ImportBatch;
 use App\Exception\ImportException;
 use App\Mapper\ImportBatchMapper;
 use App\Message\ProcessImportBatchMessage;
 use App\Repository\ImportBatchRepository;
+use App\Service\Import\CsvReader;
+use App\Service\Import\ExportArchiveEntry;
+use App\Service\Import\ExportArchiveReader;
 use App\Service\Import\ImporterRegistry;
 use App\Service\Profile\ViewedProfileResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -34,6 +40,8 @@ final class ImportController
         private readonly MessageBusInterface $messageBus,
         private readonly ImportBatchRepository $importBatchRepository,
         private readonly ImportBatchMapper $importBatchMapper,
+        private readonly ExportArchiveReader $archiveReader,
+        private readonly CsvReader $csvReader,
         #[Autowire('%kernel.project_dir%/var/imports')]
         private readonly string $importStorageDir,
     ) {
@@ -66,27 +74,36 @@ final class ImportController
         }
 
         try {
-            $csvFiles = 'zip' === $extension
-                ? $this->extractZip($file, $sessionDir)
-                : [$file->getClientOriginalName() => $file->move($sessionDir, $file->getClientOriginalName())->getPathname()];
+            $entries = 'zip' === $extension
+                ? $this->archiveReader->read($file->move($sessionDir, 'export.zip')->getPathname(), $sessionDir)
+                : [ExportArchiveEntry::extracted(
+                    $file->getClientOriginalName(),
+                    $file->move($sessionDir, $file->getClientOriginalName())->getPathname()
+                )];
         } catch (ImportException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
         $batches = [];
-        $unsupported = [];
+        $files = [];
 
-        foreach ($csvFiles as $originalName => $path) {
-            try {
-                $importer = $this->importerRegistry->resolve($originalName, $path);
-            } catch (ImportException) {
-                $unsupported[] = $originalName;
+        foreach ($entries as $entry) {
+            if (null === $entry->storedPath) {
+                $files[] = $this->report($entry, ImportFileStatus::IGNORED, null, $entry->ignoredBecause);
                 continue;
             }
 
-            $batch = new ImportBatch($user, $originalName, $path, $importer->getFileType());
+            try {
+                $importer = $this->importerRegistry->resolve($entry->path, $entry->storedPath);
+            } catch (ImportException) {
+                $files[] = $this->report($entry, ImportFileStatus::UNSUPPORTED, null, 'Aucun importeur ne reconnaît encore ce fichier.');
+                continue;
+            }
+
+            $batch = new ImportBatch($user, $entry->path, $entry->storedPath, $importer->getFileType());
             $this->entityManager->persist($batch);
             $batches[] = $batch;
+            $files[] = $this->report($entry, ImportFileStatus::QUEUED, $importer->getFileType(), null);
         }
 
         $this->entityManager->flush();
@@ -102,7 +119,9 @@ final class ImportController
 
         return new JsonResponse([
             'batches' => array_map($this->importBatchMapper->toDto(...), $batches),
-            'unsupportedFiles' => $unsupported,
+            // Every file the upload contained, read or not — not just the ones that failed
+            // to match. See ExportArchiveReader for what used to go missing.
+            'files' => $files,
         ], Response::HTTP_ACCEPTED);
     }
 
@@ -126,40 +145,24 @@ final class ImportController
     }
 
     /**
-     * @return array<string, string> original filename => extracted absolute path
+     * A CSV that cannot be read still gets its line, with no columns: the inventory is
+     * there to account for every file, and a file it could not open is one more thing to
+     * account for rather than a reason to fail the upload.
      */
-    private function extractZip(UploadedFile $file, string $sessionDir): array
+    private function report(ExportArchiveEntry $entry, ImportFileStatus $status, ?ImportFileType $fileType, ?string $reason): ImportFileReportDto
     {
-        $zipPath = $file->move($sessionDir, 'export.zip')->getPathname();
+        $columns = [];
+        $rowCount = null;
 
-        $zip = new \ZipArchive();
-        if (true !== $zip->open($zipPath)) {
-            throw new ImportException('Impossible de lire l\'archive ZIP.');
+        if (null !== $entry->readablePath) {
+            try {
+                $columns = array_values(array_filter($this->csvReader->readHeader($entry->readablePath), static fn (string $column) => '' !== $column));
+                $rowCount = $this->csvReader->countDataRows($entry->readablePath);
+            } catch (ImportException) {
+                $reason ??= 'Fichier illisible.';
+            }
         }
 
-        $extracted = [];
-        for ($i = 0; $i < $zip->numFiles; ++$i) {
-            $entryName = $zip->getNameIndex($i);
-            if (null === $entryName || !str_ends_with(strtolower($entryName), '.csv')) {
-                continue;
-            }
-
-            // Root-level files only: a real Letterboxd export also ships deleted/, orphaned/,
-            // likes/ and lists/ subfolders that reuse the same basenames (e.g. deleted/diary.csv,
-            // orphaned/reviews.csv, likes/films.csv) — extracting by basename alone would let
-            // those silently overwrite the real root diary.csv/ratings.csv/reviews.csv/watched.csv.
-            if (str_contains(trim($entryName, '/'), '/')) {
-                continue;
-            }
-
-            $basename = basename($entryName);
-            $destination = sprintf('%s/%s', $sessionDir, $basename);
-            copy(sprintf('zip://%s#%s', $zipPath, $entryName), $destination);
-            $extracted[$basename] = $destination;
-        }
-
-        $zip->close();
-
-        return $extracted;
+        return new ImportFileReportDto($entry->path, $status, $fileType, $reason, $columns, $rowCount);
     }
 }

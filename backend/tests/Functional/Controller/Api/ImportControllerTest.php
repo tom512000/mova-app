@@ -72,10 +72,6 @@ final class ImportControllerTest extends WebTestCase
         $payload = $this->upload();
 
         self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
-        // comments.csv is a real file in a Letterboxd export that nothing here reads, so it
-        // comes back named rather than silently dropped. The .txt never appears at all —
-        // only CSVs are pulled out of the archive in the first place.
-        self::assertSame(['comments.csv'], $payload['unsupportedFiles']);
 
         $filenames = array_column($payload['batches'], 'filename');
         sort($filenames);
@@ -85,6 +81,74 @@ final class ImportControllerTest extends WebTestCase
             // A UUID and not a number — the shape the whole chain below has to agree on.
             self::assertTrue(Uuid::isValid((string) $batch['id']), 'a batch id must be a UUID');
         }
+    }
+
+    public function testTheInventoryAccountsForEveryFileInTheArchive(): void
+    {
+        $files = $this->upload()['files'];
+
+        // Every file, read or not, root first. The upload used to name only the root CSVs no
+        // importer matched — comments.csv — while the subfolders and the .txt vanished
+        // before anything could report them: fourteen files out of twenty-one on a real
+        // export. The folder entry itself is not a file and does not get a line.
+        self::assertSame(
+            [
+                'comments.csv' => 'unsupported',
+                'diary.csv' => 'queued',
+                'notes-perso.txt' => 'ignored',
+                'profile.csv' => 'queued',
+                'ratings.csv' => 'queued',
+                'deleted/diary.csv' => 'ignored',
+                'lists/a-voir.csv' => 'ignored',
+                'orphaned/reviews.csv' => 'ignored',
+            ],
+            array_column($files, 'status', 'path')
+        );
+    }
+
+    public function testAnUnreadFileStillSaysWhatItHolds(): void
+    {
+        $files = array_column($this->upload()['files'], null, 'path');
+
+        // Columns and row count are the point for the files nothing reads: deciding whether
+        // one deserves an importer starts with knowing what is in it.
+        self::assertSame(['Date', 'Comment'], $files['comments.csv']['columns']);
+        self::assertSame(1, $files['comments.csv']['rowCount']);
+        self::assertNull($files['comments.csv']['fileType']);
+        self::assertNotNull($files['comments.csv']['reason']);
+
+        // Read from inside the archive, never extracted: a subfolder file can share its
+        // basename with a root one, and extracting it would overwrite that one.
+        self::assertSame(['Letterboxd list export v7'], $files['lists/a-voir.csv']['columns']);
+        self::assertSame(1, $files['lists/a-voir.csv']['rowCount']);
+        self::assertStringContainsString('lists/', (string) $files['lists/a-voir.csv']['reason']);
+
+        self::assertSame([], $files['notes-perso.txt']['columns']);
+        self::assertNull($files['notes-perso.txt']['rowCount']);
+
+        self::assertSame('diary', $files['diary.csv']['fileType']);
+        self::assertNull($files['diary.csv']['reason']);
+    }
+
+    public function testASingleCsvIsAnInventoryOfOne(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'comments');
+        file_put_contents($path, "Date,Comment\n2024-01-01,rien a voir\n");
+
+        try {
+            $this->client->request(
+                'POST',
+                '/api/import/letterboxd',
+                files: ['file' => new UploadedFile($path, 'comments.csv', 'text/csv', test: true)]
+            );
+        } finally {
+            @unlink($path);
+        }
+
+        self::assertResponseStatusCodeSame(Response::HTTP_ACCEPTED);
+        $payload = $this->json();
+        self::assertSame([], $payload['batches']);
+        self::assertSame(['comments.csv' => 'unsupported'], array_column($payload['files'], 'status', 'path'));
     }
 
     public function testAnArchiveThatIsNotOneIsRefused(): void
@@ -223,9 +287,10 @@ final class ImportControllerTest extends WebTestCase
     }
 
     /**
-     * A miniature export: two files the registry knows, one it does not, and one in a
-     * subfolder — Letterboxd really does ship deleted/diary.csv, and it must not be taken
-     * for the real one.
+     * A miniature export: three files the registry knows, one it does not, a non-CSV, and
+     * three in subfolders — Letterboxd really does ship deleted/diary.csv and
+     * orphaned/reviews.csv, and neither must be taken for the real one. The explicit folder entry is there because some zip tools
+     * write one and some do not.
      */
     private function buildExportZip(): string
     {
@@ -254,6 +319,12 @@ final class ImportControllerTest extends WebTestCase
             'deleted/diary.csv',
             "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Tags,Watched Date\n2020-01-01,Supprime,1999,https://letterboxd.com/johndoe/film/supprime/,1,,,2020-01-01\n"
         );
+        $zip->addFromString(
+            'orphaned/reviews.csv',
+            "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review\n2021-05-02,Orphelin,2001,https://letterboxd.com/johndoe/film/orphelin/,3,,Texte\n"
+        );
+        $zip->addEmptyDir('lists');
+        $zip->addFromString('lists/a-voir.csv', "Letterboxd list export v7\nDate,Name,Tags,URL,Description\n");
         $zip->close();
 
         return $path;

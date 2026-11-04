@@ -4,12 +4,13 @@ import { RefreshCw, UploadCloud } from 'lucide-react'
 import { fetchImportBatches, uploadLetterboxdExport } from '@/services/importService'
 import { fetchSyncState, triggerSync, updateSyncSettings } from '@/services/syncService'
 import { ImportBatchRow } from '@/components/ImportBatchRow'
+import { ImportFileInventory } from '@/components/ImportFileInventory'
 import { ErrorState } from '@/components/ErrorState'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 import { TextField } from '@/components/ui/TextField'
 import { apiErrorMessage, apiFieldErrors } from '@/utils/apiError'
-import type { ImportBatch, SyncState } from '@/types/api'
+import type { ImportBatch, ImportFileReport, SyncState } from '@/types/api'
 import { cn } from '@/utils/cn'
 import { PageMeta } from '@/components/PageMeta'
 import { SkeletonImportHistory, SkeletonSyncPanel } from '@/components/Skeleton'
@@ -17,7 +18,7 @@ import { SkeletonImportHistory, SkeletonSyncPanel } from '@/components/Skeleton'
 export function ImportPage() {
   const [dragOver, setDragOver] = useState(false)
   const [sessionBatches, setSessionBatches] = useState<ImportBatch[]>([])
-  const [unsupported, setUnsupported] = useState<string[]>([])
+  const [uploadedFiles, setUploadedFiles] = useState<ImportFileReport[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
   const queryClient = useQueryClient()
 
@@ -27,7 +28,7 @@ export function ImportPage() {
     mutationFn: uploadLetterboxdExport,
     onSuccess: (data) => {
       setSessionBatches(data.batches)
-      setUnsupported(data.unsupportedFiles)
+      setUploadedFiles(data.files)
       queryClient.invalidateQueries({ queryKey: ['import', 'history'] })
     },
   })
@@ -77,11 +78,7 @@ export function ImportPage() {
       {upload.isPending && <p className="font-mono text-xs uppercase tracking-widest text-subtle">Envoi en cours&hellip;</p>}
       {upload.isError && <ErrorState message={(upload.error as Error).message} />}
 
-      {unsupported.length > 0 && (
-        <div className="border border-accent bg-accent/5 p-3 font-mono text-xs text-accent">
-          Fichiers ignorés (pas encore pris en charge) : {unsupported.join(', ')}
-        </div>
-      )}
+      {uploadedFiles.length > 0 && <ImportFileInventory files={uploadedFiles} />}
 
       {sessionBatches.length > 0 && (
         <section className="flex flex-col gap-3">

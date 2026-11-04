@@ -13,6 +13,11 @@ export type MediaType = 'movie' | 'series'
  */
 export type Id = string
 export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'profile' | 'list'
+/**
+ * What an upload did with one of its files. `unsupported` was offered to every importer and
+ * none matched; `ignored` was never offered — a subfolder, or not a CSV.
+ */
+export type ImportFileStatus = 'queued' | 'unsupported' | 'ignored'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 
 export interface SyncState {
@@ -502,9 +507,24 @@ export interface ImportBatch {
   errorsSample: ImportRowErrorItem[]
 }
 
+/** One file of an uploaded export, read or not. */
+export interface ImportFileReport {
+  /** Where it sits in the archive, e.g. `likes/films.csv`. */
+  path: string
+  status: ImportFileStatus
+  /** Set only when an importer took it. */
+  fileType: ImportFileType | null
+  /** Why it was not read. Null for a queued file. */
+  reason: string | null
+  /** Header row; empty for anything that is not a CSV. */
+  columns: string[]
+  rowCount: number | null
+}
+
 export interface ImportUploadResponse {
   batches: ImportBatch[]
-  unsupportedFiles: string[]
+  /** Every file the upload contained, root first. */
+  files: ImportFileReport[]
 }
 
 export interface AuthUser {
