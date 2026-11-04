@@ -75,7 +75,7 @@ final class ImportControllerTest extends WebTestCase
 
         $filenames = array_column($payload['batches'], 'filename');
         sort($filenames);
-        self::assertSame(['diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
+        self::assertSame(['diary.csv', 'lists/a-voir.csv', 'lists/diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
 
         foreach ($payload['batches'] as $batch) {
             // A UUID and not a number — the shape the whole chain below has to agree on.
@@ -99,10 +99,29 @@ final class ImportControllerTest extends WebTestCase
                 'notes-perso.txt' => 'ignored',
                 'profile.csv' => 'queued',
                 'ratings.csv' => 'queued',
-                'lists/a-voir.csv' => 'ignored',
+                'likes/films.csv' => 'ignored',
+                'lists/a-voir.csv' => 'queued',
+                'lists/diary.csv' => 'queued',
             ],
             array_column($files, 'status', 'path')
         );
+    }
+
+    public function testAListNamedLikeARootFileDoesNotReplaceIt(): void
+    {
+        $payload = $this->upload();
+        $batches = array_column($payload['batches'], null, 'filename');
+
+        // Each kept its own file on disk: the list in a lists/ folder of its own, the real
+        // diary where it was — extracting by basename would have had one overwrite the other.
+        self::assertSame('diary', $batches['diary.csv']['fileType']);
+        self::assertSame('list', $batches['lists/diary.csv']['fileType']);
+
+        $diary = $this->batch((string) $batches['diary.csv']['id']);
+        $list = $this->batch((string) $batches['lists/diary.csv']['id']);
+        self::assertNotSame($diary->getStoredPath(), $list->getStoredPath());
+        self::assertStringStartsWith('Date,Name,Year,Letterboxd URI,Rating,Rewatch', (string) file_get_contents($diary->getStoredPath()));
+        self::assertStringStartsWith('Letterboxd list export', (string) file_get_contents($list->getStoredPath()));
     }
 
     public function testAnUnreadFileStillSaysWhatItHolds(): void
@@ -116,11 +135,15 @@ final class ImportControllerTest extends WebTestCase
         self::assertNull($files['comments.csv']['fileType']);
         self::assertNotNull($files['comments.csv']['reason']);
 
-        // Read from inside the archive, never extracted: a subfolder file can share its
-        // basename with a root one, and extracting it would overwrite that one.
-        self::assertSame(['Letterboxd list export v7'], $files['lists/a-voir.csv']['columns']);
-        self::assertSame(1, $files['lists/a-voir.csv']['rowCount']);
-        self::assertStringContainsString('lists/', (string) $files['lists/a-voir.csv']['reason']);
+        // Read from inside the archive, never extracted: likes/films.csv has the very columns
+        // of watched.csv, and nothing should be importing it by accident.
+        self::assertSame(['Date', 'Name', 'Year', 'Letterboxd URI'], $files['likes/films.csv']['columns']);
+        self::assertSame(1, $files['likes/films.csv']['rowCount']);
+        self::assertStringContainsString('likes/', (string) $files['likes/films.csv']['reason']);
+
+        // A list counts its films, not its lines — the same figure its progress bar will use.
+        self::assertSame('list', $files['lists/a-voir.csv']['fileType']);
+        self::assertSame(2, $files['lists/a-voir.csv']['rowCount']);
 
         self::assertSame([], $files['notes-perso.txt']['columns']);
         self::assertNull($files['notes-perso.txt']['rowCount']);
@@ -180,7 +203,7 @@ final class ImportControllerTest extends WebTestCase
             static fn ($envelope) => $envelope->getMessage(),
             $transport->getSent()
         );
-        self::assertCount(3, $messages);
+        self::assertCount(5, $messages);
 
         foreach ($messages as $message) {
             self::assertInstanceOf(ProcessImportBatchMessage::class, $message);
@@ -205,8 +228,9 @@ final class ImportControllerTest extends WebTestCase
         // A single sequential worker consumes these in order, and RatingsImporter's backfill
         // depends on the diary already being in. profile.csv goes last so its favourites find
         // films that already carry a title. The sort in the controller is the only thing
-        // holding either, so it is worth pinning.
-        self::assertSame(['diary.csv', 'ratings.csv', 'profile.csv'], $order);
+        // holding either, so it is worth pinning. The lists come after everything, so the
+        // films they name are already in the library with a title when they arrive.
+        self::assertSame(['diary.csv', 'ratings.csv', 'profile.csv', 'lists/a-voir.csv', 'lists/diary.csv'], $order);
     }
 
     public function testABatchCanBeFollowedByItsId(): void
@@ -249,7 +273,7 @@ final class ImportControllerTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $filenames = array_column($this->json(), 'filename');
         sort($filenames);
-        self::assertSame(['diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
+        self::assertSame(['diary.csv', 'lists/a-voir.csv', 'lists/diary.csv', 'profile.csv', 'ratings.csv'], $filenames);
     }
 
     public function testAnUnreadableUploadIsRefusedRatherThanStored(): void
@@ -286,10 +310,10 @@ final class ImportControllerTest extends WebTestCase
     }
 
     /**
-     * A miniature export: three files the registry knows, one it does not, a non-CSV, and
-     * three in subfolders — Letterboxd really does ship deleted/diary.csv and
-     * orphaned/reviews.csv, and neither must be taken for the real one nor be listed at all. The explicit folder entry is there because some zip tools
-     * write one and some do not.
+     * A miniature export: three root files the registry knows, one it does not, a non-CSV,
+     * two lists, and three other subfolder files. Letterboxd really does ship deleted/diary.csv
+     * and orphaned/reviews.csv, and neither must be taken for the real one nor be listed at
+     * all. The explicit folder entry is there because some zip tools write one and some do not.
      */
     private function buildExportZip(): string
     {
@@ -322,11 +346,27 @@ final class ImportControllerTest extends WebTestCase
             'orphaned/reviews.csv',
             "Date,Name,Year,Letterboxd URI,Rating,Rewatch,Review\n2021-05-02,Orphelin,2001,https://letterboxd.com/johndoe/film/orphelin/,3,,Texte\n"
         );
+        $zip->addFromString('likes/films.csv', "Date,Name,Year,Letterboxd URI\n2024-02-02,Heat,1995,https://letterboxd.com/johndoe/film/heat/\n");
         $zip->addEmptyDir('lists');
-        $zip->addFromString('lists/a-voir.csv', "Letterboxd list export v7\nDate,Name,Tags,URL,Description\n");
+        $zip->addFromString('lists/a-voir.csv', self::listFile('À voir', ['heat', 'arrival']));
+        // A list its owner happened to call "diary": it must not overwrite the real one.
+        $zip->addFromString('lists/diary.csv', self::listFile('Diary', ['heat']));
         $zip->close();
 
         return $path;
+    }
+
+    /**
+     * @param list<string> $slugs
+     */
+    private static function listFile(string $name, array $slugs): string
+    {
+        $lines = ['Letterboxd list export v7', 'Date,Name,Tags,URL,Description', "2026-10-11,{$name},,https://boxd.it/zz{$name},", '', 'Position,Name,Year,URL,Description'];
+        foreach ($slugs as $index => $slug) {
+            $lines[] = sprintf('%d,%s,2000,https://letterboxd.com/film/%s/,', $index + 1, ucfirst($slug), $slug);
+        }
+
+        return implode("\r\n", $lines)."\r\n";
     }
 
     private function login(string $email = self::EMAIL, string $password = self::PASSWORD): void

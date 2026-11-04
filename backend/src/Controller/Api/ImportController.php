@@ -6,7 +6,6 @@ namespace App\Controller\Api;
 
 use App\DTO\ImportFileReportDto;
 use App\Entity\Enum\ImportFileStatus;
-use App\Entity\Enum\ImportFileType;
 use App\Entity\ImportBatch;
 use App\Exception\ImportException;
 use App\Mapper\ImportBatchMapper;
@@ -15,6 +14,7 @@ use App\Repository\ImportBatchRepository;
 use App\Service\Import\CsvReader;
 use App\Service\Import\ExportArchiveEntry;
 use App\Service\Import\ExportArchiveReader;
+use App\Service\Import\ImporterInterface;
 use App\Service\Import\ImporterRegistry;
 use App\Service\Profile\ViewedProfileResolver;
 use Doctrine\ORM\EntityManagerInterface;
@@ -103,7 +103,7 @@ final class ImportController
             $batch = new ImportBatch($user, $entry->path, $entry->storedPath, $importer->getFileType());
             $this->entityManager->persist($batch);
             $batches[] = $batch;
-            $files[] = $this->report($entry, ImportFileStatus::QUEUED, $importer->getFileType(), null);
+            $files[] = $this->report($entry, ImportFileStatus::QUEUED, $importer, null);
         }
 
         $this->entityManager->flush();
@@ -149,7 +149,7 @@ final class ImportController
      * there to account for every file, and a file it could not open is one more thing to
      * account for rather than a reason to fail the upload.
      */
-    private function report(ExportArchiveEntry $entry, ImportFileStatus $status, ?ImportFileType $fileType, ?string $reason): ImportFileReportDto
+    private function report(ExportArchiveEntry $entry, ImportFileStatus $status, ?ImporterInterface $importer, ?string $reason): ImportFileReportDto
     {
         $columns = [];
         $rowCount = null;
@@ -157,12 +157,16 @@ final class ImportController
         if (null !== $entry->readablePath) {
             try {
                 $columns = array_values(array_filter($this->csvReader->readHeader($entry->readablePath), static fn (string $column) => '' !== $column));
-                $rowCount = $this->csvReader->countDataRows($entry->readablePath);
+                // The importer's own count when one took the file, so the inventory and the
+                // progress bar agree: a list's films, not its lines.
+                $rowCount = null !== $importer
+                    ? $importer->countRows($entry->readablePath)
+                    : $this->csvReader->countDataRows($entry->readablePath);
             } catch (ImportException) {
                 $reason ??= 'Fichier illisible.';
             }
         }
 
-        return new ImportFileReportDto($entry->path, $status, $fileType, $reason, $columns, $rowCount);
+        return new ImportFileReportDto($entry->path, $status, $importer?->getFileType(), $reason, $columns, $rowCount);
     }
 }
