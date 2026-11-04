@@ -65,9 +65,13 @@ final class ImportController
             return new JsonResponse(['error' => 'Impossible de créer le répertoire de stockage temporaire.'], Response::HTTP_INTERNAL_SERVER_ERROR);
         }
 
-        $csvFiles = 'zip' === $extension
-            ? $this->extractZip($file, $sessionDir)
-            : [$file->getClientOriginalName() => $file->move($sessionDir, $file->getClientOriginalName())->getPathname()];
+        try {
+            $csvFiles = 'zip' === $extension
+                ? $this->extractZip($file, $sessionDir)
+                : [$file->getClientOriginalName() => $file->move($sessionDir, $file->getClientOriginalName())->getPathname()];
+        } catch (ImportException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
 
         $batches = [];
         $unsupported = [];

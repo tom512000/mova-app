@@ -87,6 +87,25 @@ final class ImportControllerTest extends WebTestCase
         }
     }
 
+    public function testAnArchiveThatIsNotOneIsRefused(): void
+    {
+        $path = tempnam(sys_get_temp_dir(), 'broken');
+        file_put_contents($path, 'not a zip at all');
+
+        try {
+            $this->client->request(
+                'POST',
+                '/api/import/letterboxd',
+                files: ['file' => new UploadedFile($path, 'export.zip', 'application/zip', test: true)]
+            );
+        } finally {
+            @unlink($path);
+        }
+
+        // A 422 that says so, rather than the 500 an unreadable archive used to raise.
+        self::assertResponseStatusCodeSame(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
     public function testTheQueuedWorkOrderCarriesTheBatchIdAsAString(): void
     {
         $this->upload();
