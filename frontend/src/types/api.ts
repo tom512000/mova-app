@@ -12,7 +12,7 @@ export type MediaType = 'movie' | 'series'
  * because a v7's leading bits are a timestamp.
  */
 export type Id = string
-export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'list'
+export type ImportFileType = 'diary' | 'ratings' | 'watched' | 'reviews' | 'watchlist' | 'profile' | 'list'
 export type ImportStatus = 'pending' | 'processing' | 'completed' | 'completed_with_errors' | 'failed'
 
 export interface SyncState {
