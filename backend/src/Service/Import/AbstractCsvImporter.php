@@ -22,6 +22,11 @@ abstract class AbstractCsvImporter implements ImporterInterface
     ) {
     }
 
+    public function countRows(string $filepath): int
+    {
+        return $this->csvReader->countDataRows($filepath);
+    }
+
     /**
      * @return list<string>
      */

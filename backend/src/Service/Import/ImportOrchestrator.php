@@ -17,7 +17,6 @@ final class ImportOrchestrator
 {
     public function __construct(
         private readonly ImporterRegistry $importerRegistry,
-        private readonly CsvReader $csvReader,
         private readonly EntityManagerInterface $entityManager,
         private readonly MovieRepository $movieRepository,
         private readonly MessageBusInterface $messageBus,
@@ -36,7 +35,7 @@ final class ImportOrchestrator
             // This run's tallies start here. A batch reaching this line for the second time
             // is a redelivered message about to re-read the whole file, and its counts
             // describe that pass — not the sum of every attempt at it.
-            $batch->setRowsTotal($this->csvReader->countDataRows($batch->getStoredPath()));
+            $batch->setRowsTotal($importer->countRows($batch->getStoredPath()));
             $batch->resetTallies();
 
             $touchedMovieIds = $importer->import($batch->getStoredPath(), $batch);

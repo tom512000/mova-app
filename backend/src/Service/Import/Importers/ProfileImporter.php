@@ -53,6 +53,11 @@ final class ProfileImporter implements ImporterInterface
         return ImportFileType::PROFILE;
     }
 
+    public function countRows(string $filepath): int
+    {
+        return $this->csvReader->countDataRows($filepath);
+    }
+
     public function supports(string $filename, array $header): bool
     {
         // Filename-exact, like every other importer here: column-shape heuristics have
