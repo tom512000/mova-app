@@ -151,7 +151,8 @@ final class MovieMapper
         );
     }
 
-    private function posterUrl(?string $path): ?string
+    /** Public for the list covers, which read poster paths straight from SQL. */
+    public function posterUrl(?string $path): ?string
     {
         return null !== $path ? "{$this->imageBaseUrl}/w342{$path}" : null;
     }
