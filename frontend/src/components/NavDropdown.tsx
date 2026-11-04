@@ -24,8 +24,11 @@ export function NavDropdown({
 }: {
   label: string
   items: NavDropdownEntry[]
-  /** Path prefix that lights the trigger up, e.g. '/games'. */
-  matchPrefix: string
+  /**
+   * Path prefix that lights the trigger up, e.g. '/games' — or several, for a menu that
+   * gathers pages living under unrelated paths.
+   */
+  matchPrefix: string | readonly string[]
 }) {
   const [isOpen, setIsOpen] = useState(false)
   const [maxHeight, setMaxHeight] = useState<number>()
@@ -34,7 +37,8 @@ export function NavDropdown({
   const menuId = useId()
   const { pathname } = useLocation()
 
-  const isActive = pathname.startsWith(matchPrefix)
+  const prefixes: readonly string[] = typeof matchPrefix === 'string' ? [matchPrefix] : matchPrefix
+  const isActive = prefixes.some((prefix) => pathname.startsWith(prefix))
 
   /**
    * Caps the menu at whatever room is left below it, so a long one scrolls instead of

@@ -21,7 +21,7 @@ interface NavLinkItem {
 
 interface NavMenuItem {
   label: string
-  matchPrefix: string
+  matchPrefix: string | readonly string[]
   items: NavDropdownEntry[]
   ownerOnly?: boolean
 }
@@ -35,15 +35,24 @@ const NAV_ITEMS: NavItem[] = [
   // two axes, and neither is a subsection of the other.
   { to: '/people', label: 'Personnes' },
   { to: '/watchlist', label: 'Watchlist' },
-  // Read-only like the listings, so it stays available while viewing someone else's profile.
-  { to: '/museum', label: 'Musée' },
-  // Read-only too: it reports on a year of the viewed profile, so it has something to say
-  // about somebody else's library just as much as about your own.
-  { to: '/retrospective', label: 'Rétrospective' },
-  // Deliberately not ownerOnly, unlike the games. Collecting is a write and disappears with
-  // the profile, but an album and a showcase are the whole reason the Cabinet points
-  // outward at all — so the page stays and hides its own till instead.
-  { to: '/cabinet', label: 'Cabinet' },
+  // The special issues: three pages that are not a way of browsing the library but
+  // something made out of it. A newspaper calls those hors-séries, and grouping them is what
+  // keeps the bar to one line now that Listes has joined it.
+  //
+  // None is ownerOnly. The museum and the retrospective are read-only and report on the
+  // viewed profile. The Cabinet is deliberately not ownerOnly either, unlike the games:
+  // collecting is a write and disappears with the profile, but an album and a showcase are
+  // the whole reason the Cabinet points outward at all — so the page stays and hides its
+  // own till instead.
+  {
+    label: 'Hors-série',
+    matchPrefix: ['/museum', '/retrospective', '/cabinet'],
+    items: [
+      { to: '/museum', label: 'Le musée', hint: 'Toutes tes affiches sur un seul mur' },
+      { to: '/retrospective', label: 'La rétrospective', hint: 'Ton année de cinéma, en une page' },
+      { to: '/cabinet', label: 'Le Cabinet', hint: 'Des cartes à collectionner tirées de ta cinémathèque' },
+    ],
+  },
   // Games are played, not browsed: like Import they act on the logged-in account, so they
   // go away while another profile is being viewed rather than pretending to act on it.
   {
