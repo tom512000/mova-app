@@ -30,14 +30,15 @@ partage.
   - [La rétrospective annuelle](#7-la-rétrospective-annuelle)
   - [Le musée](#8-le-musée)
   - [Watchlist](#9-watchlist--quest-ce-que-je-regarde-ce-soir-)
-  - [Import Letterboxd](#10-import-letterboxd)
-  - [Enrichissement TMDB](#11-enrichissement-tmdb)
-  - [Synchronisation RSS](#12-synchronisation-rss)
-  - [Les jeux](#13-les-jeux)
-  - [Le Cabinet](#14-le-cabinet)
-  - [Profils partagés](#15-profils-partagés)
-  - [Compte et authentification](#16-compte-et-authentification)
-  - [Identité visuelle](#17-identité-visuelle)
+  - [Listes](#10-listes)
+  - [Import Letterboxd](#11-import-letterboxd)
+  - [Enrichissement TMDB](#12-enrichissement-tmdb)
+  - [Synchronisation RSS](#13-synchronisation-rss)
+  - [Les jeux](#14-les-jeux)
+  - [Le Cabinet](#15-le-cabinet)
+  - [Profils partagés](#16-profils-partagés)
+  - [Compte et authentification](#17-compte-et-authentification)
+  - [Identité visuelle](#18-identité-visuelle)
 - [Modèle de données](#modèle-de-données)
 - [Surface d'API](#surface-dapi)
 - [Référencement et mise en ligne](#référencement-et-mise-en-ligne)
@@ -61,10 +62,10 @@ partage.
 | Symfony Scheduler | 7.4 | Tâches récurrentes (synchro RSS horaire) |
 | Doctrine ORM | 3.6.8 | Mapping par attributs |
 | Doctrine DBAL | 4.4.4 | SQL brut pour toutes les agrégations statistiques |
-| Doctrine Migrations | 3.7 | 24 migrations versionnées |
+| Doctrine Migrations | 3.7 | 25 migrations versionnées |
 | NelmioCorsBundle | 2.6 | CORS pour le SPA |
 | Monolog | 4.0 | Journalisation |
-| PHPUnit | 11.5.56 | 619 tests, 23 438 assertions |
+| PHPUnit | 11.5.56 | 644 tests, 23 566 assertions |
 
 ### Frontend
 
@@ -550,8 +551,8 @@ en tête du classement de l'année.
 
 ### 7. La rétrospective annuelle
 
-Le rituel de fin d'année de Letterboxd, en local. Une page par année, atteignable depuis la
-barre de navigation et depuis un bandeau en tête du dashboard qui porte déjà les chiffres de
+Le rituel de fin d'année de Letterboxd, en local. Une page par année, atteignable depuis le
+menu **Hors-série** de la barre de navigation et depuis un bandeau en tête du dashboard qui porte déjà les chiffres de
 l'année en cours — un bandeau qui annoncerait seulement une page serait une publicité, celui-ci
 est déjà une partie de la réponse.
 
@@ -631,12 +632,66 @@ molette ou au glisser.
 - **Recherche** par titre.
 - Les facettes exposent aussi la durée la plus courte et la plus longue de la watchlist.
 
-### 10. Import Letterboxd
+### 10. Listes
+
+Les listes Letterboxd, relues à la lumière de ce qui a déjà été vu. Une liste sur Letterboxd est une
+liste de titres ; ici, c'est aussi une progression : combien en sont vus, ce qu'il reste, combien de
+temps ça représente.
+
+**L'index** — une carte par liste, la plus récente en tête.
+- **Une couverture en éventail** : les cinq premières affiches dans l'ordre de la liste, posées en
+  chevauchement, la première dessus. Au survol, elles s'écartent et reprennent leurs couleurs.
+  L'éventail est fait de décalages et jamais de rotations : la règle des angles droits tient
+  jusque-là. Une œuvre sans affiche est sautée plutôt que dessinée comme un trou : une couverture,
+  c'est quelques images, pas l'inventaire de ce qui manque chez TMDB.
+- **Un numéro courant** (« N° 03 »), comme un journal numérote ses colonnes. Il donne un ordre de
+  lecture à une page de couvertures sans prétendre classer les listes.
+- Nom, description, étiquettes, et une **barre de progression** qui se remplit à l'encre.
+- En tête de page, le total des listes, des œuvres qu'elles contiennent et la part déjà vue. Une
+  œuvre présente sur deux listes y compte deux fois : ce chiffre additionne des listes, pas la
+  bibliothèque.
+
+**La fiche d'une liste** — construite comme « Films et séries », parce que c'en est une vue.
+- **En-tête** : nom, description avec ses paragraphes, étiquettes, lien vers la liste sur
+  Letterboxd, dates de création et de dernier import.
+- **Quatre chiffres** : œuvres (films et séries détaillés), déjà vues, **reste à voir** en durée,
+  et ta note moyenne.
+  - Le reste à voir ne compte que les **films non vus**. La durée d'une série est celle de la
+    série entière et écraserait le reste. Les films dont TMDB ignore la durée sont annoncés à
+    part (« + 3 sans durée connue »), pour que le chiffre se lise comme un plancher et non comme
+    un total.
+  - La moyenne est prise **par œuvre** : un film revu quatre fois ne tire pas la note de la liste
+    vers la sienne.
+- **Filtres** : recherche par titre, statut (toute la liste, à voir, déjà vues), type et genre. Le
+  type n'apparaît que si la liste mélange films et séries, et les genres sont ceux que ses œuvres
+  portent réellement : aucun choix qui viderait la page.
+- **Six tris**, dont l'**ordre de la liste** par défaut : pour une liste classée, l'ordre *est* la
+  liste. Puis titre, année, ta note, durée et aléatoire, avec la même graine stable que la
+  bibliothèque. L'ordre de la liste départage tous les autres tris, si bien que deux films de la
+  même année restent dans l'ordre où leur propriétaire les a mis.
+- Chaque carte porte son **rang** dans le coin bas gauche et un tampon **« Vu »** dans le coin bas
+  droit. Les deux coins du haut étaient déjà pris par l'état d'enrichissement et le badge série.
+  La note propre à une entrée, quand la liste en porte une, s'affiche sous la carte.
+- Filtrer sur « À voir » une liste entièrement vue affiche « Liste terminée » plutôt qu'une page
+  vide.
+
+**Une liste partagée** se lit comme tout le reste d'un profil partagé : avec la progression et les
+notes de son **propriétaire**. Mêler les deux bibliothèques sur une même page donnerait des
+étoiles de l'un à côté d'un compteur de l'autre.
+
+**La navigation** a été réorganisée à cette occasion. Listes prend place entre Watchlist et Jeux,
+et le musée, la rétrospective et le Cabinet passent dans un menu **Hors-série**, au sens où un
+journal appelle ainsi ses numéros spéciaux : ce ne sont pas des façons de parcourir la
+bibliothèque, mais des choses fabriquées à partir d'elle. Le regroupement est aussi ce qui garde la
+barre sur une ligne. Aucun des trois n'est réservé au propriétaire, si bien que le menu reste
+pendant la consultation d'un profil tiers.
+
+### 11. Import Letterboxd
 
 Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le fichier est stocké, un
 `ImportBatch` est créé, et le traitement part en tâche de fond via Messenger.
 
-**Six types de fichiers pris en charge**, traités dans un ordre imposé :
+**Sept types de fichiers pris en charge**, traités dans un ordre imposé :
 
 | Ordre | Fichier | Ce qu'il apporte |
 |---|---|---|
@@ -646,16 +701,72 @@ Dépôt d'un `.zip` d'export complet ou d'un `.csv` isolé, jusqu'à 100 Mo. Le 
 | 3 | `reviews.csv` | Les critiques et leurs étiquettes |
 | 4 | `watchlist.csv` | La watchlist |
 | 5 | `profile.csv` | Le profil Letterboxd et ses quatre films favoris |
+| 6 | `lists/*.csv` | Une liste par fichier : son nom, sa description, ses films dans l'ordre |
 
-Un septième type — les CSV de listes personnelles — est déclaré dans l'énumération et a sa place
-dans l'ordre, mais n'a pas encore d'importeur : un tel fichier est rejeté avec un message nommant
-ses colonnes. La reconnaissance se fait sur le nom **et** l'en-tête du fichier, et ajouter un type
-ne demande qu'une classe de plus : elle est découverte automatiquement.
+La reconnaissance se fait sur le nom **et** l'en-tête du fichier, et ajouter un type ne demande
+qu'une classe de plus : elle est découverte automatiquement.
 
 L'ordre n'est pas cosmétique : `ratings.csv` et `watched.csv` ne créent un visionnage que si le
 film n'en a aucun, donc `diary.csv` — la source la plus détaillée — doit avoir fini avant eux.
-`profile.csv` passe en dernier pour retrouver des films déjà nommés plutôt que de créer des ébauches
-portant leur slug.
+`profile.csv` et les listes passent en dernier pour retrouver des films déjà nommés plutôt que de
+créer des ébauches portant leur slug.
+
+**Les listes** sont le seul type reconnu à son contenu plutôt qu'à son nom. Tous les autres
+importeurs exigent un nom de fichier exact, parce que leurs colonnes se recouvrent. Un fichier de
+liste, lui, porte le nom que sa propriétaire a choisi, et ce nom pourrait être n'importe quoi,
+« diary » compris. Il s'ouvre en revanche sur une signature qu'aucun autre export ne porte
+(`Letterboxd list export v7`). Reconnaître la signature, et non la version qui la suit, fait aussi
+qu'une liste exportée seule depuis sa page Letterboxd s'importe de la même façon.
+- **Deux CSV empilés dans un fichier** : le bloc de la liste (date, nom, étiquettes, lien,
+  description), une ligne vide, puis le bloc des films (position, titre, année, lien, note). Un
+  lecteur dédié s'en charge, et le **compte de lignes appartient désormais à l'importeur** et non au
+  lecteur CSV générique : compter la signature et les métadonnées comme des lignes aurait laissé
+  chaque import de liste bloqué sous les 100 %.
+- **Identifiée par son lien `boxd.it`**, pas par son nom. Le nom est la première chose qu'on
+  modifie sur une liste ; s'en servir de clé aurait transformé chaque renommage en seconde copie,
+  la première restant en plan.
+- **Un instantané, comme la watchlist** : chaque import décrit la liste telle qu'elle est, donc un
+  film qu'elle ne nomme plus en est sorti. Les entrées sont mises à jour sur place plutôt que
+  supprimées puis recréées, car Doctrine exécute les insertions avant les suppressions et
+  recréer un film encore présent heurterait sa propre ancienne ligne.
+- **Rien n'est retiré quand une ligne a échoué.** Un lien qui ne se résout pas cette fois-ci
+  (`boxd.it` indisponible, coupure réseau) n'est pas un film sorti de la liste, et lire cette
+  absence comme un retrait le supprimerait jusqu'au prochain import. À l'inverse d'un
+  `watchlist.csv` vide, une liste vide est un vrai cas, que Letterboxd exporte comme un bloc de
+  liste sans bloc de films : elle vide bien la copie stockée.
+
+**L'inventaire de l'archive.** Un dépôt répond par la liste de **tous** les fichiers qu'il
+contenait, lus ou non, avec pour chacun ses colonnes, son nombre de lignes et, s'il n'a pas été
+lu, la raison. Auparavant, l'archive était filtrée à l'extraction : les sous-dossiers et les
+fichiers non-CSV disparaissaient avant que quoi que ce soit puisse les signaler. Le dépôt
+annonçait donc `comments.csv`, et rien d'autre, sur un export réel qui laissait quinze fichiers
+de côté. Trois statuts, parce qu'ils appellent trois travaux différents :
+
+| Statut | Sens | Ce qu'il faudrait pour le lire |
+|---|---|---|
+| Importé | Un importeur l'a reconnu, un `ImportBatch` attend le worker | — |
+| Pas encore pris en charge | CSV proposé à tous les importeurs, aucun ne l'a reconnu | Un importeur de plus |
+| Non lu | Jamais proposé : sous-dossier non extrait, ou pas un CSV | Décider d'abord que l'import doit regarder là |
+
+Les colonnes et le nombre de lignes sont donnés justement pour les fichiers non lus : décider si un
+fichier mérite un importeur commence par savoir ce qu'il contient, sans devoir dézipper l'export à
+la main. Pour un fichier importé, le compte est celui de l'importeur, le même que la barre de
+progression utilisera.
+
+- **Seuls la racine et `lists/` sont extraits**, et un fichier de sous-dossier garde son dossier sur
+  le disque. Un export Letterboxd réutilise les noms de la racine dans ses sous-dossiers
+  (`deleted/diary.csv`, `likes/films.csv`, qui a exactement les colonnes de `watched.csv`) :
+  extraire par nom de base laisserait l'un écraser l'autre, et une liste nommée « diary »
+  remplacerait le vrai journal. Les autres sous-dossiers sont lus sur place dans l'archive,
+  uniquement pour l'inventaire.
+- **`deleted/` et `orphaned/` sont masqués**, pas seulement ignorés. `deleted/` contient ce que la
+  personne a elle-même supprimé sur Letterboxd : l'importer reviendrait à annuler sa décision, et
+  une ligne par fichier reposerait sans fin une question déjà tranchée. `orphaned/` n'est
+  documenté nulle part. Ses fichiers reprennent les colonnes du journal et des critiques, et la
+  lecture la plus probable est celle d'entrées dont le film a quitté le catalogue Letterboxd :
+  sans page de film, pas de slug à résoudre, donc rien que l'enrichissement puisse compléter.
+- Une archive illisible est refusée avec un **422** qui le dit, au lieu de l'erreur 500 qu'elle
+  provoquait.
 
 **La renotation.** C'est le point le plus délicat du pipeline. Letterboxd n'écrit une entrée de
 journal que si l'on passe par « Log this film ». Renoter un film depuis sa page **réécrit sur place**
@@ -708,7 +819,7 @@ unique le perdrait définitivement.
   sans eux, un même film ou une même étiquette apparaissant deux fois dans un lot serait inséré deux
   fois avant le premier `flush`, et violerait la contrainte d'unicité.
 
-### 11. Enrichissement TMDB
+### 12. Enrichissement TMDB
 
 Un export Letterboxd ne contient aucun identifiant TMDB. La résolution se fait en trois temps, par
 message asynchrone et par film :
@@ -764,7 +875,7 @@ producteur·rice·s, rattrapage des sagas. Les rattrapages existent pour ne **pa
 réenrichir : un réenrichissement réécrirait aussi le titre, l'affiche et les crédits, y compris
 sur les lignes corrigées à la main via `app:tmdb:audit-matches`.
 
-### 12. Synchronisation RSS
+### 13. Synchronisation RSS
 
 Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux exports.
 
@@ -807,7 +918,7 @@ Le flux RSS du journal Letterboxd sert de synchronisation continue entre deux ex
     redémarrage, au plus tard dans l'heure — c'est écrit sous la case, sans quoi le délai se lirait
     comme un réglage non sauvegardé.
 
-### 13. Les jeux
+### 14. Les jeux
 
 Huit jeux, tous construits sur **la bibliothèque de la personne qui joue** — donc sur des films
 qu'elle a vraiment vus. Chacun se joue en **mode quotidien** (une grille par jour, la même du premier
@@ -859,7 +970,7 @@ Chaque jeu refuse de démarrer avec un message qui lui est propre quand la bibli
 fournir — pas d'accroche connue, pas de titre d'au moins quatre lettres, pas deux films notés
 différemment, pas cinq films de cinq années distinctes.
 
-### 14. Le Cabinet
+### 15. Le Cabinet
 
 Un jeu de collection de cartes bâti **entièrement sur la bibliothèque du compte**, inspiré de
 [WikiMasters](https://www.wiki-masters.com). Ouvert à partir de **500 œuvres vues**. Quatre sujets
@@ -937,7 +1048,7 @@ garantissait déjà une partie par tableau et par jour.
 
 ---
 
-### 15. Profils partagés
+### 16. Profils partagés
 
 - **Un lien de partage durable par compte**, régénérable à volonté.
 - Ouvrir le lien ne révèle rien par soi-même : il permet à une personne **déjà connectée** de
@@ -954,7 +1065,7 @@ garantissait déjà une partie par tableau et par jour.
   profil tiers, plutôt que de faire semblant d'agir dessus.
 - Une bannière signale en permanence le profil consulté et son caractère lecture seule.
 
-### 16. Compte et authentification
+### 17. Compte et authentification
 
 - Inscription, connexion, déconnexion, changement de mot de passe.
 - **Authentification par session** plutôt que par jeton : le SPA et l'API sont sur le même site dans
@@ -967,7 +1078,7 @@ garantissait déjà une partie par tableau et par jour.
   films favoris dans leurs emplacements numérotés. Conservé séparément du compte applicatif : c'est
   un instantané, remplacé en bloc au prochain import, et qui ne doit jamais approcher un identifiant.
 
-### 17. Identité visuelle
+### 18. Identité visuelle
 
 Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
@@ -994,7 +1105,7 @@ Un thème « newsprint » — journal imprimé — appliqué de bout en bout.
 
 ## Modèle de données
 
-25 entités, identifiants **UUID v7** (ordonnables dans le temps).
+27 entités, identifiants **UUID v7** (ordonnables dans le temps).
 
 **Bibliothèque** — `Movie` (films et séries dans une seule table, discriminées par `mediaType`),
 `Genre`, `Country`, `Studio`, `Person`, `Credit` (la personne, l'œuvre, le rôle, l'ordre au
@@ -1014,6 +1125,15 @@ saga avec une série qui n'a rien à voir.
 **Activité** — `Watch` (un visionnage : date, note, rewatch, critique, spoiler, source, référence
 externe, étiquettes), `Tag`, `WatchlistEntry`.
 
+**Listes** — `MovieList` (une liste Letterboxd : nom, description, étiquettes, date de création,
+dernier import ; unique par compte et par lien `boxd.it`) et `MovieListEntry` (une œuvre à sa
+place dans la liste, avec la note qui l'accompagne). Ni `List`, que PHP réserve, ni `Collection`,
+pour la raison qui a déjà nommé `Franchise`. Les entrées sont uniques sur **(liste, œuvre)** et
+volontairement pas sur **(liste, position)** : Letterboxd ne met pas deux fois le même film dans
+une liste, mais un import qui réordonne déplace des positions entre des lignes qui existent toutes
+encore, et une contrainte sur la position échouerait au milieu d'un échange. L'index sur
+(liste, position) reste, sans contrainte : c'est l'ordre que demande chaque lecture.
+
 **Le Cabinet** — `Card` (le catalogue de cartes d'un compte : quatre clés étrangères nullables
 plutôt qu'un identifiant polymorphe, pour qu'un film supprimé emporte sa carte au lieu de laisser
 une ligne qui pointe vers rien ; Postgres autorise les nuls répétés dans un index unique, ce qui
@@ -1032,12 +1152,14 @@ d'unicité sur le couple profil + position), `LetterboxdSyncState`.
 
 **Jeux** — `GameSession` (jeu, mode, date de grille, propositions, lettres, plateau, manches, statut).
 
-Seize énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus` sait
-si un état mérite une nouvelle tentative, `ImportFileType` sait dans quel ordre les fichiers doivent
-passer, `WatchSource` sait si un visionnage a été déclaré ou déduit, `GameKind` sait si un jeu se
-joue en nommant un film, `MovieSortField`, `WatchlistSortField` et `PersonSortField` savent dans quel
-sens un lectorat s'attend à lire chaque tri — et `CreditRole` sait dans quel ordre un générique
-nomme les métiers, ce que ni l'alphabet ni un `ARRAY_AGG` ne savent.
+Vingt-quatre énumérations PHP portent les règles métier au plus près des données : `EnrichmentStatus`
+sait si un état mérite une nouvelle tentative, `ImportFileType` sait dans quel ordre les fichiers
+doivent passer, `ImportFileStatus` distingue un fichier qu'aucun importeur ne reconnaît d'un fichier
+qu'on n'a jamais proposé aux importeurs, `WatchSource` sait si un visionnage a été déclaré ou
+déduit, `GameKind` sait si un jeu se joue en nommant un film, `MovieSortField`,
+`WatchlistSortField`, `PersonSortField` et `ListEntrySortField` savent dans quel sens un lectorat
+s'attend à lire chaque tri — et `CreditRole` sait dans quel ordre un générique nomme les métiers,
+ce que ni l'alphabet ni un `ARRAY_AGG` ne savent.
 
 ---
 
@@ -1055,8 +1177,9 @@ Tout est sous `/api`, en JSON, et tout sauf la connexion et l'inscription exige 
 | **Cabinet — lectures** | `GET /cards`, `/cards/facets`, `/cards/sets`, `/cards/feats`, `/cards/showcase`, `/cards/packs/recent`, `/cards/{id}`. Toutes résolvent le *profil consulté* : une vitrine partagée est celle de son propriétaire. Aucune n'applique le seuil des 500 œuvres — en dessous elles répondent 200 avec une charge vide et verrouillée, ce qui est exactement l'état qu'un client doit pouvoir dessiner |
 | **Cabinet — écritures** | `GET /cards/cabinet`, `POST /cards/cabinet/daily`, `POST /cards/cabinet/packs/{free\|reel\|boxset}`, `POST /cards/cabinet/sets/claim`, `PUT /cards/cabinet/showcase`, `POST /cards/cabinet/rebuild`. Toutes résolvent le *compte authentifié* : un `profileId` forgé ne peut pas ouvrir un paquet sur la bibliothèque d'autrui. Le type de paquet est contraint dans la route, donc `packs/mythique` est un 404 et non un refus |
 | **Watchlist** | `GET /watchlist`, `GET /watchlist/facets`, `GET /watchlist/pick` |
+| **Listes** | `GET /lists`, `GET /lists/{id}`, `GET /lists/{id}/entries`. L'index n'est pas paginé : un compte tient quelques dizaines de listes, et la page est un mur de couvertures à parcourir, pas un tableau à feuilleter. L'en-tête et les œuvres sont séparés comme la fiche d'une personne l'est de sa filmographie : la grille se recharge à chaque filtre, l'en-tête n'en a aucune raison. La liste d'un autre compte est introuvable (404) plutôt que refusée, pour que la réponse ne confirme pas son existence |
 | **Statistiques** | `GET /stats/overview`, `/timeline`, `/ratings`, `/genres`, `/directors`, `/creators`, `/actors`, `/writers`, `/producers`, `/decades`, `/budgets`, `/studios`, `/divergence`, `/franchises` (`?upcoming=1` pour compter les films pas encore sortis), `/countries`, `/activity`, `/at-release`, `/discoveries` (`?year=`), `/retrospective` |
-| **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}` |
+| **Import** | `POST /import/letterboxd`, `GET /import`, `GET /import/{id}`. Le dépôt répond 202 avec les lots créés **et** `files`, l'inventaire de tout ce que l'archive contenait |
 | **Synchro** | `GET /sync/letterboxd`, `PUT /sync/letterboxd` (pseudo et synchro auto), `POST /sync/letterboxd` (déclenchement) |
 | **Profils** | `GET /profiles`, `GET /profiles/letterboxd`, `GET`/`POST /profiles/share-link`, `POST /profiles/share-link/rotate`, `POST /profiles/share-link/{token}/accept`, `DELETE /profiles/{id}/access` |
 | **Santé** | `GET /health` — la seule route publique sous `/api`, pour la sonde du conteneur |
@@ -1274,7 +1397,7 @@ plus.
 
 ## Qualité
 
-- **619 tests, 23 438 assertions**, répartis en trois couches : unitaires (logique pure —
+- **644 tests, 23 566 assertions**, répartis en trois couches : unitaires (logique pure —
   pixellisation, comparaison, pendu, normalisation de titres, mathématiques statistiques, traduction
   des pays et des genres TV), intégration (importeurs, orchestrateur, synchro RSS, statistiques de
   fenêtre de sortie) et fonctionnels (contrôleurs HTTP de bout en bout, avec transaction annulée
