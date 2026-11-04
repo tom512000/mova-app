@@ -10,7 +10,20 @@ const STATUS_LABEL: Partial<Record<MovieSummary['enrichmentStatus'], string>> = 
   excluded: 'Non trouvé sur TMDB',
 }
 
-export function MovieCard({ movie }: { movie: MovieSummary }) {
+export function MovieCard({
+  movie,
+  position,
+  markWatched = false,
+}: {
+  movie: MovieSummary
+  /** A list's own numbering, printed on the poster like a ranking in a column. */
+  position?: number
+  /**
+   * Flags what has been seen. Only where the page mixes the seen and the unseen — a list —
+   * since the library is all seen and the watchlist none of it.
+   */
+  markWatched?: boolean
+}) {
   const statusLabel = STATUS_LABEL[movie.enrichmentStatus]
 
   return (
@@ -38,6 +51,17 @@ export function MovieCard({ movie }: { movie: MovieSummary }) {
         {movie.mediaType === 'series' && (
           <Badge variant="solid" className="absolute right-2 top-2">
             Série
+          </Badge>
+        )}
+        {/* The bottom corners, since the top two are already spoken for. */}
+        {position !== undefined && (
+          <span className="absolute bottom-0 left-0 border-r border-t border-ink bg-paper px-2 py-0.5 font-serif text-lg font-black leading-tight tabular-nums">
+            {position}
+          </span>
+        )}
+        {markWatched && movie.watchCount > 0 && (
+          <Badge variant="solid" className="absolute bottom-2 right-2">
+            Vu
           </Badge>
         )}
       </div>

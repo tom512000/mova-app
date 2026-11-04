@@ -43,6 +43,58 @@ export interface MovieSummary {
   mediaType: MediaType
 }
 
+/** A Letterboxd list, as the index shows it. */
+export interface MovieListSummary {
+  id: string
+  name: string
+  description: string | null
+  tags: string[]
+  letterboxdUrl: string
+  /** ISO day the list was created on Letterboxd. */
+  createdOn: string | null
+  workCount: number
+  /** Works the list's owner has seen. */
+  watchedCount: number
+  /** The first few posters, in the list's own order. */
+  posterUrls: string[]
+}
+
+export interface MovieListDetail {
+  id: string
+  name: string
+  description: string | null
+  tags: string[]
+  letterboxdUrl: string
+  createdOn: string | null
+  importedAt: string
+  workCount: number
+  movieCount: number
+  seriesCount: number
+  watchedCount: number
+  /** Films only, unwatched only. A floor when remainingWithoutRuntime is above zero. */
+  remainingRuntimeMinutes: number | null
+  remainingWithoutRuntime: number
+  /** Per work, not per viewing. */
+  averageRating: number | null
+  genres: string[]
+}
+
+export interface MovieListEntry {
+  position: number
+  /** The note a list can carry beside each film. */
+  note: string | null
+  movie: MovieSummary
+}
+
+export interface MovieListEntriesResponse {
+  items: MovieListEntry[]
+  total: number
+  page: number
+  perPage: number
+}
+
+export type ListEntrySortField = 'position' | 'title' | 'year' | 'rating' | 'runtime' | 'random'
+
 export type GameKind =
   | 'clue'
   | 'compare'

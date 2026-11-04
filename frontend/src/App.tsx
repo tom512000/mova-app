@@ -36,6 +36,8 @@ const CardSetsPage = lazy(() => import('@/pages/CardSetsPage').then((m) => ({ de
 const CardPage = lazy(() => import('@/pages/CardPage').then((m) => ({ default: m.CardPage })))
 const PeoplePage = lazy(() => import('@/pages/PeoplePage').then((m) => ({ default: m.PeoplePage })))
 const PersonPage = lazy(() => import('@/pages/PersonPage').then((m) => ({ default: m.PersonPage })))
+const ListsPage = lazy(() => import('@/pages/ListsPage').then((m) => ({ default: m.ListsPage })))
+const ListPage = lazy(() => import('@/pages/ListPage').then((m) => ({ default: m.ListPage })))
 const RetrospectivePage = lazy(() =>
   import('@/pages/RetrospectivePage').then((m) => ({ default: m.RetrospectivePage }))
 )
@@ -67,6 +69,8 @@ export function App() {
             <Route path="people" element={<PeoplePage />} />
             <Route path="people/:id" element={<PersonPage />} />
             <Route path="watchlist" element={<WatchlistPage />} />
+            <Route path="lists" element={<ListsPage />} />
+            <Route path="lists/:id" element={<ListPage />} />
             <Route path="museum" element={<MuseumPage />} />
             <Route path="retrospective" element={<RetrospectivePage />} />
             <Route path="games/clue/:mode" element={<ClueGamePage />} />

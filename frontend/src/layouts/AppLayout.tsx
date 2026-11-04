@@ -35,6 +35,8 @@ const NAV_ITEMS: NavItem[] = [
   // two axes, and neither is a subsection of the other.
   { to: '/people', label: 'Personnes' },
   { to: '/watchlist', label: 'Watchlist' },
+  // Read-only like the other listings, so it stays while viewing someone else's profile.
+  { to: '/lists', label: 'Listes' },
   // The special issues: three pages that are not a way of browsing the library but
   // something made out of it. A newspaper calls those hors-séries, and grouping them is what
   // keeps the bar to one line now that Listes has joined it.
